@@ -49,13 +49,13 @@
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">主机名称 *</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">服务器名称 *</label>
                     <input type="text" name="name" id="hostName" required
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="例如: host1">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">主机类型 *</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">服务器类型 *</label>
                     <select name="type" id="hostType" required
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         <option value="">请选择类型</option>
@@ -71,7 +71,7 @@
                         placeholder="例如: localhost:8697">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">服务器用户</label>
                     <input type="text" name="server_user" id="serverUser"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="例如: root">
@@ -80,13 +80,13 @@
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">密码</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">服务器密码</label>
                     <input type="password" name="server_pass" id="serverPass"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="服务器密码">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">过滤器名称</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">虚拟机前缀</label>
                     <input type="text" name="filter_name" id="filterName"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="过滤器名称">
@@ -134,11 +134,33 @@
                         placeholder="虚拟化程序路径">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">NAT网络</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">共享IP设备名</label>
                     <input type="text" name="network_nat" id="networkNat"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="例如: nat">
                 </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">独立IP设备名</label>
+                    <input type="text" name="network_pub" id="networkPub"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="例如: pub">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">服务器公网IP</label>
+                    <input type="text" name="public_addr" id="publicAddr"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="例如: 192.168.1.1, 2001:db8::1">
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">API扩展选项 (JSON格式)</label>
+                <textarea name="extend_data" id="extendData" rows="2"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder='{"key": "value"}'></textarea>
             </div>
             
             <div class="modal-action">
@@ -188,6 +210,36 @@
 <script>
     let engineTypes = {};
     let currentDeleteHost = '';
+    
+    // 渲染公网IP地址（带复制功能）
+    function renderPublicAddr(addrs) {
+        if (!addrs || !Array.isArray(addrs) || addrs.length === 0) {
+            return '未配置';
+        }
+        return addrs.map(ip => 
+            `<span class="cursor-pointer hover:text-blue-600 inline-flex items-center gap-1" onclick="copyToClipboard('${ip}')" title="点击复制">${ip}<span class="iconify text-gray-400 hover:text-blue-600" data-icon="mdi:content-copy" data-width="12"></span></span>`
+        ).join('<br>');
+    }
+    
+    // 复制到剪贴板
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('已复制: ' + text, 'success');
+        }).catch(() => {
+            showToast('复制失败', 'error');
+        });
+    }
+    
+    // 解析扩展数据JSON
+    function parseExtendData(value) {
+        if (!value || !value.trim()) return {};
+        try {
+            return JSON.parse(value);
+        } catch (e) {
+            showToast('扩展数据JSON格式错误', 'error');
+            return {};
+        }
+    }
     
     // 页面加载完成后执行
     $(document).ready(function() {
@@ -282,6 +334,13 @@
                         </div>
                         <div class="flex items-center justify-between text-gray-600">
                             <span class="flex items-center gap-1">
+                                <span class="iconify" data-icon="mdi:earth" data-width="16"></span>
+                                外网访问IP
+                            </span>
+                            <span class="font-medium text-gray-800">${renderPublicAddr(host.config?.public_addr)}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-gray-600">
+                            <span class="flex items-center gap-1">
                                 <span class="iconify" data-icon="mdi:cube-outline" data-width="16"></span>
                                 虚拟机
                             </span>
@@ -345,7 +404,7 @@
             const config = host.config || {};
             document.getElementById('serverAddr').value = config.server_addr || '';
             document.getElementById('serverUser').value = config.server_user || '';
-            document.getElementById('serverPass').value = '';
+            document.getElementById('serverPass').value = config.server_pass || '';
             document.getElementById('filterName').value = config.filter_name || '';
             document.getElementById('imagesPath').value = config.images_path || '';
             document.getElementById('systemPath').value = config.system_path || '';
@@ -353,6 +412,9 @@
             document.getElementById('externPath').value = config.extern_path || '';
             document.getElementById('launchPath').value = config.launch_path || '';
             document.getElementById('networkNat').value = config.network_nat || '';
+            document.getElementById('networkPub').value = config.network_pub || '';
+            document.getElementById('publicAddr').value = (config.public_addr || []).join(', ');
+            document.getElementById('extendData').value = config.extend_data ? JSON.stringify(config.extend_data, null, 2) : '';
             
             document.getElementById('hostModal').showModal();
         }
@@ -410,7 +472,10 @@
             backup_path: document.getElementById('backupPath').value,
             extern_path: document.getElementById('externPath').value,
             launch_path: document.getElementById('launchPath').value,
-            network_nat: document.getElementById('networkNat').value
+            network_nat: document.getElementById('networkNat').value,
+            network_pub: document.getElementById('networkPub').value,
+            public_addr: document.getElementById('publicAddr').value.split(',').map(s => s.trim()).filter(s => s),
+            extend_data: parseExtendData(document.getElementById('extendData').value)
         };
         
         let result;

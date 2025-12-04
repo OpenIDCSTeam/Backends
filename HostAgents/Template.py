@@ -8,14 +8,14 @@ from HostObject.VMConfig import VMConfig
 
 
 class BaseServer(abc.ABC):
-    def __init__(self, config: HSConfig,**kwargs):
+    def __init__(self, config: HSConfig, **kwargs):
         # 宿主机配置 =========================================
         self.hs_config: HSConfig | None = config  # 物理机配置
         self.hs_status: list[HWStatus] = []  # Hosts主机使用率
         self.hs_saving: dict[str, ...] = {}  # Hosts存储的配置
         # 虚拟机配置 =========================================
         self.vm_saving: dict[str, VMConfig] = {}  # 存储的配置
-        self.vm_status: dict[str, HWStatus] = {}  # 存储的状态
+        self.vm_status: dict[str, list[HWStatus]] = {}  # 状态
         self.vm_tasker: list[HSTasker] = []  # SUB搜集任务列表
         # 日志记录 ===========================================
         self.save_logs: list[ZMessage] = []  # SUB搜集日志记录
@@ -28,6 +28,9 @@ class BaseServer(abc.ABC):
         """辅助方法：将对象转换为可序列化的字典"""
         if obj is None:
             return None
+        # 处理列表类型，递归转换每个元素
+        if isinstance(obj, list):
+            return [BaseServer.__to_dict__(item) for item in obj]
         if hasattr(obj, '__dict__') and callable(getattr(obj, '__dict__')):
             return obj.__dict__()
         return obj
@@ -71,13 +74,17 @@ class BaseServer(abc.ABC):
     def __read__(self, data: dict):
         self.hs_config = HSConfig(data["hs_config"])
         self.hs_saving = {
-            k: VMConfig(v) for k, v in data["hs_saving"].items()
+            k: VMConfig(**v) for k, v in data["hs_saving"].items()
         }
         self.hs_status = data["hs_status"]
         self.vm_saving = data["vm_saving"]
         self.vm_status = data["vm_status"]
         self.vm_tasker = data["vm_tasker"]
         self.save_logs = data["save_logs"]
+
+    # 执行此任务 =============================================
+    def Crontabs(self) -> ZMessage:
+        pass
 
     # 宿主机状态 =============================================
     def HSStatus(self) -> HWStatus:
@@ -89,10 +96,6 @@ class BaseServer(abc.ABC):
 
     # 还原宿主机 =============================================
     def HSDelete(self) -> ZMessage:
-        pass
-
-    # 配置宿主机 =============================================
-    def HSConfig(self) -> ZMessage:
         pass
 
     # 读取宿主机 =============================================
@@ -125,4 +128,8 @@ class BaseServer(abc.ABC):
 
     # 虚拟机电源 ==========================================
     def VMPowers(self, select: str, p: VMPowers) -> ZMessage:
+        pass
+
+    # 虚拟机电源 ==========================================
+    def VConsole(self, select: str) -> str:
         pass

@@ -140,6 +140,13 @@ class HostManage:
         for server in self.engine:
             self.engine[server].HSUnload()
 
+    # 定时任务 ###################################################################
+    def exe_cron(self):
+        for server in self.engine:
+            print(f'[Cron] 执行{server}的定时任务')
+            self.engine[server].Crontabs()
+        print('[Cron] 执行定时任务完成')
+
 
 if __name__ == "__main__":
     # 创建一个接口对象 ======================================================

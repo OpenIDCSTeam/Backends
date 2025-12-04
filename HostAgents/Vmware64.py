@@ -27,8 +27,45 @@ class HostServer(BaseServer):
 
     # 宿主机状态 ###########################################################
     def HSStatus(self) -> HWStatus:
-        status = HSStatus()
-        return status.status()
+        if len(self.hs_status) == 0:
+            hs_status = HSStatus()
+            return hs_status.status()
+        return self.hs_status[-1]
+
+    # 宿主机状态 ###########################################################
+    def Crontabs(self) -> bool:
+        # 宿主机状态 ===============================
+        hs_status = HSStatus()
+        self.hs_status.append(hs_status.status())
+        # 虚拟机状态 ===============================
+        self.vm_status: dict[str, list[HWStatus]] = {}
+        # 电源状态映射（VMRest API返回值 -> VMPowers枚举）
+        power_map = {
+            "poweredOn": VMPowers.STARTED,
+            "poweredOff": VMPowers.STOPPED,
+            "suspended": VMPowers.SUSPEND,
+            "paused": VMPowers.SUSPEND,
+        }
+        all_vms = self.vmrest_api.return_vmx()
+        if not all_vms.success:
+            return False
+        for now_vmx in all_vms.results:
+            vm_path = now_vmx.get("path", "")
+            # 从路径中提取虚拟机名称 =================================
+            vm_name = os.path.splitext(os.path.basename(vm_path))[0]
+            # 过滤虚拟机名称 =========================================
+            if self.hs_config.filter_name != "":
+                if not vm_name.startswith(self.hs_config.filter_name):
+                    continue
+            # 获取电源状态 ===========================================
+            self.vm_status[vm_name] = []
+            power_result = self.vmrest_api.powers_get(vm_name)
+            ac_status = VMPowers.UNKNOWN
+            if power_result.success:
+                power_state = power_result.results.get("power_state", "")
+                ac_status = power_map.get(power_state, VMPowers.UNKNOWN)
+            self.vm_status[vm_name].append(HWStatus(ac_status=ac_status))
+        return True
 
     # 初始宿主机 ###########################################################
     def HSCreate(self) -> ZMessage:
@@ -93,34 +130,11 @@ class HostServer(BaseServer):
         return hs_result
 
     # 虚拟机列出 ###########################################################
-    def VMStatus(self, select: str = "") -> dict[str, HWStatus]:
-        self.vm_status: dict[str, HWStatus] = {}
-        # 电源状态映射（VMRest API返回值 -> VMPowers枚举）
-        power_map = {
-            "poweredOn": VMPowers.STARTED,
-            "poweredOff": VMPowers.STOPPED,
-            "suspended": VMPowers.SUSPEND,
-            "paused": VMPowers.SUSPEND,
-        }
-        all_vms = self.vmrest_api.return_vmx()
-
-        if not all_vms.success:
-            return self.vm_status
-        for vm in all_vms.results:
-            vm_path = vm.get("path", "")
-            # 从路径中提取虚拟机名称 =================================
-            vm_name = os.path.splitext(os.path.basename(vm_path))[0]
-            # 过滤虚拟机名称 =========================================
-            if self.hs_config.filter_name != "":
-                if not vm_name.startswith(self.hs_config.filter_name):
-                    continue
-            # 获取电源状态 ===========================================
-            power_result = self.vmrest_api.powers_get(vm_name)
-            ac_status = VMPowers.UNKNOWN
-            if power_result.success:
-                power_state = power_result.results.get("power_state", "")
-                ac_status = power_map.get(power_state, VMPowers.UNKNOWN)
-            self.vm_status[vm_name]=HWStatus(ac_status=ac_status)
+    def VMStatus(self, select: str = "") -> dict[str, list[HWStatus]]:
+        if len(select) > 0:
+            if select not in self.vm_status:
+                return {select: [HWStatus()]}
+            return {select: self.vm_status[select]}
         return self.vm_status
 
     # 创建虚拟机 ###########################################################
@@ -168,6 +182,10 @@ class HostServer(BaseServer):
         self.save_logs.append(hs_result)
         return hs_result
 
+    # 虚拟机电源 ###########################################################
+    def VConsole(self, select: str) -> str:
+        return ""
+
 
 # 测试代码 ========================================================================
 if __name__ == "__main__":
@@ -184,6 +202,7 @@ if __name__ == "__main__":
         launch_path=r"C:\Program Files (x86)\VMware\VMware Workstation",
         network_nat="nat",
         network_pub="",
+        public_addr="42.42.42.42",
         extend_data={
 
         }

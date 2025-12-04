@@ -3,6 +3,7 @@ OpenIDCS Flask Server
 提供主机和虚拟机管理的Web界面和API接口
 """
 import secrets
+import threading
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 
@@ -113,6 +114,17 @@ def vms_page(hs_name):
                           title=f'OpenIDCS - 虚拟机管理 - {hs_name}',
                           username=session.get('username', 'admin'),
                           hs_name=hs_name)
+
+
+@app.route('/hosts/<hs_name>/vms/<vm_uuid>')
+@require_auth
+def vm_detail_page(hs_name, vm_uuid):
+    """虚拟机详情页面"""
+    return render_template('vm_detail.html',
+                          title=f'OpenIDCS - {vm_uuid}',
+                          username=session.get('username', 'admin'),
+                          hs_name=hs_name,
+                          vm_uuid=vm_uuid)
 
 
 @app.route('/settings')
@@ -283,13 +295,35 @@ def get_vms(hs_name):
     if not server:
         return api_response(404, '主机不存在')
     
+    def serialize_obj(obj):
+        """将对象序列化为可JSON化的格式"""
+        if obj is None:
+            return None
+        if isinstance(obj, (str, int, float, bool)):
+            return obj
+        if isinstance(obj, dict):
+            return {k: serialize_obj(v) for k, v in obj.items()}
+        if isinstance(obj, (list, tuple)):
+            return [serialize_obj(item) for item in obj]
+        # 尝试调用__dict__()方法
+        if hasattr(obj, '__dict__') and callable(obj.__dict__):
+            try:
+                return obj.__dict__()
+            except (TypeError, AttributeError):
+                pass
+        # 尝试使用vars()获取属性字典
+        try:
+            return {k: serialize_obj(v) for k, v in vars(obj).items()}
+        except TypeError:
+            return str(obj)
+    
     vms_data = {}
     for vm_uuid, vm_config in server.vm_saving.items():
         status = server.vm_status.get(vm_uuid)
         vms_data[vm_uuid] = {
             'uuid': vm_uuid,
-            'config': vm_config.__dict__() if hasattr(vm_config, '__dict__') and callable(vm_config.__dict__) else vm_config,
-            'status': status.__dict__() if status and hasattr(status, '__dict__') and callable(status.__dict__) else status
+            'config': serialize_obj(vm_config),
+            'status': serialize_obj(status)
         }
     
     return api_response(200, 'success', vms_data)
@@ -308,17 +342,18 @@ def get_vm(hs_name, vm_uuid):
         return api_response(404, '虚拟机不存在')
     
     status_dict = server.VMStatus(vm_uuid)
-    # VMStatus返回dict[str, HWStatus]，需要将每个HWStatus对象转换为字典
-    status_result = {}
-    if status_dict:
-        for key, hw_status in status_dict.items():
+    # VMStatus返回dict[str, list[HWStatus]]，需要将每个HWStatus对象转换为字典
+    status_result = []
+    if status_dict and vm_uuid in status_dict:
+        status_list = status_dict[vm_uuid]
+        for hw_status in status_list:
             if hw_status is not None:
                 try:
-                    status_result[key] = hw_status.__dict__()
+                    status_result.append(hw_status.__dict__())
                 except (TypeError, AttributeError):
-                    status_result[key] = vars(hw_status)
+                    status_result.append(vars(hw_status))
             else:
-                status_result[key] = None
+                status_result.append(None)
     
     return api_response(200, 'success', {
         'uuid': vm_uuid,
@@ -434,6 +469,23 @@ def vm_power(hs_name, vm_uuid):
     return api_response(400, result.message if result else '操作失败')
 
 
+@app.route('/api/hosts/<hs_name>/vms/<vm_uuid>/vconsole', methods=['GET'])
+@require_auth
+def vm_vconsole(hs_name, vm_uuid):
+    """获取虚拟机VNC控制台URL"""
+    server = hs_manage.get_host(hs_name)
+    if not server:
+        return api_response(404, '主机不存在')
+    
+    try:
+        vconsole_url = server.VConsole(vm_uuid)
+        if vconsole_url:
+            return api_response(200, '获取成功', vconsole_url)
+        return api_response(400, '无法获取VNC控制台地址')
+    except Exception as e:
+        return api_response(500, f'获取VNC控制台失败: {str(e)}')
+
+
 @app.route('/api/hosts/<hs_name>/vms/<vm_uuid>/status', methods=['GET'])
 @require_auth
 def get_vm_status(hs_name, vm_uuid):
@@ -443,22 +495,22 @@ def get_vm_status(hs_name, vm_uuid):
         return api_response(404, '主机不存在')
     
     status_dict = server.VMStatus(vm_uuid)
-    # VMStatus返回dict[str, HWStatus]，需要将每个HWStatus对象转换为字典
-    result = {}
-    if vm_uuid not in server.vm_status:
+    # VMStatus返回dict[str, list[HWStatus]]，需要将每个HWStatus对象转换为字典
+    if vm_uuid not in status_dict:
         return api_response(404, '虚拟机不存在')
-    result =  status_dict[vm_uuid].__dict__()
-    # if status_dict:
-    #     for key, hw_status in status_dict.items():
-    #         if hw_status is not None:
-    #             try:
-    #                 # HWStatus类有自定义的__dict__()方法
-    #                 result[key] = hw_status.__dict__()
-    #             except (TypeError, AttributeError):
-    #                 # 如果__dict__不可调用，使用vars()获取属性
-    #                 result[key] = vars(hw_status)
-    #         else:
-    #             result[key] = None
+    
+    # 处理HWStatus列表
+    status_list = status_dict[vm_uuid]
+    result = []
+    if status_list:
+        for hw_status in status_list:
+            if hw_status is not None:
+                try:
+                    result.append(hw_status.__dict__())
+                except (TypeError, AttributeError):
+                    result.append(vars(hw_status))
+            else:
+                result.append(None)
     return api_response(200, 'success', result)
 
 
@@ -522,6 +574,320 @@ def get_system_stats():
 
 
 # ============================================================================
+# NAT端口转发管理API
+# ============================================================================
+@app.route('/api/hosts/<hs_name>/vms/<vm_uuid>/nat', methods=['GET'])
+@require_auth
+def get_vm_nat_rules(hs_name, vm_uuid):
+    """获取虚拟机NAT端口转发规则"""
+    server = hs_manage.get_host(hs_name)
+    if not server:
+        return api_response(404, '主机不存在')
+    
+    vm_config = server.vm_saving.get(vm_uuid)
+    if not vm_config:
+        return api_response(404, '虚拟机不存在')
+    
+    # 从vm_config中获取NAT规则
+    nat_rules = []
+    if hasattr(vm_config, 'nat_all') and vm_config.nat_all:
+        for idx, rule in enumerate(vm_config.nat_all):
+            if hasattr(rule, '__dict__') and callable(rule.__dict__):
+                nat_rules.append(rule.__dict__())
+            elif isinstance(rule, dict):
+                nat_rules.append(rule)
+            else:
+                nat_rules.append({
+                    'protocol': getattr(rule, 'protocol', 'tcp'),
+                    'external_port': getattr(rule, 'external_port', 0),
+                    'internal_port': getattr(rule, 'internal_port', 0),
+                    'internal_ip': getattr(rule, 'internal_ip', ''),
+                    'description': getattr(rule, 'description', '')
+                })
+    
+    return api_response(200, 'success', nat_rules)
+
+
+@app.route('/api/hosts/<hs_name>/vms/<vm_uuid>/nat', methods=['POST'])
+@require_auth
+def add_vm_nat_rule(hs_name, vm_uuid):
+    """添加虚拟机NAT端口转发规则"""
+    server = hs_manage.get_host(hs_name)
+    if not server:
+        return api_response(404, '主机不存在')
+    
+    vm_config = server.vm_saving.get(vm_uuid)
+    if not vm_config:
+        return api_response(404, '虚拟机不存在')
+    
+    data = request.get_json() or {}
+    
+    # 创建NAT规则
+    nat_rule = {
+        'protocol': data.get('protocol', 'tcp'),
+        'external_port': data.get('external_port', 0),
+        'internal_port': data.get('internal_port', 0),
+        'internal_ip': data.get('internal_ip', ''),
+        'description': data.get('description', '')
+    }
+    
+    # 添加到vm_config
+    if not hasattr(vm_config, 'nat_all') or vm_config.nat_all is None:
+        vm_config.nat_all = []
+    vm_config.nat_all.append(nat_rule)
+    
+    hs_manage.all_save()
+    return api_response(200, 'NAT规则添加成功')
+
+
+@app.route('/api/hosts/<hs_name>/vms/<vm_uuid>/nat/<int:rule_index>', methods=['DELETE'])
+@require_auth
+def delete_vm_nat_rule(hs_name, vm_uuid, rule_index):
+    """删除虚拟机NAT端口转发规则"""
+    server = hs_manage.get_host(hs_name)
+    if not server:
+        return api_response(404, '主机不存在')
+    
+    vm_config = server.vm_saving.get(vm_uuid)
+    if not vm_config:
+        return api_response(404, '虚拟机不存在')
+    
+    if not hasattr(vm_config, 'nat_all') or not vm_config.nat_all:
+        return api_response(404, 'NAT规则不存在')
+    
+    if rule_index < 0 or rule_index >= len(vm_config.nat_all):
+        return api_response(404, 'NAT规则索引无效')
+    
+    vm_config.nat_all.pop(rule_index)
+    hs_manage.all_save()
+    return api_response(200, 'NAT规则已删除')
+
+
+# ============================================================================
+# IP地址管理API
+# ============================================================================
+@app.route('/api/hosts/<hs_name>/vms/<vm_uuid>/ip', methods=['GET'])
+@require_auth
+def get_vm_ip_addresses(hs_name, vm_uuid):
+    """获取虚拟机IP地址列表"""
+    server = hs_manage.get_host(hs_name)
+    if not server:
+        return api_response(404, '主机不存在')
+    
+    vm_config = server.vm_saving.get(vm_uuid)
+    if not vm_config:
+        return api_response(404, '虚拟机不存在')
+    
+    # 从vm_config中获取IP地址列表
+    ip_list = []
+    if hasattr(vm_config, 'ip_all') and vm_config.ip_all:
+        for ip in vm_config.ip_all:
+            if hasattr(ip, '__dict__') and callable(ip.__dict__):
+                ip_list.append(ip.__dict__())
+            elif isinstance(ip, dict):
+                ip_list.append(ip)
+            else:
+                ip_list.append({
+                    'type': getattr(ip, 'type', 'ipv4'),
+                    'address': getattr(ip, 'address', ''),
+                    'netmask': getattr(ip, 'netmask', ''),
+                    'gateway': getattr(ip, 'gateway', ''),
+                    'nic': getattr(ip, 'nic', ''),
+                    'description': getattr(ip, 'description', '')
+                })
+    
+    return api_response(200, 'success', ip_list)
+
+
+@app.route('/api/hosts/<hs_name>/vms/<vm_uuid>/ip', methods=['POST'])
+@require_auth
+def add_vm_ip_address(hs_name, vm_uuid):
+    """添加虚拟机IP地址"""
+    server = hs_manage.get_host(hs_name)
+    if not server:
+        return api_response(404, '主机不存在')
+    
+    vm_config = server.vm_saving.get(vm_uuid)
+    if not vm_config:
+        return api_response(404, '虚拟机不存在')
+    
+    data = request.get_json() or {}
+    
+    # 创建IP地址配置
+    ip_config = {
+        'type': data.get('type', 'ipv4'),
+        'address': data.get('address', ''),
+        'netmask': data.get('netmask', ''),
+        'gateway': data.get('gateway', ''),
+        'nic': data.get('nic', ''),
+        'description': data.get('description', '')
+    }
+    
+    # 添加到vm_config
+    if not hasattr(vm_config, 'ip_all') or vm_config.ip_all is None:
+        vm_config.ip_all = []
+    vm_config.ip_all.append(ip_config)
+    
+    hs_manage.all_save()
+    return api_response(200, 'IP地址添加成功')
+
+
+@app.route('/api/hosts/<hs_name>/vms/<vm_uuid>/ip/<int:ip_index>', methods=['DELETE'])
+@require_auth
+def delete_vm_ip_address(hs_name, vm_uuid, ip_index):
+    """删除虚拟机IP地址"""
+    server = hs_manage.get_host(hs_name)
+    if not server:
+        return api_response(404, '主机不存在')
+    
+    vm_config = server.vm_saving.get(vm_uuid)
+    if not vm_config:
+        return api_response(404, '虚拟机不存在')
+    
+    if not hasattr(vm_config, 'ip_all') or not vm_config.ip_all:
+        return api_response(404, 'IP地址不存在')
+    
+    if ip_index < 0 or ip_index >= len(vm_config.ip_all):
+        return api_response(404, 'IP地址索引无效')
+    
+    vm_config.ip_all.pop(ip_index)
+    hs_manage.all_save()
+    return api_response(200, 'IP地址已删除')
+
+
+# ============================================================================
+# 反向代理管理API
+# ============================================================================
+@app.route('/api/hosts/<hs_name>/vms/<vm_uuid>/proxy', methods=['GET'])
+@require_auth
+def get_vm_proxy_configs(hs_name, vm_uuid):
+    """获取虚拟机反向代理配置列表"""
+    server = hs_manage.get_host(hs_name)
+    if not server:
+        return api_response(404, '主机不存在')
+    
+    vm_config = server.vm_saving.get(vm_uuid)
+    if not vm_config:
+        return api_response(404, '虚拟机不存在')
+    
+    # 从vm_config中获取代理配置列表
+    proxy_list = []
+    if hasattr(vm_config, 'proxy_all') and vm_config.proxy_all:
+        for proxy in vm_config.proxy_all:
+            if hasattr(proxy, '__dict__') and callable(proxy.__dict__):
+                proxy_list.append(proxy.__dict__())
+            elif isinstance(proxy, dict):
+                proxy_list.append(proxy)
+            else:
+                proxy_list.append({
+                    'domain': getattr(proxy, 'domain', ''),
+                    'backend_ip': getattr(proxy, 'backend_ip', ''),
+                    'backend_port': getattr(proxy, 'backend_port', 80),
+                    'ssl_enabled': getattr(proxy, 'ssl_enabled', False),
+                    'ssl_type': getattr(proxy, 'ssl_type', ''),
+                    'description': getattr(proxy, 'description', '')
+                })
+    
+    return api_response(200, 'success', proxy_list)
+
+
+@app.route('/api/hosts/<hs_name>/vms/<vm_uuid>/proxy', methods=['POST'])
+@require_auth
+def add_vm_proxy_config(hs_name, vm_uuid):
+    """添加虚拟机反向代理配置"""
+    server = hs_manage.get_host(hs_name)
+    if not server:
+        return api_response(404, '主机不存在')
+    
+    vm_config = server.vm_saving.get(vm_uuid)
+    if not vm_config:
+        return api_response(404, '虚拟机不存在')
+    
+    data = request.get_json() or {}
+    
+    # 创建代理配置
+    proxy_config = {
+        'domain': data.get('domain', ''),
+        'backend_ip': data.get('backend_ip', ''),
+        'backend_port': data.get('backend_port', 80),
+        'ssl_enabled': data.get('ssl_enabled', False),
+        'ssl_type': data.get('ssl_type', ''),
+        'ssl_cert': data.get('ssl_cert', ''),
+        'ssl_key': data.get('ssl_key', ''),
+        'description': data.get('description', '')
+    }
+    
+    # 添加到vm_config
+    if not hasattr(vm_config, 'proxy_all') or vm_config.proxy_all is None:
+        vm_config.proxy_all = []
+    vm_config.proxy_all.append(proxy_config)
+    
+    hs_manage.all_save()
+    return api_response(200, '代理配置添加成功')
+
+
+@app.route('/api/hosts/<hs_name>/vms/<vm_uuid>/proxy/<int:proxy_index>', methods=['DELETE'])
+@require_auth
+def delete_vm_proxy_config(hs_name, vm_uuid, proxy_index):
+    """删除虚拟机反向代理配置"""
+    server = hs_manage.get_host(hs_name)
+    if not server:
+        return api_response(404, '主机不存在')
+    
+    vm_config = server.vm_saving.get(vm_uuid)
+    if not vm_config:
+        return api_response(404, '虚拟机不存在')
+    
+    if not hasattr(vm_config, 'proxy_all') or not vm_config.proxy_all:
+        return api_response(404, '代理配置不存在')
+    
+    if proxy_index < 0 or proxy_index >= len(vm_config.proxy_all):
+        return api_response(404, '代理配置索引无效')
+    
+    vm_config.proxy_all.pop(proxy_index)
+    hs_manage.all_save()
+    return api_response(200, '代理配置已删除')
+
+
+# ============================================================================
+# 定时任务
+# ============================================================================
+def cron_scheduler():
+    """定时任务调度器，每分钟执行一次exe_cron"""
+    try:
+        hs_manage.exe_cron()
+    except Exception as e:
+        print(f"[Cron] 执行定时任务出错: {e}")
+    
+    # 设置下一次执行（60秒后）
+    timer = threading.Timer(60, cron_scheduler)
+    timer.daemon = True  # 设为守护线程，主程序退出时自动结束
+    timer.start()
+
+
+def start_cron_scheduler():
+    """启动定时任务调度器，立即执行一次并开始定时循环（非阻塞）"""
+    def initial_run():
+        """初始执行，在单独线程中运行以避免阻塞启动"""
+        try:
+            hs_manage.exe_cron()
+            print("[Cron] 初始执行完成")
+        except Exception as e:
+            print(f"[Cron] 初始执行出错: {e}")
+        
+        # 初始执行完成后，60秒后开始定时循环
+        timer = threading.Timer(60, cron_scheduler)
+        timer.daemon = True
+        timer.start()
+    
+    print("[Cron] 启动定时任务调度器...")
+    # 在单独线程中执行初始化，不阻塞主程序启动
+    init_thread = threading.Thread(target=initial_run, daemon=True)
+    init_thread.start()
+    print("[Cron] 定时任务已启动（后台运行），每60秒执行一次")
+
+
+# ============================================================================
 # 启动服务
 # ============================================================================
 def init_app():
@@ -536,6 +902,9 @@ def init_app():
     if not hs_manage.bearer:
         hs_manage.set_pass()
         print(f"已生成访问Token: {hs_manage.bearer}")
+    
+    # 启动定时任务调度器
+    start_cron_scheduler()
 
 
 if __name__ == '__main__':
@@ -545,4 +914,5 @@ if __name__ == '__main__':
     print(f"访问地址: http://127.0.0.1:5000")
     print(f"访问Token: {hs_manage.bearer}")
     print(f"{'='*60}\n")
+
     app.run(host='0.0.0.0', port=5000, debug=True)

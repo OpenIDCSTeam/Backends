@@ -185,27 +185,31 @@
         </h3>
         <p class="py-2 text-gray-600">选择对虚拟机 "<span id="powerVmName" class="font-medium text-gray-800"></span>" 执行的操作：</p>
         <div class="grid grid-cols-2 gap-3 mt-4">
-            <button onclick="executePower('start')" class="btn bg-green-500 hover:bg-green-600 text-white flex items-center justify-center gap-2">
+            <button type="button" onclick="vmPower('start')" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg flex items-center justify-center gap-2 transition-colors">
                 <span class="iconify" data-icon="mdi:play" data-width="20"></span>
                 启动
             </button>
-            <button onclick="executePower('stop')" class="btn bg-yellow-500 hover:bg-yellow-600 text-white flex items-center justify-center gap-2">
+            <button type="button" onclick="vmPower('stop')" class="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg flex items-center justify-center gap-2 transition-colors">
                 <span class="iconify" data-icon="mdi:stop" data-width="20"></span>
                 关机
             </button>
-            <button onclick="executePower('hard_stop')" class="btn bg-red-500 hover:bg-red-600 text-white flex items-center justify-center gap-2">
+            <button type="button" onclick="vmPower('hard_stop')" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center justify-center gap-2 transition-colors">
                 <span class="iconify" data-icon="mdi:power-off" data-width="20"></span>
                 强制关机
             </button>
-            <button onclick="executePower('reset')" class="btn bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center gap-2">
+            <button type="button" onclick="vmPower('reset')" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg flex items-center justify-center gap-2 transition-colors">
                 <span class="iconify" data-icon="mdi:restart" data-width="20"></span>
                 重启
             </button>
-            <button onclick="executePower('pause')" class="btn bg-gray-500 hover:bg-gray-600 text-white flex items-center justify-center gap-2">
+            <button type="button" onclick="vmPower('hard_reset')" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg flex items-center justify-center gap-2 transition-colors">
+                <span class="iconify" data-icon="mdi:restart-alert" data-width="20"></span>
+                强制重启
+            </button>
+            <button type="button" onclick="vmPower('pause')" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg flex items-center justify-center gap-2 transition-colors">
                 <span class="iconify" data-icon="mdi:pause" data-width="20"></span>
                 暂停
             </button>
-            <button onclick="executePower('resume')" class="btn bg-indigo-500 hover:bg-indigo-600 text-white flex items-center justify-center gap-2">
+            <button type="button" onclick="vmPower('resume')" class="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg flex items-center justify-center gap-2 transition-colors">
                 <span class="iconify" data-icon="mdi:play-pause" data-width="20"></span>
                 恢复
             </button>
@@ -222,29 +226,9 @@
     </form>
 </dialog>
 
-<!-- 删除确认模态框 -->
-<dialog id="vmDeleteModal" class="modal">
-    <div class="modal-box">
-        <h3 class="font-bold text-lg flex items-center gap-2 text-red-600">
-            <span class="iconify" data-icon="mdi:alert-circle" data-width="24"></span>
-            确认删除
-        </h3>
-        <p class="py-4">确定要删除虚拟机 "<span id="deleteVmName" class="font-medium"></span>" 吗？此操作不可恢复。</p>
-        <div class="modal-action">
-            <button onclick="document.getElementById('vmDeleteModal').close()" 
-                class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
-                取消
-            </button>
-            <button onclick="confirmDeleteVM()" 
-                class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">
-                确认删除
-            </button>
-        </div>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>关闭</button>
-    </form>
-</dialog>
+
+
+
 {% endblock %}
 
 {% block extra_scripts %}
@@ -252,6 +236,8 @@
     const hostName = '{{ hs_name }}';
     let currentPowerVm = '';
     let currentDeleteVm = '';
+    let currentPowerAction = '';
+    let pendingVmData = null;
     let nicCounter = 0;
     
     // 状态文字映射
@@ -308,8 +294,10 @@
     // 渲染虚拟机卡片
     function renderVMCard(uuid, vm) {
         const config = vm.config || {};
-        const status = vm.status || {};
-        const powerStatus = status.power_status || 'UNKNOWN';
+        // status现在是数组 list[HWStatus]，取第一个元素的ac_status作为电源状态
+        const statusList = vm.status || [];
+        const firstStatus = statusList.length > 0 ? statusList[0] : {};
+        const powerStatus = firstStatus.ac_status || 'UNKNOWN';
         const statusInfo = statusMap[powerStatus] || statusMap['UNKNOWN'];
         
         return `
@@ -352,20 +340,25 @@
                 </div>
                 
                 <div class="border-t border-gray-200 px-4 py-3 bg-gray-50 flex items-center justify-between">
-                    <button onclick="showVMStatus('${uuid}')" class="text-purple-600 hover:text-purple-800 text-sm font-medium flex items-center gap-1">
+                    <a href="/hosts/${hostName}/vms/${uuid}" class="text-purple-600 hover:text-purple-800 text-sm font-medium flex items-center gap-1">
                         <span class="iconify" data-icon="mdi:information-outline" data-width="16"></span>
                         查看详情
-                    </button>
+                    </a>
                     <div class="flex items-center gap-2">
-                        <button onclick="openPowerModal('${uuid}')" 
+                        <button type="button" onclick="openVncConsole('${uuid}')" 
+                            class="px-3 py-1.5 rounded-lg bg-cyan-100 hover:bg-cyan-200 text-cyan-700 text-sm font-medium flex items-center gap-1" title="VNC控制台">
+                            <span class="iconify" data-icon="mdi:monitor" data-width="16"></span>
+                            VNC控制台
+                        </button>
+                        <button type="button" onclick="openPowerModal('${uuid}')" 
                             class="p-2 rounded-lg hover:bg-gray-200 text-gray-600" title="电源管理">
                             <span class="iconify" data-icon="mdi:power" data-width="18"></span>
                         </button>
-                        <button onclick="editVM('${uuid}')" 
+                        <button type="button" onclick="editVM('${uuid}')" 
                             class="p-2 rounded-lg hover:bg-gray-200 text-gray-600" title="编辑">
                             <span class="iconify" data-icon="mdi:pencil" data-width="18"></span>
                         </button>
-                        <button onclick="deleteVM('${uuid}')" 
+                        <button type="button" onclick="deleteVM('${uuid}')" 
                             class="p-2 rounded-lg hover:bg-red-100 text-red-600" title="删除">
                             <span class="iconify" data-icon="mdi:delete" data-width="18"></span>
                         </button>
@@ -488,24 +481,81 @@
         }
     }
     
-    // 删除虚拟机
+    // 删除虚拟机 - 使用SweetAlert2输入确认
     function deleteVM(uuid) {
         currentDeleteVm = uuid;
-        document.getElementById('deleteVmName').textContent = uuid;
-        document.getElementById('vmDeleteModal').showModal();
+        
+        Swal.fire({
+            title: '确认删除',
+            html: `<p class="mb-4">此操作将永久删除虚拟机 "<strong class="text-red-600">${uuid}</strong>"，且不可恢复。</p>
+                   <p class="text-sm text-gray-600">请输入虚拟机名称以确认删除：</p>`,
+            input: 'text',
+            inputPlaceholder: '输入虚拟机名称',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: '确认删除',
+            cancelButtonText: '取消',
+            reverseButtons: true,
+            inputValidator: (value) => {
+                if (!value) {
+                    return '请输入虚拟机名称';
+                }
+                if (value !== uuid) {
+                    return '输入的名称不匹配';
+                }
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                doDeleteVM(uuid);
+            }
+        });
     }
     
-    // 确认删除虚拟机
-    async function confirmDeleteVM() {
-        if (!currentDeleteVm) return;
+    // 实际执行删除虚拟机
+    async function doDeleteVM(uuid) {
+        // 显示删除中状态
+        Swal.fire({
+            title: '删除中...',
+            html: `正在删除虚拟机 "<strong>${uuid}</strong>"`,
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
         
-        const result = await apiRequest(`/api/hosts/${hostName}/vms/${currentDeleteVm}`, 'DELETE');
-        if (result && result.code === 200) {
-            showToast('虚拟机已删除', 'success');
-            document.getElementById('vmDeleteModal').close();
-            loadVMs();
-        } else {
-            showToast(result?.msg || '删除失败', 'error');
+        // 禁用所有操作按钮
+        setAllButtonsDisabled(true);
+        
+        try {
+            const result = await apiRequest(`/api/hosts/${hostName}/vms/${uuid}`, 'DELETE');
+            if (result && result.code === 200) {
+                Swal.fire({
+                    icon: 'success',
+                    title: '删除成功',
+                    text: '虚拟机已成功删除',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                loadVMs();
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: '删除失败',
+                    text: result?.msg || '删除失败，请重试'
+                });
+            }
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: '删除失败',
+                text: '网络错误或服务器异常'
+            });
+        } finally {
+            setAllButtonsDisabled(false);
         }
         currentDeleteVm = '';
     }
@@ -517,18 +567,141 @@
         document.getElementById('powerModal').showModal();
     }
     
-    // 执行电源操作
-    async function executePower(action) {
+    // 电源操作名称映射
+    const powerActionMap = {
+        'start': { name: '启动', color: '#16a34a', icon: 'success' },
+        'stop': { name: '关机', color: '#ca8a04', icon: 'warning' },
+        'hard_stop': { name: '强制关机', color: '#dc2626', icon: 'error' },
+        'reset': { name: '重启', color: '#2563eb', icon: 'info' },
+        'hard_reset': { name: '强制重启', color: '#ea580c', icon: 'warning' },
+        'pause': { name: '暂停', color: '#4b5563', icon: 'warning' },
+        'resume': { name: '恢复', color: '#4f46e5', icon: 'info' }
+    };
+    
+    // 执行电源操作 - 使用SweetAlert2确认弹窗
+    function vmPower(action) {
         if (!currentPowerVm) return;
         
-        const result = await apiRequest(`/api/hosts/${hostName}/vms/${currentPowerVm}/power`, 'POST', { action });
-        if (result && result.code === 200) {
-            showToast(result.msg, 'success');
-            document.getElementById('powerModal').close();
-            setTimeout(loadVMs, 1000);
-        } else {
-            showToast(result?.msg || '操作失败', 'error');
+        const actionInfo = powerActionMap[action] || { name: action, color: '#9333ea', icon: 'question' };
+        const vmName = currentPowerVm;
+        
+        // 先关闭电源操作菜单
+        document.getElementById('powerModal').close();
+        
+        // 使用SweetAlert2显示确认弹窗
+        Swal.fire({
+            title: `确认${actionInfo.name}`,
+            html: `确定要对虚拟机 "<strong>${vmName}</strong>" 执行 <strong style="color: ${actionInfo.color}">${actionInfo.name}</strong> 操作吗？`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: actionInfo.color,
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: `确认${actionInfo.name}`,
+            cancelButtonText: '取消',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                doExecutePower(action, actionInfo, vmName);
+            }
+        });
+    }
+    
+    // 实际执行电源操作
+    async function doExecutePower(action, actionInfo, vmName) {
+        // 显示加载状态
+        Swal.fire({
+            title: `${actionInfo.name}中...`,
+            html: `正在对虚拟机 "<strong>${vmName}</strong>" 执行${actionInfo.name}操作`,
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        
+        // 禁用所有操作按钮
+        setAllButtonsDisabled(true);
+        
+        try {
+            const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmName}/power`, 'POST', { action: action });
+            
+            if (result && result.code === 200) {
+                Swal.fire({
+                    icon: 'success',
+                    title: '操作成功',
+                    text: result.msg || `${actionInfo.name}操作已完成`,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                setTimeout(loadVMs, 1000);
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: '操作失败',
+                    text: result?.msg || '操作失败，请重试'
+                });
+            }
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: '操作失败',
+                text: '网络错误或服务器异常'
+            });
+        } finally {
+            // 恢复所有按钮
+            setAllButtonsDisabled(false);
         }
+    }
+    
+    // 打开VNC控制台
+    async function openVncConsole(uuid) {
+        // 显示加载状态
+        Swal.fire({
+            title: '连接中...',
+            html: `正在获取虚拟机 "<strong>${uuid}</strong>" 的VNC控制台地址`,
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        
+        try {
+            const result = await apiRequest(`/api/hosts/${hostName}/vms/${uuid}/vconsole`);
+            
+            if (result && result.code === 200 && result.data) {
+                Swal.close();
+                // 新窗口打开VNC控制台URL
+                window.open(result.data, `vnc_${uuid}`, 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no');
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: '获取失败',
+                    text: result?.msg || '无法获取VNC控制台地址'
+                });
+            }
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: '连接失败',
+                text: '网络错误或服务器异常'
+            });
+        }
+    }
+    
+    // 禁用/启用所有操作按钮
+    function setAllButtonsDisabled(disabled) {
+        const buttons = document.querySelectorAll('#vmsList button, .bg-purple-600, .bg-gray-100');
+        buttons.forEach(btn => {
+            btn.disabled = disabled;
+            if (disabled) {
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        });
     }
     
     // 查看虚拟机状态
@@ -540,11 +713,8 @@
         }
     }
     
-    // 表单提交
-    document.getElementById('vmForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const editMode = document.getElementById('vmEditMode').value;
+    // 收集表单数据
+    function collectVmFormData() {
         const uuid = document.getElementById('vmUuid').value;
         
         // 收集网卡配置
@@ -562,7 +732,7 @@
             }
         });
         
-        const vmData = {
+        return {
             vm_uuid: uuid,
             os_name: document.getElementById('osName').value,
             cpu_num: parseInt(document.getElementById('cpuNum').value) || 2,
@@ -575,7 +745,65 @@
             flu_num: parseInt(document.getElementById('fluNum').value) || 0,
             nic_all: nicAll
         };
+    }
+    
+    // 表单提交
+    document.getElementById('vmForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
         
+        const editMode = document.getElementById('vmEditMode').value;
+        const uuid = document.getElementById('vmUuid').value;
+        
+        // 如果是编辑模式，需要二次确认
+        if (editMode === 'edit') {
+            pendingVmData = collectVmFormData();
+            
+            // 使用SweetAlert2确认保存
+            Swal.fire({
+                title: '保存确认',
+                html: `确定要保存对虚拟机 "<strong>${uuid}</strong>" 的配置修改吗？`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#9333ea',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: '确认保存',
+                cancelButtonText: '取消',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    confirmSaveConfig();
+                }
+            });
+            return;
+        }
+        
+        // 创建模式直接提交
+        const vmData = collectVmFormData();
+        await submitVmForm(vmData, editMode);
+    });
+    
+    // 确认保存配置
+    async function confirmSaveConfig() {
+        if (!pendingVmData) return;
+        
+        // 显示保存中状态
+        Swal.fire({
+            title: '保存中...',
+            html: '正在保存虚拟机配置',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        
+        await submitVmForm(pendingVmData, 'edit');
+        pendingVmData = null;
+    }
+    
+    // 提交虚拟机表单
+    async function submitVmForm(vmData, editMode) {
         let result;
         if (editMode === 'add') {
             result = await apiRequest(`/api/hosts/${hostName}/vms`, 'POST', vmData);
@@ -585,12 +813,22 @@
         }
         
         if (result && result.code === 200) {
-            showToast(editMode === 'add' ? '虚拟机创建成功' : '虚拟机更新成功', 'success');
+            Swal.fire({
+                icon: 'success',
+                title: editMode === 'add' ? '创建成功' : '保存成功',
+                text: editMode === 'add' ? '虚拟机创建成功' : '虚拟机配置已保存',
+                timer: 2000,
+                showConfirmButton: false
+            });
             document.getElementById('vmModal').close();
             loadVMs();
         } else {
-            showToast(result?.msg || '操作失败', 'error');
+            Swal.fire({
+                icon: 'error',
+                title: '操作失败',
+                text: result?.msg || '操作失败，请重试'
+            });
         }
-    });
+    }
 </script>
 {% endblock %}

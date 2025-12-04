@@ -291,7 +291,8 @@ class VRestAPI:
             "RemoteDisplay": {
                 "vnc": {
                     "enabled": "TRUE",
-                    "port": "5901"
+                    "port": vm_config.vc_port,
+                    "password": vm_config.vc_pass,
                 }
             }
         }

@@ -15,6 +15,7 @@ class HSConfig:
         self.launch_path: str = ""  # 二进制路径
         self.network_nat: str = ""  # NAT网络NIC
         self.network_pub: str = ""  # PUB网络NIC
+        self.public_addr: list = []  # 公共IPV46
         self.extend_data: dict = {}  # API可选项
         # 加载传入的参数 =======================
         if config is not None:
@@ -46,6 +47,10 @@ class HSConfig:
             "backup_path": self.backup_path,
             "extern_path": self.extern_path,
             "launch_path": self.launch_path,
+            "network_nat": self.network_nat,
+            "network_pub": self.network_pub,
+            "public_addr": self.public_addr,
+            "extend_data": self.extend_data,
         }
 
     # 转换为字符串 ===========================

@@ -21,6 +21,9 @@ class VMConfig:
         self.flu_num = 0  # 分配流量(单位Mbps)
         self.nat_num = 0  # 分配端口(0-不分配)
         self.web_num = 0  # 分配代理(0-不分配)
+        # 远程连接 ===========================
+        self.vc_port = ""  # 分配VNC远程的端口
+        self.vc_pass = ""  # 分配VNC远程的密码
         # 网卡配置 ===========================
         self.nic_all: dict[str, NCConfig] = {}
         self.hdd_all: dict[str, SDConfig] = {}
@@ -57,6 +60,9 @@ class VMConfig:
             "flu_num": self.flu_num,
             "nat_num": self.nat_num,
             "web_num": self.web_num,
+            # 远程连接 =============
+            "vc_port": self.vc_port,
+            "vc_pass": self.vc_pass,
             # 网卡配置 =============
             "nic_all": {k: v.__dict__() for k, v in self.nic_all.items()},
             "hdd_all": {k: v.__dict__() for k, v in self.hdd_all.items()},
