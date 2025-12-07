@@ -33,7 +33,10 @@ class HostDatabase:
     
     def init_database(self):
         """初始化数据库表结构"""
-        sql_file_path = os.path.join(os.path.dirname(self.db_path), "HostManage.sql")
+        # 修正SQL文件路径，使用项目根目录下的HostConfig文件夹
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        sql_file_path = os.path.join(project_root, "HostConfig", "HostManage.sql")
+        
         if os.path.exists(sql_file_path):
             with open(sql_file_path, 'r', encoding='utf-8') as f:
                 sql_script = f.read()
@@ -55,11 +58,16 @@ class HostDatabase:
                             raise e
                 
                 conn.commit()
+                print(f"[HostDatabase] 数据库初始化完成: {self.db_path}")
             except Exception as e:
                 print(f"数据库初始化错误: {e}")
                 conn.rollback()
             finally:
                 conn.close()
+        else:
+            print(f"[HostDatabase] 警告: SQL文件不存在: {sql_file_path}")
+            print(f"[HostDatabase] 当前工作目录: {os.getcwd()}")
+            print(f"[HostDatabase] 项目根目录: {project_root}")
     
     # ==================== 全局配置操作 ====================
     
@@ -74,7 +82,17 @@ class HostDatabase:
                     "bearer": row["bearer"],
                     "saving": row["saving"]
                 }
-            return {"bearer": "", "saving": "./DataSaving"}
+            else:
+                # 如果没有配置记录，插入默认配置
+                default_bearer = ""
+                default_saving = "./DataSaving"
+                conn.execute(
+                    "INSERT INTO hs_global (id, bearer, saving) VALUES (1, ?, ?)",
+                    (default_bearer, default_saving)
+                )
+                conn.commit()
+                print("[HostDatabase] 已创建默认全局配置")
+                return {"bearer": default_bearer, "saving": default_saving}
         finally:
             conn.close()
     
