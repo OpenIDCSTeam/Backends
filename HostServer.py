@@ -1121,8 +1121,8 @@ if __name__ == '__main__':
     init_app()
     print(f"\n{'=' * 60}")
     print(f"OpenIDCS Server 启动中...")
-    print(f"访问地址: http://127.0.0.1:5000")
+    print(f"访问地址: http://127.0.0.1:1880")
     print(f"访问Token: {hs_manage.bearer}")
     print(f"{'=' * 60}\n")
 
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=1880, debug=True)

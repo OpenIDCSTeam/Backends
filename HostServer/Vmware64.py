@@ -11,7 +11,6 @@ from MainObject.Config.NCConfig import NCConfig
 from MainObject.Public.ZMessage import ZMessage
 from MainObject.Config.VMConfig import VMConfig
 from HostServer.VMRestHost.VRestAPI import VRestAPI
-from NetsManage import NetsManage
 
 
 class HostServer(BaseServer):

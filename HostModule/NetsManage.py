@@ -159,10 +159,17 @@ class NetsManage:
 
         result = self.posts("dhcp_static", "add", param)
         success = result is not None and result.get("success", False)
+        
         if success:
             print(f"✅ 静态IP添加成功: {ip_addr} -> {mac}")
+            
+            # 同时添加ARP绑定
+            arp_success = self.add_arp(ip_addr, mac, interface, comment or f"静态IP-{ip_addr}")
+            if not arp_success:
+                print(f"⚠️ ARP绑定添加失败，但静态IP已设置成功")
         else:
             print(f"❌ 静态IP添加失败: {ip_addr} -> {mac}")
+        
         return success
 
     # 静态IP4删除方法 ########################################################################
@@ -191,12 +198,22 @@ class NetsManage:
 
         result = self.posts("dhcp_static", "del", param)
         success = result is not None and result.get("success", False)
+        
         if success:
             identifier = entry_id or ip_addr or mac
             print(f"✅ 静态IP删除成功: {identifier}")
+            
+            # 同时删除ARP绑定
+            if ip_addr or mac:
+                arp_success = self.del_arp(ip_addr, mac)
+                if not arp_success:
+                    print(f"⚠️ ARP绑定删除失败，但静态IP已删除成功")
+            else:
+                print(f"⚠️ 无法删除ARP绑定，因为缺少IP地址或MAC地址信息")
         else:
             identifier = entry_id or ip_addr or mac
             print(f"❌ 静态IP删除失败: {identifier}")
+        
         return success
 
     # TCP/UDP转发设置 ########################################################################
@@ -267,6 +284,71 @@ class NetsManage:
         else:
             identifier = entry_id or f"{wan_port}->{lan_addr}"
             print(f"❌ 端口转发删除失败: {identifier}")
+        return success
+
+    # ARP绑定方法 ########################################################################
+    def add_arp(self, ip_addr: str, mac: str, interface: str = "lan1",
+                comment: str = "") -> bool:
+        """
+        添加ARP绑定
+        
+        Args:
+            ip_addr: IP地址
+            mac: MAC地址
+            interface: 接口
+            comment: 备注
+            
+        Returns:
+            bool: 操作是否成功
+        """
+        param = {
+            "bind_type": 0,
+            "interface": interface,
+            "ip_addr": ip_addr,
+            "mac": mac,
+            "comment": comment,
+            "old_ip_addr": ""
+        }
+
+        result = self.posts("arp", "add", param)
+        success = result is not None and result.get("success", False)
+        if success:
+            print(f"✅ ARP绑定添加成功: {ip_addr} -> {mac}")
+        else:
+            print(f"❌ ARP绑定添加失败: {ip_addr} -> {mac}")
+        return success
+
+    def del_arp(self, ip_addr: str = None, mac: str = None,
+                entry_id: int = None) -> bool:
+        """
+        删除ARP绑定
+        
+        Args:
+            ip_addr: IP地址（可选）
+            mac: MAC地址（可选）
+            entry_id: 条目ID（可选）
+            
+        Returns:
+            bool: 操作是否成功
+        """
+        if entry_id:
+            param = {"id": entry_id}
+        elif ip_addr:
+            param = {"ip_addr": ip_addr}
+        elif mac:
+            param = {"mac": mac}
+        else:
+            print("必须提供entry_id、ip_addr或mac中的一个")
+            return False
+
+        result = self.posts("arp", "del", param)
+        success = result is not None and result.get("success", False)
+        if success:
+            identifier = entry_id or ip_addr or mac
+            print(f"✅ ARP绑定删除成功: {identifier}")
+        else:
+            identifier = entry_id or ip_addr or mac
+            print(f"❌ ARP绑定删除失败: {identifier}")
         return success
 
 

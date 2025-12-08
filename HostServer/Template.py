@@ -5,7 +5,7 @@ from MainObject.Config.VMPowers import VMPowers
 from MainObject.Public.HWStatus import HWStatus
 from MainObject.Public.ZMessage import ZMessage
 from MainObject.Config.VMConfig import VMConfig
-from NetsManage import NetsManage
+from HostModule.NetsManage import NetsManage
 
 
 class BaseServer(abc.ABC):
