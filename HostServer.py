@@ -650,6 +650,59 @@ def scan_vms(hs_name):
     return api_response(400, result.message)
 
 
+@app.route('/api/vboxs/upload', methods=['POST'])
+def vm_upload():
+    """虚拟机上报状态数据（无需认证）"""
+    from MainObject.Public.HWStatus import HWStatus
+    
+    # 获取MAC地址参数
+    mac_addr = request.args.get('nic', '')
+    if not mac_addr:
+        return api_response(400, 'MAC地址参数缺失')
+    
+    # 获取上报的状态数据
+    status_data = request.get_json() or {}
+    if not status_data:
+        return api_response(400, '状态数据为空')
+    
+    # 遍历所有主机，查找匹配MAC地址的虚拟机
+    found = False
+    for hs_name, server in hs_manage.engine.items():
+        if not server:
+            continue
+        
+        # 遍历该主机下的所有虚拟机配置
+        for vm_uuid, vm_config in server.vm_saving.items():
+            # 检查虚拟机的网卡配置
+            for nic_name, nic_config in vm_config.nic_all.items():
+                if nic_config.mac_addr.lower() == mac_addr.lower():
+                    # 找到匹配的虚拟机，创建HWStatus对象
+                    try:
+                        hw_status = HWStatus(**status_data)
+                        
+                        # 初始化vm_status列表（如果不存在）
+                        if vm_uuid not in server.vm_status:
+                            server.vm_status[vm_uuid] = []
+                        
+                        # 添加或更新状态（保留最新的状态）
+                        server.vm_status[vm_uuid] = [hw_status]
+                        
+                        # 保存到数据库
+                        server.data_set()
+                        
+                        found = True
+                        return api_response(200, f'虚拟机 {vm_uuid} 状态已更新', {
+                            'hs_name': hs_name,
+                            'vm_uuid': vm_uuid,
+                            'mac_addr': mac_addr
+                        })
+                    except Exception as e:
+                        return api_response(500, f'状态数据处理失败: {str(e)}')
+    
+    if not found:
+        return api_response(404, f'未找到MAC地址为 {mac_addr} 的虚拟机')
+
+
 # ============================================================================
 # 系统API
 # ============================================================================
