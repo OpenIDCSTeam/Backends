@@ -3,6 +3,7 @@ import json
 
 class HSConfig:
     def __init__(self, config=None, /, **kwargs):
+        self.server_name: str = ""  # 服务器名称
         self.server_type: str = ""  # 服务器类型
         self.server_addr: str = ""  # 服务器地址
         self.server_user: str = ""  # 服务器用户
@@ -44,6 +45,7 @@ class HSConfig:
     # 转换为字典 ===============================
     def __dict__(self):
         return {
+            "server_name": self.server_name,
             "server_type": self.server_type,
             "server_addr": self.server_addr,
             "server_user": self.server_user,

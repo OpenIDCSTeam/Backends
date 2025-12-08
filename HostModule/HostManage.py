@@ -2,7 +2,7 @@ import json
 import secrets
 import traceback
 
-from HostServer.Template import BaseServer
+from HostServer.BaseServer import BaseServer
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Server.HSEngine import HEConfig
 from MainObject.Config.VMConfig import VMConfig
@@ -66,7 +66,7 @@ class HostManage:
         return self.bearer
 
     # 验证Token ##################################################################
-    def verify_token(self, token: str) -> bool:
+    def aka_pass(self, token: str) -> bool:
         """
         验证访问Token是否正确
         :param token: 待验证的Token
@@ -173,6 +173,16 @@ class HostManage:
                 # 获取主机完整数据
                 host_full_data = self.db.get_host_full_data(hs_name)
 
+                # 转换 vm_saving 字典为 VMConfig 对象
+                vm_saving_converted = {}
+                for vm_uuid, vm_config in host_full_data["vm_saving"].items():
+                    if isinstance(vm_config, dict):
+                        vm_saving_converted[vm_uuid] = VMConfig(**vm_config)
+                        print(f"[DEBUG all_load] {vm_uuid} 转换为 VMConfig: {type(vm_saving_converted[vm_uuid])}")
+                    else:
+                        vm_saving_converted[vm_uuid] = vm_config
+                        print(f"[DEBUG all_load] {vm_uuid} 已是对象: {type(vm_saving_converted[vm_uuid])}")
+
                 # 创建BaseServer实例
                 if hs_conf.server_type in HEConfig:
                     server_class = HEConfig[hs_conf.server_type]["Imported"]
@@ -181,7 +191,7 @@ class HostManage:
                         db=self.db,
                         hs_name=hs_name,
                         hs_status=host_full_data["hs_status"],
-                        vm_saving=host_full_data["vm_saving"],
+                        vm_saving=vm_saving_converted,
                         vm_status=host_full_data["vm_status"],
                         vm_tasker=host_full_data["vm_tasker"],
                         save_logs=host_full_data["save_logs"],
@@ -190,6 +200,7 @@ class HostManage:
                     self.engine[hs_name].hs_status = host_full_data["hs_status"]
                     self.engine[hs_name].vm_status = host_full_data["vm_status"]
                     self.engine[hs_name].HSLoader()
+                    self.engine[hs_name].VNCLoads()
         except Exception as e:
             print(f"加载数据时出错: {e}")
             traceback.print_exc()
@@ -224,7 +235,7 @@ class HostManage:
             self.engine[server].HSUnload()
 
     # 扫描虚拟机 #################################################################
-    def scan_vms(self, hs_name: str, prefix: str = "") -> ZMessage:
+    def vms_scan(self, hs_name: str, prefix: str = "") -> ZMessage:
         """
         扫描主机上的虚拟机并保存到数据库
         :param hs_name: 主机名称
@@ -277,24 +288,7 @@ class HostManage:
                     continue
 
                 # 创建默认虚拟机配置
-                default_vm_config = VMConfig(
-                    vm_uuid=vmx_name,  # 使用虚拟机名称作为UUID
-                    os_name="",  # 空字符串
-                    cpu_num=0,  # 0表示未知
-                    mem_num=0,  # 0表示未知
-                    hdd_num=0,  # 0表示未知
-                    gpu_num=0,  # 0表示未知
-                    net_num=0,  # 0表示未知
-                    flu_num=0,  # 0表示未知
-                    nat_num=0,  # 0表示未知
-                    web_num=0,  # 0表示未知
-                    gpu_mem=0,  # 0表示未知
-                    speed_u=0,  # 0表示未知
-                    speed_d=0,  # 0表示未知
-                    nic_all={},  # 空字典
-                    hdd_all={},  # 空字典
-                )
-
+                default_vm_config = VMConfig()
                 # 添加到服务器的虚拟机配置中
                 server.vm_saving[vmx_name] = default_vm_config
 
@@ -310,7 +304,7 @@ class HostManage:
                     message=f"发现并添加虚拟机: {vmx_name}",
                     results={"vm_name": vmx_name, "vm_id": vm_id, "vm_path": vm_path}
                 )
-                server.add_log(log_msg)
+                server.LogStack(log_msg)
 
             # 保存到数据库
             if added_count > 0:

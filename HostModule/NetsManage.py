@@ -126,7 +126,7 @@ class NetsManage:
     # 静态IP4设置方法 ########################################################################
     def add_dhcp(self, ip_addr: str, mac: str, hostname: str = "",
                  gateway: str = "auto", interface: str = "auto",
-                 dns1: str = "114.114.114.114", dns2: str = "223.5.5.5",
+                 dns1: str = "119.29.29.29", dns2: str = "223.5.5.5",
                  comment: str = "") -> bool:
         """
         添加静态IP设置
@@ -159,17 +159,14 @@ class NetsManage:
 
         result = self.posts("dhcp_static", "add", param)
         success = result is not None and result.get("success", False)
-        
+        if result['ErrMsg'] == "Success":
+            success = True
         if success:
             print(f"✅ 静态IP添加成功: {ip_addr} -> {mac}")
-            
-            # 同时添加ARP绑定
-            arp_success = self.add_arp(ip_addr, mac, interface, comment or f"静态IP-{ip_addr}")
-            if not arp_success:
-                print(f"⚠️ ARP绑定添加失败，但静态IP已设置成功")
         else:
             print(f"❌ 静态IP添加失败: {ip_addr} -> {mac}")
-        
+            print(result)
+
         return success
 
     # 静态IP4删除方法 ########################################################################
@@ -198,22 +195,16 @@ class NetsManage:
 
         result = self.posts("dhcp_static", "del", param)
         success = result is not None and result.get("success", False)
-        
+        print(result)
+        if result['ErrMsg'] == "Success":
+            success = True
         if success:
             identifier = entry_id or ip_addr or mac
             print(f"✅ 静态IP删除成功: {identifier}")
-            
-            # 同时删除ARP绑定
-            if ip_addr or mac:
-                arp_success = self.del_arp(ip_addr, mac)
-                if not arp_success:
-                    print(f"⚠️ ARP绑定删除失败，但静态IP已删除成功")
-            else:
-                print(f"⚠️ 无法删除ARP绑定，因为缺少IP地址或MAC地址信息")
         else:
             identifier = entry_id or ip_addr or mac
             print(f"❌ 静态IP删除失败: {identifier}")
-        
+
         return success
 
     # TCP/UDP转发设置 ########################################################################
@@ -248,6 +239,8 @@ class NetsManage:
 
         result = self.posts("dnat", "add", param)
         success = result is not None and result.get("success", False)
+        if result['ErrMsg'] == "Success":
+            success = True
         if success:
             print(f"✅ 端口转发添加成功: 外部端口{wan_port} -> {lan_addr}:{lan_port}")
         else:
@@ -278,6 +271,8 @@ class NetsManage:
 
         result = self.posts("dnat", "del", param)
         success = result is not None and result.get("success", False)
+        if result['ErrMsg'] == "Success":
+            success = True
         if success:
             identifier = entry_id or f"{wan_port}->{lan_addr}"
             print(f"✅ 端口转发删除成功: {identifier}")
@@ -312,6 +307,8 @@ class NetsManage:
 
         result = self.posts("arp", "add", param)
         success = result is not None and result.get("success", False)
+        if result['ErrMsg'] == "Success":
+            success = True
         if success:
             print(f"✅ ARP绑定添加成功: {ip_addr} -> {mac}")
         else:
@@ -343,12 +340,15 @@ class NetsManage:
 
         result = self.posts("arp", "del", param)
         success = result is not None and result.get("success", False)
+        if result['ErrMsg'] == "Success":
+            success = True
         if success:
             identifier = entry_id or ip_addr or mac
             print(f"✅ ARP绑定删除成功: {identifier}")
         else:
             identifier = entry_id or ip_addr or mac
             print(f"❌ ARP绑定删除失败: {identifier}")
+            print(result)
         return success
 
 

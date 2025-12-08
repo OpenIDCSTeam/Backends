@@ -37,7 +37,14 @@ class HWStatus:
     def __load__(self, **kwargs):
         for key, value in kwargs.items():
             if hasattr(self, key):
-                setattr(self, key, value)
+                if key == "ac_status" and isinstance(value, str):
+                    # 特殊处理ac_status字段，将字符串转换为枚举
+                    try:
+                        self.ac_status = VPower[value]
+                    except KeyError:
+                        self.ac_status = VPower.UNKNOWN
+                else:
+                    setattr(self, key, value)
 
     # 读取数据 ================================
     def __read__(self, data: dict):

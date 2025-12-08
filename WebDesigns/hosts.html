@@ -13,11 +13,13 @@
 <!-- 操作栏 -->
 <div class="bg-white rounded-lg border border-gray-200 p-4 mb-6 flex flex-wrap items-center justify-between gap-4">
     <div class="flex items-center gap-4">
-        <button onclick="openAddHostModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium btn-hover shadow-sm flex items-center gap-2">
+        <button onclick="openAddHostModal()"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium btn-hover shadow-sm flex items-center gap-2">
             <span class="iconify" data-icon="mdi:plus" data-width="18"></span>
             添加主机
         </button>
-        <button onclick="loadHosts()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium btn-hover flex items-center gap-2">
+        <button onclick="loadHosts()"
+                class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium btn-hover flex items-center gap-2">
             <span class="iconify" data-icon="mdi:refresh" data-width="18"></span>
             刷新
         </button>
@@ -29,7 +31,7 @@
 </div>
 
 <!-- 主机列表 -->
-<div id="hostsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+<div id="hostsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
     <div class="col-span-full text-center py-16 text-gray-500">
         <span class="iconify animate-pulse-slow text-gray-400" data-icon="mdi:loading" data-width="48"></span>
         <p class="mt-4">加载中...</p>
@@ -46,53 +48,53 @@
         <form id="hostForm" class="mt-4 space-y-4">
             <input type="hidden" name="editMode" id="editMode" value="add">
             <input type="hidden" name="originalName" id="originalName" value="">
-            
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">服务器名称 *</label>
                     <input type="text" name="name" id="hostName" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="例如: host1">
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="例如: host1">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">服务器类型 *</label>
                     <select name="type" id="hostType" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         <option value="">请选择类型</option>
                     </select>
                 </div>
             </div>
-            
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">服务器地址</label>
                     <input type="text" name="server_addr" id="serverAddr"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="例如: localhost:8697">
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="例如: localhost:8697">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">服务器用户</label>
                     <input type="text" name="server_user" id="serverUser"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="例如: root">
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="例如: root">
                 </div>
             </div>
-            
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">服务器密码</label>
                     <input type="password" name="server_pass" id="serverPass"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="服务器密码">
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="服务器密码">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">虚拟机前缀</label>
                     <input type="text" name="filter_name" id="filterName"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="过滤器名称">
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="过滤器名称">
                 </div>
             </div>
-            
+
             <div class="border-t border-gray-200 pt-4">
                 <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
                     <span class="iconify" data-icon="mdi:folder" data-width="18"></span>
@@ -102,60 +104,60 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">镜像存储路径</label>
                         <input type="text" name="images_path" id="imagesPath"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="例如: /data/images">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="例如: /data/images">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">系统存储路径</label>
                         <input type="text" name="system_path" id="systemPath"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="例如: /data/system">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="例如: /data/system">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">备份存储路径</label>
                         <input type="text" name="backup_path" id="backupPath"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="例如: /data/backup">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="例如: /data/backup">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">数据存储路径</label>
                         <input type="text" name="extern_path" id="externPath"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="例如: /data/extern">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="例如: /data/extern">
                     </div>
                 </div>
             </div>
-            
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">程序启动路径</label>
                     <input type="text" name="launch_path" id="launchPath"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="虚拟化程序路径">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">共享IP设备名</label>
-                    <input type="text" name="network_nat" id="networkNat"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="例如: nat">
-                </div>
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">独立IP设备名</label>
-                    <input type="text" name="network_pub" id="networkPub"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="例如: pub">
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="虚拟化程序路径">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">服务器公网IP</label>
                     <input type="text" name="public_addr" id="publicAddr"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="例如: 192.168.1.1, 2001:db8::1">
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="例如: 192.168.1.1, 2001:db8::1">
                 </div>
             </div>
-            
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">共享IP设备名</label>
+                    <input type="text" name="network_nat" id="networkNat"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="例如: nat">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">独立IP设备名</label>
+                    <input type="text" name="network_pub" id="networkPub"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="例如: pub">
+                </div>
+            </div>
+
             <div class="border-t border-gray-200 pt-4">
                 <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
                     <span class="iconify" data-icon="mdi:router-network" data-width="18"></span>
@@ -165,24 +167,24 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">爱快OS地址</label>
                         <input type="text" name="i_kuai_addr" id="iKuaiAddr"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="例如: http://192.168.1.1">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="例如: http://192.168.1.1">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">爱快OS用户名</label>
                         <input type="text" name="i_kuai_user" id="iKuaiUser"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="爱快OS管理员用户名">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="爱快OS管理员用户名">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">爱快OS密码</label>
                         <input type="password" name="i_kuai_pass" id="iKuaiPass"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="爱快OS管理员密码">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="爱快OS管理员密码">
                     </div>
                 </div>
             </div>
-            
+
             <div class="border-t border-gray-200 pt-4">
                 <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
                     <span class="iconify" data-icon="mdi:network-outline" data-width="18"></span>
@@ -192,24 +194,24 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">TCP端口起始</label>
                         <input type="number" name="ports_start" id="portsStart"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="例如: 10000" min="0" max="65535">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="例如: 10000" min="0" max="65535">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">TCP端口结束</label>
                         <input type="number" name="ports_close" id="portsClose"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="例如: 20000" min="0" max="65535">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="例如: 20000" min="0" max="65535">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">VNC服务端口</label>
                         <input type="number" name="remote_port" id="remotePort"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="例如: 5900" min="0" max="65535">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="例如: 5900" min="0" max="65535">
                     </div>
                 </div>
             </div>
-            
+
             <div class="border-t border-gray-200 pt-4">
                 <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
                     <span class="iconify" data-icon="mdi:file-table-outline" data-width="18"></span>
@@ -222,28 +224,28 @@
                     <!-- 系统映射行将动态添加到这里 -->
                 </div>
                 <div class="mt-3">
-                    <button type="button" onclick="addSystemMapRow()" 
-                        class="px-3 py-1.5 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 flex items-center gap-1">
+                    <button type="button" onclick="addSystemMapRow()"
+                            class="px-3 py-1.5 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 flex items-center gap-1">
                         <span class="iconify" data-icon="mdi:plus" data-width="16"></span>
                         添加系统映射
                     </button>
                 </div>
             </div>
-            
+
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">API扩展选项 (JSON格式)</label>
                 <textarea name="extend_data" id="extendData" rows="2"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder='{"key": "value"}'></textarea>
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder='{"key": "value"}'></textarea>
             </div>
-            
+
             <div class="modal-action">
-                <button type="button" onclick="document.getElementById('hostModal').close()" 
-                    class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                <button type="button" onclick="document.getElementById('hostModal').close()"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
                     取消
                 </button>
-                <button type="submit" 
-                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                <button type="submit"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
                     <span class="iconify" data-icon="mdi:check" data-width="18"></span>
                     保存
                 </button>
@@ -264,12 +266,12 @@
         </h3>
         <p class="py-4">确定要删除主机 "<span id="deleteHostName" class="font-medium"></span>" 吗？此操作不可恢复。</p>
         <div class="modal-action">
-            <button onclick="document.getElementById('deleteModal').close()" 
-                class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+            <button onclick="document.getElementById('deleteModal').close()"
+                    class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
                 取消
             </button>
-            <button onclick="confirmDeleteHost()" 
-                class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">
+            <button onclick="confirmDeleteHost()"
+                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">
                 确认删除
             </button>
         </div>
@@ -284,17 +286,17 @@
 <script>
     let engineTypes = {};
     let currentDeleteHost = '';
-    
+
     // 渲染公网IP地址（带复制功能）
     function renderPublicAddr(addrs) {
         if (!addrs || !Array.isArray(addrs) || addrs.length === 0) {
             return '未配置';
         }
-        return addrs.map(ip => 
+        return addrs.map(ip =>
             `<span class="cursor-pointer hover:text-blue-600 inline-flex items-center gap-1" onclick="copyToClipboard('${ip}')" title="点击复制">${ip}<span class="iconify text-gray-400 hover:text-blue-600" data-icon="mdi:content-copy" data-width="12"></span></span>`
         ).join('<br>');
     }
-    
+
     // 复制到剪贴板
     function copyToClipboard(text) {
         navigator.clipboard.writeText(text).then(() => {
@@ -303,7 +305,7 @@
             showToast('复制失败', 'error');
         });
     }
-    
+
     // 解析扩展数据JSON
     function parseExtendData(value) {
         if (!value || !value.trim()) return {};
@@ -314,9 +316,9 @@
             return {};
         }
     }
-    
+
     // 系统映射相关函数 =======================================
-    
+
     // 添加系统映射行
     function addSystemMapRow(systemName = '', systemFile = '', minSize = '') {
         const container = document.getElementById('systemMapsContainer');
@@ -359,7 +361,7 @@
         `;
         container.insertAdjacentHTML('beforeend', rowHtml);
     }
-    
+
     // 删除系统映射行
     function removeSystemMapRow(rowId) {
         const row = document.querySelector(`[data-row-id="${rowId}"]`);
@@ -367,7 +369,7 @@
             row.remove();
         }
     }
-    
+
     // 获取系统映射数据
     function getSystemMapsData() {
         const maps = {};
@@ -376,19 +378,19 @@
             const systemName = row.querySelector('.system-name').value.trim();
             const systemFile = row.querySelector('.system-file').value.trim();
             const minSize = row.querySelector('.min-size').value.trim();
-            
+
             if (systemName && systemFile) {
                 maps[systemName] = [systemFile, minSize || '0'];
             }
         });
         return maps;
     }
-    
+
     // 加载系统映射数据
     function loadSystemMapsData(systemMaps) {
         const container = document.getElementById('systemMapsContainer');
         container.innerHTML = ''; // 清空现有内容
-        
+
         if (systemMaps && typeof systemMaps === 'object') {
             for (const [systemName, config] of Object.entries(systemMaps)) {
                 if (Array.isArray(config) && config.length >= 2) {
@@ -398,27 +400,27 @@
                 }
             }
         }
-        
+
         // 如果没有任何映射，添加一个空行作为默认
         if (Object.keys(systemMaps || {}).length === 0) {
             addSystemMapRow();
         }
     }
-    
+
     // 页面加载完成后执行
-    $(document).ready(function() {
+    $(document).ready(function () {
         loadEngineTypes();
         loadHosts();
     });
-    
+
     // 加载引擎类型
     async function loadEngineTypes() {
-        const result = await apiRequest('/api/engine/types');
+        const result = await apiRequest('/api/system/engine');
         if (result && result.code === 200) {
             engineTypes = result.data;
             const select = document.getElementById('hostType');
             select.innerHTML = '<option value="">请选择类型</option>';
-            
+
             for (const [type, config] of Object.entries(engineTypes)) {
                 if (config.enabled) {
                     const option = document.createElement('option');
@@ -429,7 +431,7 @@
             }
         }
     }
-    
+
     // 加载主机列表
     async function loadHosts() {
         const container = document.getElementById('hostsList');
@@ -439,13 +441,13 @@
                 <p class="mt-4">加载中...</p>
             </div>
         `;
-        
-        const result = await apiRequest('/api/hosts');
+
+        const result = await apiRequest('/api/server/detail');
         if (result && result.code === 200) {
             const hosts = result.data;
             const count = Object.keys(hosts).length;
             document.getElementById('hostCount').textContent = count;
-            
+
             if (count === 0) {
                 container.innerHTML = `
                     <div class="col-span-full text-center py-16">
@@ -458,14 +460,14 @@
                 `;
                 return;
             }
-            
+
             container.innerHTML = '';
             for (const [name, host] of Object.entries(hosts)) {
                 container.innerHTML += renderHostCard(name, host);
             }
         }
     }
-    
+
     // 渲染主机卡片
     function renderHostCard(name, host) {
         const typeInfo = engineTypes[host.type] || {};
@@ -576,7 +578,7 @@
             </div>
         `;
     }
-    
+
     // 打开添加主机模态框
     function openAddHostModal() {
         document.getElementById('modalTitle').innerHTML = `
@@ -590,13 +592,13 @@
         loadSystemMapsData({});
         document.getElementById('hostModal').showModal();
     }
-    
+
     // 编辑主机
     async function editHost(name) {
-        const result = await apiRequest(`/api/hosts/${name}`);
+        const result = await apiRequest(`/api/server/detail/${name}`);
         if (result && result.code === 200) {
             const host = result.data;
-            
+
             document.getElementById('modalTitle').innerHTML = `
                 <span class="iconify text-blue-600" data-icon="mdi:server-edit" data-width="24"></span>
                 编辑主机
@@ -606,7 +608,7 @@
             document.getElementById('hostName').value = name;
             document.getElementById('hostName').disabled = true;
             document.getElementById('hostType').value = host.type;
-            
+
             const config = host.config || {};
             document.getElementById('serverAddr').value = config.server_addr || '';
             document.getElementById('serverUser').value = config.server_user || '';
@@ -631,19 +633,19 @@
             document.getElementById('hostModal').showModal();
         }
     }
-    
+
     // 删除主机
     function deleteHost(name) {
         currentDeleteHost = name;
         document.getElementById('deleteHostName').textContent = name;
         document.getElementById('deleteModal').showModal();
     }
-    
+
     // 确认删除主机
     async function confirmDeleteHost() {
         if (!currentDeleteHost) return;
-        
-        const result = await apiRequest(`/api/hosts/${currentDeleteHost}`, 'DELETE');
+
+        const result = await apiRequest(`/api/server/delete/${currentDeleteHost}`, 'DELETE');
         if (result && result.code === 200) {
             showToast('主机已删除', 'success');
             document.getElementById('deleteModal').close();
@@ -653,10 +655,10 @@
         }
         currentDeleteHost = '';
     }
-    
+
     // 切换主机状态
     async function toggleHost(name, enable) {
-        const result = await apiRequest(`/api/hosts/${name}/power`, 'POST', { enable });
+        const result = await apiRequest(`/api/server/powers/${name}`, 'POST', {enable});
         if (result && result.code === 200) {
             showToast(result.msg, 'success');
             loadHosts();
@@ -664,7 +666,7 @@
             showToast(result?.msg || '操作失败', 'error');
         }
     }
-    
+
     // 扫描主机上的虚拟机
     async function scanHostVMs(hostName) {
         // 显示扫描中状态
@@ -678,15 +680,15 @@
                 Swal.showLoading();
             }
         });
-        
+
         try {
-            const result = await apiRequest(`/api/hosts/${hostName}/vms/scan`, 'POST', {});
-            
+            const result = await apiRequest(`/api/client/scaner/${hostName}`, 'POST', {});
+
             if (result && result.code === 200) {
                 const data = result.data || {};
                 const scanned = data.scanned || 0;
                 const added = data.added || 0;
-                
+
                 Swal.fire({
                     icon: 'success',
                     title: '扫描完成',
@@ -695,7 +697,7 @@
                     showConfirmButton: true,
                     confirmButtonText: '确定'
                 });
-                
+
                 // 刷新主机列表以更新虚拟机数量
                 loadHosts();
             } else {
@@ -713,15 +715,15 @@
             });
         }
     }
-    
+
     // 表单提交
     document.getElementById('hostForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const editMode = document.getElementById('editMode').value;
         const name = document.getElementById('hostName').value;
         const type = document.getElementById('hostType').value;
-        
+
         const config = {
             server_type: type,
             server_addr: document.getElementById('serverAddr').value,
@@ -745,15 +747,15 @@
             public_addr: document.getElementById('publicAddr').value.split(',').map(s => s.trim()).filter(s => s),
             extend_data: parseExtendData(document.getElementById('extendData').value)
         };
-        
+
         let result;
         if (editMode === 'add') {
-            result = await apiRequest('/api/hosts', 'POST', { name, type, config });
+            result = await apiRequest('/api/server/create', 'POST', {name, type, config});
         } else {
             const originalName = document.getElementById('originalName').value;
-            result = await apiRequest(`/api/hosts/${originalName}`, 'PUT', { config });
+            result = await apiRequest(`/api/server/update/${originalName}`, 'PUT', {config});
         }
-        
+
         if (result && result.code === 200) {
             showToast(editMode === 'add' ? '主机添加成功' : '主机更新成功', 'success');
             document.getElementById('hostModal').close();

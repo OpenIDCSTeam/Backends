@@ -143,7 +143,7 @@
 
     async function loadHosts() {
         try {
-            const result = await apiRequest('/api/hosts');
+        const result = await apiRequest('/api/server/detail');
             if (result && result.code === 200) {
                 const hostSelect = document.getElementById('hostFilter');
                 hostSelect.innerHTML = '<option value="">全部主机</option>';
@@ -164,7 +164,7 @@
         try {
             const hsName = document.getElementById('hostFilter').value;
             
-            const result = await apiRequest(`/api/tasks?hs_name=${hsName}&limit=200`);
+            const result = await apiRequest(`/api/system/tasker?hs_name=${hsName}&limit=200`);
             if (result && result.code === 200) {
                 allTasks = result.data || [];
                 renderTasks();

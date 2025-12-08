@@ -160,7 +160,7 @@
 
     async function loadDashboard() {
         try {
-            const result = await apiRequest('/api/system/stats');
+            const result = await apiRequest('/api/system/statis');
             if (result && result.code === 200) {
                 const stats = result.data;
                 $('#hostCount').text(stats.host_count || 0);
@@ -168,7 +168,7 @@
                 $('#runningVm').text(stats.running_vm_count || 0);
             }
 
-            const hostsResult = await apiRequest('/api/hosts');
+            const hostsResult = await apiRequest('/api/server/detail');
             if (hostsResult && hostsResult.code === 200) {
                 renderHostsList(hostsResult.data);
             }
@@ -229,7 +229,7 @@
     }
 
     async function saveAll() {
-        const result = await apiRequest('/api/system/save', 'POST');
+        const result = await apiRequest('/api/system/saving', 'POST');
         if (result && result.code === 200) {
             showToast('配置已保存', 'success');
         } else {

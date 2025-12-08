@@ -40,6 +40,22 @@
             <div>
                 <h1 class="text-lg font-semibold text-gray-800">{{ vm_uuid }}</h1>
                 <p id="vmOsName" class="text-sm text-gray-500">加载中...</p>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span class="text-xs text-gray-400">系统密码:</span>
+                        <input type="password" id="vmOsPass" readonly 
+                               class="text-xs text-gray-600 bg-transparent border-none p-0 w-24" 
+                               value="********">
+                        <button type="button" onclick="togglePasswordVisibility()" 
+                                class="text-gray-400 hover:text-gray-600 transition-colors" 
+                                title="查看/隐藏密码">
+                            <span id="eyeIcon" class="iconify" data-icon="mdi:eye-outline" data-width="16"></span>
+                        </button>
+                        <button type="button" onclick="copyPassword()" 
+                                class="text-gray-400 hover:text-gray-600 transition-colors" 
+                                title="复制密码">
+                            <span class="iconify" data-icon="mdi:content-copy" data-width="16"></span>
+                        </button>
+                    </div>
             </div>
         </div>
         <div id="vmStatus">
@@ -245,7 +261,7 @@
                 </div>
                 <!-- 上行带宽 -->
                 <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                    <p class="text-xs text-gray-500">NET带宽</p>
+                    <p class="text-xs text-gray-500">上行带宽</p>
                     <p id="vmSpeedU" class="text-lg font-medium text-gray-800 mt-1">-</p>
                     <div class="mt-2">
                         <div class="flex justify-between text-xs text-gray-500 mb-1">
@@ -258,17 +274,17 @@
                         </div>
                     </div>
                 </div>
-                <!-- 反向代理 -->
+                <!-- 下行带宽 -->
                 <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                    <p class="text-xs text-gray-500">WEB代理</p>
-                    <p id="vmWebNum" class="text-lg font-medium text-gray-800 mt-1">-</p>
+                    <p class="text-xs text-gray-500">下行带宽</p>
+                    <p id="vmSpeedD" class="text-lg font-medium text-gray-800 mt-1">-</p>
                     <div class="mt-2">
                         <div class="flex justify-between text-xs text-gray-500 mb-1">
-                            <span id="vmWebUsageText">已用 0 个</span>
-                            <span id="vmWebPerText">0%</span>
+                            <span id="vmNetDUsageText">已用 0 Mbps</span>
+                            <span id="vmNetDPerText">0%</span>
                         </div>
                         <div class="w-full bg-gray-200 rounded-full h-1.5">
-                            <div id="vmWebPerBar" class="bg-pink-500 h-1.5 rounded-full transition-all"
+                            <div id="vmNetDPerBar" class="bg-teal-500 h-1.5 rounded-full transition-all"
                                  style="width: 0%"></div>
                         </div>
                     </div>
@@ -282,7 +298,7 @@
                 <span class="iconify text-gray-500" data-icon="mdi:ethernet" data-width="20"></span>
                 网络配置
             </h2>
-            <div class="grid grid-cols-2 md:grid-cols-2 gap-4 mb-4">
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
                 <!-- NAT端口数 -->
                 <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
                     <p class="text-xs text-gray-500">NAT端口数</p>
@@ -294,6 +310,21 @@
                         </div>
                         <div class="w-full bg-gray-200 rounded-full h-1.5">
                             <div id="vmNatPerBar" class="bg-orange-500 h-1.5 rounded-full transition-all"
+                                 style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- WEB代理 -->
+                <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                    <p class="text-xs text-gray-500">WEB代理</p>
+                    <p id="vmWebNum" class="text-lg font-medium text-gray-800 mt-1">-</p>
+                    <div class="mt-2">
+                        <div class="flex justify-between text-xs text-gray-500 mb-1">
+                            <span id="vmWebUsageText">已用 0 个</span>
+                            <span id="vmWebPerText">0%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-1.5">
+                            <div id="vmWebPerBar" class="bg-pink-500 h-1.5 rounded-full transition-all"
                                  style="width: 0%"></div>
                         </div>
                     </div>
@@ -319,6 +350,46 @@
             <h3 class="text-sm font-medium text-gray-700 mb-2">网卡列表</h3>
             <div id="nicList" class="space-y-2">
                 <p class="text-sm text-gray-500">加载中...</p>
+            </div>
+        </div>
+
+        <!-- 数据监控 -->
+        <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4 w-full">
+            <h2 class="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <span class="iconify text-gray-500" data-icon="mdi:chart-line" data-width="20"></span>
+                数据监控
+            </h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
+                <!-- CPU使用率 -->
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 w-full">
+                    <h3 class="text-sm font-medium text-gray-700 mb-3">CPU使用率</h3>
+                    <canvas id="cpuChart" width="400" height="200" class="w-full"></canvas>
+                </div>
+                <!-- 内存使用率 -->
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 w-full">
+                    <h3 class="text-sm font-medium text-gray-700 mb-3">内存使用率</h3>
+                    <canvas id="memChart" width="400" height="200" class="w-full"></canvas>
+                </div>
+                <!-- 硬盘使用率 -->
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 w-full">
+                    <h3 class="text-sm font-medium text-gray-700 mb-3">硬盘使用率</h3>
+                    <canvas id="hddChart" width="400" height="200" class="w-full"></canvas>
+                </div>
+                <!-- GPU使用率 -->
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 w-full">
+                    <h3 class="text-sm font-medium text-gray-700 mb-3">GPU使用率</h3>
+                    <canvas id="gpuChart" width="400" height="200" class="w-full"></canvas>
+                </div>
+                <!-- 上行带宽 -->
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 w-full">
+                    <h3 class="text-sm font-medium text-gray-700 mb-3">上行带宽</h3>
+                    <canvas id="netUChart" width="400" height="200" class="w-full"></canvas>
+                </div>
+                <!-- 下行带宽 -->
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 w-full">
+                    <h3 class="text-sm font-medium text-gray-700 mb-3">下行带宽</h3>
+                    <canvas id="netDChart" width="400" height="200" class="w-full"></canvas>
+                </div>
             </div>
         </div>
 
@@ -496,7 +567,6 @@
                 <label class="block text-sm font-medium text-gray-600 mb-1">绑定网卡</label>
                 <select id="ipNic"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                    <option value="">默认网卡</option>
                 </select>
             </div>
             <div>
@@ -657,11 +727,7 @@
             <select id="reinstallOsSelect" 
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
                 <option value="">请选择操作系统</option>
-                <option value="windows10x64">Windows 10 x64</option>
-                <option value="windows11x64">Windows 11 x64</option>
-                <option value="ubuntu2204">Ubuntu 22.04</option>
-                <option value="centos7">CentOS 7</option>
-                <option value="debian11">Debian 11</option>
+                <!-- 操作系统选项将从主机的system_maps动态加载 -->
             </select>
         </div>
         
@@ -767,12 +833,14 @@
                         <select name="os_name" id="editOsName"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                             <option value="">请选择</option>
-                            <option value="windows10x64">Windows 10 x64</option>
-                            <option value="windows11x64">Windows 11 x64</option>
-                            <option value="ubuntu2204">Ubuntu 22.04</option>
-                            <option value="centos7">CentOS 7</option>
-                            <option value="debian11">Debian 11</option>
+                            <!-- 操作系统选项将从主机的system_maps动态加载 -->
                         </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-600 mb-1">系统密码</label>
+                        <input type="text" name="os_pass" id="editOsPass"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                               placeholder="设置系统登录密码">
                     </div>
                 </div>
             </div>
@@ -806,6 +874,7 @@
     const vmUuid = '{{ vm_uuid }}';
     let vmData = null;
     let hostData = null;
+    let hostSystemMaps = {}; // 存储主机的系统映射
 
     // 状态文字映射
     const statusMap = {
@@ -817,6 +886,76 @@
         'CRASHED': {text: '已崩溃', color: 'text-red-700 bg-red-100', icon: 'mdi:alert-circle'},
         'UNKNOWN': {text: '未知', color: 'text-gray-500 bg-gray-100', icon: 'mdi:help-circle'}
     };
+
+    // 获取网络类型显示名称
+    function getNicTypeDisplay(nicType) {
+        const typeMap = {
+            'nat': '内网',
+            'pub': '外网', 
+            'bridged': '桥接',
+            'host-only': '仅主机'
+        };
+        return typeMap[nicType] || nicType;
+    }
+
+    // 切换密码可见性
+    function togglePasswordVisibility() {
+        const passInput = document.getElementById('vmOsPass');
+        const eyeIcon = document.getElementById('eyeIcon');
+        
+        if (passInput.type === 'password') {
+            // 当前是隐藏状态，切换为显示
+            passInput.type = 'text';
+            eyeIcon.setAttribute('data-icon', 'mdi:eye-off-outline');
+        } else {
+            // 当前是显示状态，切换为隐藏
+            passInput.type = 'password';
+            eyeIcon.setAttribute('data-icon', 'mdi:eye-outline');
+        }
+    }
+
+    // 复制密码到剪贴板
+    function copyPassword() {
+        const passInput = document.getElementById('vmOsPass');
+        const password = $(passInput).data('password') || passInput.value;
+        
+        if (!password) {
+            showToast('没有可复制的密码', 'warning');
+            return;
+        }
+
+        // 使用现代剪贴板API
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(password).then(() => {
+                showToast('密码已复制到剪贴板', 'success');
+            }).catch(err => {
+                console.error('复制失败:', err);
+                fallbackCopyPassword(password);
+            });
+        } else {
+            fallbackCopyPassword(password);
+        }
+    }
+
+    // 备用复制方法（兼容旧浏览器）
+    function fallbackCopyPassword(password) {
+        const textarea = document.createElement('textarea');
+        textarea.value = password;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        
+        try {
+            document.execCommand('copy');
+            showToast('密码已复制到剪贴板', 'success');
+        } catch (err) {
+            console.error('复制失败:', err);
+            showToast('复制失败，请手动复制', 'error');
+        }
+        
+        document.body.removeChild(textarea);
+    }
 
     $(document).ready(function () {
         loadVMInfo();
@@ -845,7 +984,18 @@
         $('#vmEditForm').on('submit', function (e) {
             e.preventDefault();
 
-            pendingEditVmData = collectEditVmFormData();
+            try {
+                pendingEditVmData = collectEditVmFormData();
+            } catch (error) {
+                // 显示验证错误
+                Swal.fire({
+                    icon: 'error',
+                    title: '配置验证失败',
+                    text: error.message,
+                    confirmButtonText: '确定'
+                });
+                return;
+            }
 
             // 先关闭编辑框
             document.getElementById('vmEditModal').close();
@@ -943,11 +1093,12 @@
         });
     }
 
-    // 加载主机信息（获取公网IP）
+    // 加载主机信息（获取公网IP和系统映射）
     async function loadHostInfo() {
-        const result = await apiRequest(`/api/hosts/${hostName}`);
+        const result = await apiRequest(`/api/server/detail/${hostName}`);
         if (result && result.code === 200) {
             hostData = result.data;
+            hostSystemMaps = hostData.config?.system_maps || {}; // 初始化系统映射
             renderPublicAddr(hostData.config?.public_addr);
         }
     }
@@ -971,12 +1122,37 @@
 
     // 加载虚拟机信息
     async function loadVMInfo() {
-        const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}`);
+        const result = await apiRequest(`/api/client/detail/${hostName}/${vmUuid}`);
         if (result && result.code === 200) {
             vmData = result.data;
             renderVMInfo(vmData);
+            
+            // 初始化操作系统选项（用于编辑时）
+            const config = vmData.config || {};
+            updateOsOptions(config.os_name || '');
         } else {
             showToast(result?.msg || '加载失败', 'error');
+        }
+    }
+
+    // 更新操作系统下拉选项
+    function updateOsOptions(selectedOsName = '') {
+        const osSelect = document.getElementById('editOsName');
+        // 保留"请选择"选项
+        osSelect.innerHTML = '<option value="">请选择</option>';
+
+        // 从system_maps添加选项
+        for (const [osName, osConfig] of Object.entries(hostSystemMaps)) {
+            const option = document.createElement('option');
+            // osConfig是数组 [镜像文件, 最小大小]
+            const imageFile = Array.isArray(osConfig) ? osConfig[0] : osConfig;
+            option.value = imageFile; // 值设置为镜像文件名
+            option.textContent = osName; // 显示文本为系统名称
+            // 如果是编辑模式且匹配当前系统名称，则选中
+            if (selectedOsName && osName === selectedOsName) {
+                option.selected = true;
+            }
+            osSelect.appendChild(option);
         }
     }
 
@@ -985,7 +1161,8 @@
         const config = data.config || {};
         // status现在是数组 list[HWStatus]，取第一个元素的ac_status作为电源状态
         const statusList = data.status || [];
-        const firstStatus = statusList.length > 0 ? statusList[0] : {};
+        // 获取最新的状态（数组的最后一个元素）
+        const firstStatus = statusList.length > 0 ? statusList[statusList.length - 1] : {};
         const powerStatus = firstStatus.ac_status || 'UNKNOWN';
         const statusInfo = statusMap[powerStatus] || statusMap['UNKNOWN'];
 
@@ -1000,18 +1177,23 @@
         // 更新操作系统
         $('#vmOsName').text(config.os_name || '未知系统');
 
+        // 更新系统密码
+        const osPass = config.os_pass || '';
+        $('#vmOsPass').val(osPass);
+        $('#vmOsPass').data('password', osPass); // 存储实际密码
+
         // 更新资源配置 - CPU
         $('#vmCpu').text((config.cpu_num || 0) + ' 核');
-        const cpuPer = config.cpu_per || 0;
+        const cpuPer = firstStatus.cpu_usage || 0;
         $('#vmCpuPerText').text(cpuPer + '%');
         $('#vmCpuPerBar').css('width', Math.min(cpuPer, 100) + '%');
 
         // 更新资源配置 - 内存
         const memTotal = config.mem_num || 0;
-        const memUsage = firstStatus.mem_usage || 0;
-        const memPer = memTotal > 0 ? Math.round(memUsage / memTotal * 100) : 0;
+        const memUsageMB = firstStatus.mem_usage || 0;
+        const memPer = memTotal > 0 ? Math.round(memUsageMB / memTotal * 100) : 0;
         $('#vmMemory').text(formatMemory(memTotal));
-        $('#vmMemUsageText').text('已用 ' + formatMemory(memUsage));
+        $('#vmMemUsageText').text('已用 ' + memPer + '%');
         $('#vmMemPerText').text(memPer + '%');
         $('#vmMemPerBar').css('width', Math.min(memPer, 100) + '%');
 
@@ -1041,6 +1223,15 @@
         $('#vmNetUsageText').text('已用 ' + netUsage + ' Mbps');
         $('#vmNetPerText').text(netPer + '%');
         $('#vmNetPerBar').css('width', Math.min(netPer, 100) + '%');
+
+        // 更新资源配置 - 下行带宽
+        const speedD = config.speed_d || 0;
+        const netDUsage = firstStatus.network_d || 0;
+        const netDPer = speedD > 0 ? Math.round(netDUsage / speedD * 100) : 0;
+        $('#vmSpeedD').text(speedD + ' Mbps');
+        $('#vmNetDUsageText').text('已用 ' + netDUsage + ' Mbps');
+        $('#vmNetDPerText').text(netDPer + '%');
+        $('#vmNetDPerBar').css('width', Math.min(netDPer, 100) + '%');
 
         // 更新资源配置 - 反向代理
         const webNum = config.web_num || 0;
@@ -1078,7 +1269,7 @@
                     <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
                         <div class="flex items-center justify-between mb-2">
                             <span class="font-medium text-gray-200 inline-block text-left" style="width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${nicName}</span>
-                            <span class="px-2 py-0.5 text-xs font-medium text-gray-600 bg-gray-200 rounded">${nicConfig.nic_type || 'nat'}</span>
+                            <span class="px-2 py-0.5 text-xs font-medium text-gray-600 bg-gray-200 rounded">${getNicTypeDisplay(nicConfig.nic_type || 'nat')}</span>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
                             <div class="flex items-center gap-2">
@@ -1109,12 +1300,15 @@
                 $('#vmIPv6').text(firstNic.ip6_addr);
             }
 
-            // 更新网卡选择下拉框
-            let nicOptions = '<option value="">默认网卡</option>';
-            for (const nicName of Object.keys(nicAll)) {
-                nicOptions += `<option value="${nicName}">${nicName}</option>`;
-            }
-            $('#ipNic').html(nicOptions);
+        // 更新网卡选择下拉框
+        let nicOptions = '';
+        for (const nicName of Object.keys(nicAll)) {
+            nicOptions += `<option value="${nicName}">${nicName}</option>`;
+        }
+        $('#ipNic').html(nicOptions);
+
+        // 绘制历史数据图表
+        drawHistoryCharts(statusList);
         } else {
             $('#nicList').html('<p class="text-sm text-gray-500">暂无网卡配置</p>');
         }
@@ -1278,7 +1472,7 @@
         });
 
         // API请求
-        const apiPromise = apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}/power`, 'POST', {action});
+    const apiPromise = apiRequest(`/api/client/powers/${hostName}/${vmUuid}`, 'POST', {action});
 
         try {
             // 使用Promise.race处理超时
@@ -1327,14 +1521,26 @@
             return;
         }
 
-        const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}`, 'DELETE');
-        if (result && result.code === 200) {
-            showToast('虚拟机已删除', 'success');
+        try {
+            const result = await apiRequest(`/api/client/delete/${hostName}/${vmUuid}`, 'DELETE');
+            if (result && result.code === 200) {
+                showToast('虚拟机已删除', 'success');
+                document.getElementById('deleteModal').close();
+                document.getElementById('deleteConfirmInput').value = '';
+                setTimeout(() => window.location.href = `/hosts/${hostName}/vms`, 1000);
+            } else {
+                showToast(result?.msg || '删除失败', 'error');
+                document.getElementById('deleteModal').close();
+                document.getElementById('deleteConfirmInput').value = '';
+                // 删除失败后也刷新页面，返回虚拟机列表
+                setTimeout(() => window.location.href = `/hosts/${hostName}/vms`, 1500);
+            }
+        } catch (error) {
+            showToast('网络错误或服务器异常', 'error');
             document.getElementById('deleteModal').close();
             document.getElementById('deleteConfirmInput').value = '';
-            setTimeout(() => window.location.href = `/hosts/${hostName}/vms`, 1000);
-        } else {
-            showToast(result?.msg || '删除失败', 'error');
+            // 网络错误后也刷新页面，返回虚拟机列表
+            setTimeout(() => window.location.href = `/hosts/${hostName}/vms`, 1500);
         }
     }
 
@@ -1344,14 +1550,18 @@
 
     async function openEditVM() {
         // 加载当前虚拟机配置并显示编辑弹窗
-        const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}`);
+        const result = await apiRequest(`/api/client/detail/${hostName}/${vmUuid}`);
         if (result && result.code === 200) {
             const vm = result.data;
             const config = vm.config || {};
 
             // 填充表单数据
             document.getElementById('editVmUuid').value = vmUuid;
-            document.getElementById('editOsName').value = config.os_name || '';
+            
+            // 先更新操作系统选项，并传递当前系统名称以正确选中
+            updateOsOptions(config.os_name || '');
+            
+            document.getElementById('editOsPass').value = config.os_pass || '';
             document.getElementById('editCpuNum').value = config.cpu_num ?? 0;
             document.getElementById('editMemNum').value = config.mem_num ?? 0;
             document.getElementById('editHddNum').value = config.hdd_num ?? 0;
@@ -1374,9 +1584,9 @@
                         <input style="width: 100px" type="text" name="edit_nic_name_${editNicCounter}" value="${nicName}" placeholder="网卡名称"
                             class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded">
                         <select name="edit_nic_type_${editNicCounter}" class="px-2 py-1 text-sm border border-gray-300 rounded">
-                            <option value="nat" ${nicConfig.nic_type === 'nat' ? 'selected' : ''}>NAT</option>
+                            <option value="nat" ${nicConfig.nic_type === 'nat' ? 'selected' : ''}>内网</option>
+                            <option value="pub" ${nicConfig.nic_type === 'pub' ? 'selected' : ''}>外网</option>
                             <option value="bridged" ${nicConfig.nic_type === 'bridged' ? 'selected' : ''}>桥接</option>
-                            <option value="host-only" ${nicConfig.nic_type === 'host-only' ? 'selected' : ''}>仅主机</option>
                         </select>
                 <input type="text" style="width: 100px" name="edit_nic_ip_${editNicCounter}" value="${nicConfig.ip4_addr || ''}" placeholder="IPv4地址"
                     class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded">
@@ -1390,8 +1600,6 @@
                 document.getElementById('editNicConfigs').insertAdjacentHTML('beforeend', nicHtml);
             }
 
-            if (editNicCounter === 0) addEditNicConfig();
-
             document.getElementById('vmEditModal').showModal();
         } else {
             showToast(result?.msg || '加载虚拟机配置失败', 'error');
@@ -1402,16 +1610,30 @@
     function addEditNicConfig() {
         editNicCounter++;
         const container = document.getElementById('editNicConfigs');
+        
+        // 自动生成网卡名称：ethernet0, ethernet1, ethernet2...
+        const existingNics = Array.from(container.querySelectorAll('[id^="edit_nic_"]')).map(div => {
+            const nameInput = div.querySelector(`[name^="edit_nic_name_"]`);
+            return nameInput ? nameInput.value.trim() : '';
+        }).filter(name => name);
+        
+        let nicIndex = 0;
+        let nicName = `ethernet${nicIndex}`;
+        while (existingNics.includes(nicName)) {
+            nicIndex++;
+            nicName = `ethernet${nicIndex}`;
+        }
+        
         const nicHtml = `
             <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg" id="edit_nic_${editNicCounter}">
-                <input type="text" style="width: 100px" name="edit_nic_name_${editNicCounter}" placeholder="网卡名称 如: ethernet0"
+                <input type="text" style="width: 100px" name="edit_nic_name_${editNicCounter}" value="${nicName}" placeholder="网卡名称"
                     class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded">
                 <select name="edit_nic_type_${editNicCounter}" class="px-2 py-1 text-sm border border-gray-300 rounded">
                     <option value="nat">NAT</option>
                     <option value="bridged">桥接</option>
                     <option value="host-only">仅主机</option>
                 </select>
-                <input type="text" style="width: 100px" name="edit_nic_ip_${editNicCounter}" placeholder="IPv4地址"
+                <input type="text" style="width: 100px" name="edit_nic_ip_${editNicCounter}" placeholder="IPv4地址 (必填)" required
                     class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded">
                 <input type="text" name="edit_nic_ip6_${editNicCounter}" placeholder="IPv6地址"
                     class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded">
@@ -1434,11 +1656,16 @@
         const nicAll = {};
         const nicContainers = document.querySelectorAll('[id^="edit_nic_"]');
         nicContainers.forEach((container) => {
-            const nicName = container.querySelector(`[name^="edit_nic_name_"]`).value;
+            const nicName = container.querySelector(`[name^="edit_nic_name_"]`).value.trim();
             const nicType = container.querySelector(`[name^="edit_nic_type_"]`).value;
-            const nicIp = container.querySelector(`[name^="edit_nic_ip_"]`).value;
-            const nicIp6 = container.querySelector(`[name^="edit_nic_ip6_"]`)?.value || '';
+            const nicIp = container.querySelector(`[name^="edit_nic_ip_"]`).value.trim();
+            const nicIp6 = container.querySelector(`[name^="edit_nic_ip6_"]`)?.value.trim() || '';
+            
+            // 验证：如果有网卡名称，则IPv4地址必填
             if (nicName) {
+                if (!nicIp) {
+                    throw new Error(`网卡 "${nicName}" 的IPv4地址为必填项`);
+                }
                 nicAll[nicName] = {
                     nic_type: nicType,
                     ip4_addr: nicIp,
@@ -1450,6 +1677,7 @@
         return {
             vm_uuid: vmUuid,
             os_name: document.getElementById('editOsName').value,
+            os_pass: document.getElementById('editOsPass').value,
             cpu_num: parseInt(document.getElementById('editCpuNum').value) || 0,
             mem_num: parseInt(document.getElementById('editMemNum').value) || 0,
             hdd_num: parseInt(document.getElementById('editHddNum').value) || 0,
@@ -1466,9 +1694,12 @@
 
     // 提交编辑虚拟机表单
     async function submitEditVmForm(vmData) {
-        const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}`, 'PUT', vmData);
+        const result = await apiRequest(`/api/client/update/${hostName}/${vmUuid}`, 'PUT', vmData);
 
         if (result && result.code === 200) {
+            // 先关闭弹窗
+            document.getElementById('vmEditModal').close();
+            // 再显示成功消息
             Swal.fire({
                 icon: 'success',
                 title: '保存成功',
@@ -1478,7 +1709,6 @@
             }).then(() => {
                 location.reload(); // 刷新页面
             });
-            document.getElementById('vmEditModal').close();
         } else {
             Swal.fire({
                 icon: 'error',
@@ -1507,7 +1737,7 @@
     // VNC控制台
     async function openVNCConsole() {
         showToast('正在获取VNC控制台地址...', 'info');
-        const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}/vconsole`);
+        const result = await apiRequest(`/api/client/remote/${hostName}/${vmUuid}`);
         if (result && result.code === 200 && result.data) {
             const vncUrl = result.data;
             if (vncUrl) {
@@ -1522,7 +1752,7 @@
 
     // ==================== NAT端口转发 ====================
     async function loadNATRules() {
-        const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}/nat`);
+        const result = await apiRequest(`/api/client/natget/${hostName}/${vmUuid}`);
         if (result && result.code === 200) {
             renderNATRules(result.data || []);
         } else {
@@ -1589,7 +1819,7 @@
             description: $('#natDescription').val() || ''
         };
 
-        const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}/nat`, 'POST', data);
+        const result = await apiRequest(`/api/client/natadd/${hostName}/${vmUuid}`, 'POST', data);
         if (result && result.code === 200) {
             showToast('NAT规则添加成功', 'success');
             closeNATModal();
@@ -1602,7 +1832,7 @@
     async function deleteNATRule(index) {
         if (!confirm('确定要删除此NAT规则吗？')) return;
 
-        const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}/nat/${index}`, 'DELETE');
+        const result = await apiRequest(`/api/client/natdel/${hostName}/${vmUuid}/${index}`, 'DELETE');
         if (result && result.code === 200) {
             showToast('NAT规则已删除', 'success');
             loadNATRules();
@@ -1613,7 +1843,7 @@
 
     // ==================== IP地址管理 ====================
     async function loadIPAddresses() {
-        const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}/ip`);
+        const result = await apiRequest(`/api/client/ipaddr/detail/${hostName}/${vmUuid}`);
         if (result && result.code === 200) {
             renderIPAddresses(result.data || []);
         } else {
@@ -1677,7 +1907,7 @@
             description: $('#ipDescription').val() || ''
         };
 
-        const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}/ip`, 'POST', data);
+        const result = await apiRequest(`/api/client/ipaddr/create/${hostName}/${vmUuid}`, 'POST', data);
         if (result && result.code === 200) {
             showToast('IP地址添加成功', 'success');
             closeIPModal();
@@ -1690,7 +1920,7 @@
     async function deleteIPAddress(index) {
         if (!confirm('确定要删除此IP地址吗？')) return;
 
-        const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}/ip/${index}`, 'DELETE');
+        const result = await apiRequest(`/api/client/ipaddr/delete/${hostName}/${vmUuid}/${index}`, 'DELETE');
         if (result && result.code === 200) {
             showToast('IP地址已删除', 'success');
             loadIPAddresses();
@@ -1701,7 +1931,7 @@
 
     // ==================== 反向代理 ====================
     async function loadProxyConfigs() {
-        const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}/proxy`);
+        const result = await apiRequest(`/api/client/proxys/detail/${hostName}/${vmUuid}`);
         if (result && result.code === 200) {
             renderProxyConfigs(result.data || []);
         } else {
@@ -1772,7 +2002,7 @@
             description: $('#proxyDescription').val() || ''
         };
 
-        const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}/proxy`, 'POST', data);
+        const result = await apiRequest(`/api/client/proxys/create/${hostName}/${vmUuid}`, 'POST', data);
         if (result && result.code === 200) {
             showToast('代理配置添加成功', 'success');
             closeProxyModal();
@@ -1785,7 +2015,7 @@
     async function deleteProxyConfig(index) {
         if (!confirm('确定要删除此代理配置吗？')) return;
 
-        const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}/proxy/${index}`, 'DELETE');
+        const result = await apiRequest(`/api/client/proxys/delete/${hostName}/${vmUuid}/${index}`, 'DELETE');
         if (result && result.code === 200) {
             showToast('代理配置已删除', 'success');
             loadProxyConfigs();
@@ -1821,11 +2051,34 @@
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
+    // 更新重装系统下拉选项
+    function updateReinstallOsOptions(selectedOsName = '') {
+        const osSelect = document.getElementById('reinstallOsSelect');
+        // 保留"请选择操作系统"选项
+        osSelect.innerHTML = '<option value="">请选择操作系统</option>';
+
+        // 从system_maps添加选项
+        for (const [osName, osConfig] of Object.entries(hostSystemMaps)) {
+            const option = document.createElement('option');
+            // osConfig是数组 [镜像文件, 最小大小]
+            const imageFile = Array.isArray(osConfig) ? osConfig[0] : osConfig;
+            option.value = imageFile; // 值设置为镜像文件名
+            option.textContent = osName; // 显示文本为系统名称
+            // 如果是编辑模式且匹配当前系统名称，则选中
+            if (selectedOsName && osName === selectedOsName) {
+                option.selected = true;
+            }
+            osSelect.appendChild(option);
+        }
+    }
+
 // ==================== 重装系统相关函数 ====================
 function showReinstallModal() {
         // 获取当前系统信息并设置为默认值
         const currentOs = vmData?.config?.os_name || '';
-        document.getElementById('reinstallOsSelect').value = currentOs;
+        
+        // 先更新操作系统选项，并传递当前系统名称以正确选中
+        updateReinstallOsOptions(currentOs);
         
         // 设置虚拟机名称显示
         const vmName = vmData?.name || vmUuid;
@@ -1951,6 +2204,151 @@ async function reinstallSystem() {
                 confirmButtonText: '确定'
             });
         }
+    }
+
+    // 绘制历史数据图表
+    function drawHistoryCharts(statusList) {
+        if (!statusList || statusList.length === 0) return;
+
+        // 准备数据 - 提取最近10分钟的历史数据
+        const chartData = prepareChartData(statusList);
+        
+        // 绘制各个图表
+        drawLineChart('cpuChart', chartData.cpu, 'CPU使用率 (%)', '#3B82F6');
+        drawLineChart('memChart', chartData.mem, '内存使用率 (%)', '#10B981');
+        drawLineChart('hddChart', chartData.hdd, '硬盘使用率 (%)', '#F59E0B');
+        drawLineChart('gpuChart', chartData.gpu, 'GPU使用率 (MB)', '#8B5CF6');
+        drawLineChart('netUChart', chartData.netU, '上行带宽 (Mbps)', '#06B6D4');
+        drawLineChart('netDChart', chartData.netD, '下行带宽 (Mbps)', '#14B8A6');
+    }
+
+    // 准备图表数据
+    function prepareChartData(statusList) {
+        const maxPoints = 10; // 显示最近10个数据点
+        const data = {
+            cpu: [],
+            mem: [],
+            hdd: [],
+            gpu: [],
+            netU: [],
+            netD: [],
+            labels: []
+        };
+
+        // 取最近的数据点
+        const recentData = statusList.slice(-maxPoints);
+        
+        recentData.forEach((status, index) => {
+            // CPU使用率
+            data.cpu.push(status.cpu_usage || 0);
+            
+            // 内存使用率 (百分比)
+            const memUsagePercent = status.mem_total > 0 ? (status.mem_usage / status.mem_total * 100) : 0;
+            data.mem.push(memUsagePercent);
+            
+            // 硬盘使用率 (百分比)
+            const hddUsagePercent = status.hdd_total > 0 ? (status.hdd_usage / status.hdd_total * 100) : 0;
+            data.hdd.push(hddUsagePercent);
+            
+            // GPU使用率 (MB)
+            data.gpu.push(status.gpu_total || 0);
+            
+            // 上行带宽
+            data.netU.push(status.network_u || 0);
+            
+            // 下行带宽
+            data.netD.push(status.network_d || 0);
+            
+            // 时间标签
+            data.labels.push(`${index + 1}`);
+        });
+
+        return data;
+    }
+
+    // 绘制折线图
+    function drawLineChart(canvasId, data, label, color) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+        const padding = 40;
+        
+        // 清空画布
+        ctx.clearRect(0, 0, width, height);
+        
+        if (!data || data.length === 0) {
+            ctx.fillStyle = '#9CA3AF';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('暂无数据', width / 2, height / 2);
+            return;
+        }
+
+        const maxValue = Math.max(...data, 1); // 最小值为1避免除零
+        const minValue = Math.min(...data, 0);
+        const valueRange = maxValue - minValue || 1;
+        
+        const chartWidth = width - padding * 2;
+        const chartHeight = height - padding * 2;
+        const stepX = chartWidth / (data.length - 1 || 1);
+
+        // 绘制网格线
+        ctx.strokeStyle = '#E5E7EB';
+        ctx.lineWidth = 1;
+        
+        // 水平网格线
+        for (let i = 0; i <= 4; i++) {
+            const y = padding + (chartHeight / 4) * i;
+            ctx.beginPath();
+            ctx.moveTo(padding, y);
+            ctx.lineTo(width - padding, y);
+            ctx.stroke();
+            
+            // Y轴标签
+            const value = maxValue - (valueRange / 4) * i;
+            ctx.fillStyle = '#6B7280';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(value.toFixed(1), padding - 10, y + 4);
+        }
+
+        // 绘制折线
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        
+        data.forEach((value, index) => {
+            const x = padding + stepX * index;
+            const y = padding + chartHeight - ((value - minValue) / valueRange) * chartHeight;
+            
+            if (index === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
+        
+        ctx.stroke();
+
+        // 绘制数据点
+        ctx.fillStyle = color;
+        data.forEach((value, index) => {
+            const x = padding + stepX * index;
+            const y = padding + chartHeight - ((value - minValue) / valueRange) * chartHeight;
+            
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, 2 * Math.PI);
+            ctx.fill();
+        });
+
+        // 绘制标题
+        ctx.fillStyle = '#374151';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, width / 2, 20);
     }
 </script>
 {% endblock %}

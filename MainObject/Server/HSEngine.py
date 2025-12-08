@@ -1,8 +1,8 @@
-from HostServer import Vmware64
+from HostServer import VmwareWork
 
 HEConfig = {
     "VMWareSetup": {
-        "Imported": Vmware64.HostServer,
+        "Imported": VmwareWork.HostServer,
         "Descript": "VMWare Workstation",
         "isEnable": True,
         "isRemote": False,
@@ -16,6 +16,7 @@ HEConfig = {
         "Messages": ""
     },
     "HyperVSetup": {
+        "Imported": None,
         "Descript": "Win HyperV Platform",
         "isEnable": False,
         "Platform": ["Windows"],
