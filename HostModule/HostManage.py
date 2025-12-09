@@ -6,7 +6,6 @@ from HostServer.BaseServer import BaseServer
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Server.HSEngine import HEConfig
 from MainObject.Config.VMConfig import VMConfig
-from MainObject.Config.NCConfig import NCConfig
 from MainObject.Public.ZMessage import ZMessage
 from HostModule.DataManage import HostDatabase
 
@@ -16,26 +15,9 @@ class HostManage:
     def __init__(self):
         self.engine: dict[str, BaseServer] = {}
         self.logger: list[ZMessage] = []
-        self.bearer: str = ""
-        self.saving: str = "./DataSaving"
-        # 初始化数据库
-        self.db = HostDatabase(self.saving + "/hostmanage.db")
-        # 从数据库加载全局配置
-        self._load_global_config()
-
-    # 加载全局配置 ###############################################################
-    def _load_global_config(self):
-        """从数据库加载全局配置，如果Token为空则自动生成"""
-        global_config = self.db.get_global_config()
-        self.bearer = global_config.get("bearer", "")
-        self.saving = global_config.get("saving", "./DataSaving")
-
-        # 如果Token为空，自动生成一个新的Token
-        if not self.bearer:
-            self.bearer = secrets.token_hex(8)
-            # 保存到数据库
-            self.db.update_global_config(bearer=self.bearer)
-            print(f"[HostManage] 自动生成新Token: {self.bearer}")
+        self.bearer: str = "" # 先初始化saving变量
+        self.saving = HostDatabase("./DataSaving/hostmanage.db")
+        self.set_conf()
 
     # 字典化 #####################################################################
     def __dict__(self):
@@ -49,29 +31,30 @@ class HostManage:
             "bearer": self.bearer
         }
 
-    # 设置/重置访问Token ##########################################################
+    # 加载全局配置 ###############################################################
+    def set_conf(self):
+        global_config = self.saving.get_ap_config()
+        self.bearer = global_config.get("bearer", "")
+        # 如果Token为空，自动生成一个新的Token
+        if not self.bearer:
+            self.bearer = secrets.token_hex(8)
+            # 保存到数据库
+            self.saving.set_ap_config(bearer=self.bearer)
+            print(f"[HostManage] 自动生成新Token: {self.bearer}")
+
+    # 设置/重置访问Token #########################################################
     def set_pass(self, bearer: str = "") -> str:
-        """
-        设置或重置访问Token
-        :param bearer: 指定的Token，为空则自动生成16位随机Token
-        :return: 设置后的Token
-        """
         if bearer:
             self.bearer = bearer
         else:
             # 生成16位随机Token（包含字母和数字）
             self.bearer = secrets.token_hex(8)
         # 保存到数据库
-        self.db.update_global_config(bearer=self.bearer)
+        self.saving.set_ap_config(bearer=self.bearer)
         return self.bearer
 
     # 验证Token ##################################################################
     def aka_pass(self, token: str) -> bool:
-        """
-        验证访问Token是否正确
-        :param token: 待验证的Token
-        :return: 验证结果
-        """
         return token and token == self.bearer
 
     # 获取主机 ###################################################################
@@ -86,11 +69,13 @@ class HostManage:
             return ZMessage(success=False, message="Host already add")
         if hs_type not in HEConfig:
             return ZMessage(success=False, message="Host unsupported")
-        self.engine[hs_name] = HEConfig[hs_type]["Imported"](hs_conf, db=self.db, hs_name=hs_name)
+        # 设置server_name（关键！）=================
+        hs_conf.server_name = hs_name
+        self.engine[hs_name] = HEConfig[hs_type]["Imported"](hs_conf, db=self.saving)
         self.engine[hs_name].HSCreate()
         self.engine[hs_name].HSLoader()
         # 保存主机配置到数据库
-        self.db.save_host_config(hs_name, hs_conf)
+        self.saving.set_hs_config(hs_name, hs_conf)
         return ZMessage(success=True, message="Host added successful")
 
     # 删除主机 ###################################################################
@@ -98,7 +83,7 @@ class HostManage:
         if server in self.engine:
             del self.engine[server]
             # 从数据库删除主机配置
-            self.db.delete_host_config(server)
+            self.saving.del_hs_config(server)
             return True
         return False
 
@@ -106,27 +91,23 @@ class HostManage:
     def set_host(self, hs_name: str, hs_conf: HSConfig) -> ZMessage:
         if hs_name not in self.engine:
             return ZMessage(success=False, message="Host not found")
-        
-        # 保存原有的虚拟机数据
+
+        # 保存原有的虚拟机配置
         old_server = self.engine[hs_name]
         old_vm_saving = old_server.vm_saving
-        old_vm_status = old_server.vm_status
-        old_vm_tasker = old_server.vm_tasker
-        old_save_logs = old_server.hs_logger
-        
-        # 创建新的主机对象
-        self.engine[hs_name] = HEConfig[hs_conf.server_type]["Imported"](hs_conf, db=self.db, hs_name=hs_name)
-        
-        # 恢复虚拟机数据
+
+        # 设置server_name（关键！）=================
+        hs_conf.server_name = hs_name
+        # 重新创建主机实例
+        self.engine[hs_name] = HEConfig[hs_conf.server_type]["Imported"](hs_conf, db=self.saving)
+
+        # 恢复虚拟机配置（状态数据已在数据库中）
         self.engine[hs_name].vm_saving = old_vm_saving
-        self.engine[hs_name].vm_status = old_vm_status
-        self.engine[hs_name].vm_tasker = old_vm_tasker
-        self.engine[hs_name].hs_logger = old_save_logs
-        
+
         self.engine[hs_name].HSUnload()
         self.engine[hs_name].HSLoader()
         # 保存主机配置到数据库
-        self.db.save_host_config(hs_name, hs_conf)
+        self.saving.set_hs_config(hs_name, hs_conf)
         return ZMessage(success=True, message="Host updated successful")
 
     # 修改主机 ###################################################################
@@ -145,12 +126,12 @@ class HostManage:
         try:
             # 加载全局日志
             self.logger = []
-            global_logs = self.db.get_logger()
+            global_logs = self.saving.get_hs_logger()
             for log_data in global_logs:
                 self.logger.append(ZMessage(**log_data) if isinstance(log_data, dict) else log_data)
 
             # 加载所有主机配置
-            host_configs = self.db.get_all_host_configs()
+            host_configs = self.saving.all_hs_config()
             for host_config in host_configs:
                 hs_name = host_config["hs_name"]
 
@@ -169,36 +150,28 @@ class HostManage:
                     hs_conf_data.pop(field, None)
 
                 hs_conf = HSConfig(**hs_conf_data)
+                # 设置server_name（关键！）=================
+                hs_conf.server_name = hs_name
 
                 # 获取主机完整数据
-                host_full_data = self.db.get_host_full_data(hs_name)
+                host_full_data = self.saving.get_ap_server(hs_name)
 
                 # 转换 vm_saving 字典为 VMConfig 对象
                 vm_saving_converted = {}
                 for vm_uuid, vm_config in host_full_data["vm_saving"].items():
                     if isinstance(vm_config, dict):
                         vm_saving_converted[vm_uuid] = VMConfig(**vm_config)
-                        print(f"[DEBUG all_load] {vm_uuid} 转换为 VMConfig: {type(vm_saving_converted[vm_uuid])}")
                     else:
                         vm_saving_converted[vm_uuid] = vm_config
-                        print(f"[DEBUG all_load] {vm_uuid} 已是对象: {type(vm_saving_converted[vm_uuid])}")
 
-                # 创建BaseServer实例
+                # 创建BaseServer实例（状态数据由DataManage立即保存）=================
                 if hs_conf.server_type in HEConfig:
                     server_class = HEConfig[hs_conf.server_type]["Imported"]
                     self.engine[hs_name] = server_class(
-                    hs_conf,
-                        db=self.db,
-                        hs_name=hs_name,
-                        hs_status=host_full_data["hs_status"],
-                        vm_saving=vm_saving_converted,
-                        vm_status=host_full_data["vm_status"],
-                        vm_tasker=host_full_data["vm_tasker"],
-                        save_logs=host_full_data["save_logs"],
+                        hs_conf,
+                        db=self.saving,
+                        vm_saving=vm_saving_converted
                     )
-                    # 确保状态数据正确加载到服务器实例
-                    self.engine[hs_name].hs_status = host_full_data["hs_status"]
-                    self.engine[hs_name].vm_status = host_full_data["vm_status"]
                     self.engine[hs_name].HSLoader()
                     self.engine[hs_name].VNCLoads()
         except Exception as e:
@@ -212,16 +185,11 @@ class HostManage:
             success = True
             # 保存全局日志
             if self.logger:
-                self.db.save_logger(None, self.logger)
+                self.saving.set_hs_logger(None, self.logger)
 
-            # 保存每个主机的数据
+            # 保存每个主机的配置数据（状态数据由DataManage立即保存）=================
             for hs_name, server in self.engine.items():
-                # 确保状态数据是最新的
-                host_data = server.__dict__()
-                # 强制包含hs_status和vm_status数据
-                host_data["hs_status"] = server.hs_status
-                host_data["vm_status"] = server.vm_status
-                success &= self.db.save_host_full_data(hs_name, host_data)
+                success &= server.data_set()
 
             return success
         except Exception as e:
@@ -292,8 +260,7 @@ class HostManage:
                 # 添加到服务器的虚拟机配置中
                 server.vm_saving[vmx_name] = default_vm_config
 
-                # 初始化虚拟机状态为空列表
-                server.vm_status[vmx_name] = []
+                # 虚拟机状态由DataManage管理，立即保存到数据库 =================
 
                 added_count += 1
 
@@ -325,87 +292,13 @@ class HostManage:
         except Exception as e:
             return ZMessage(success=False, message=f"扫描虚拟机时出错: {str(e)}")
 
-    # 定时任务 #################################################################
+    # 定时任务 ###################################################################
     def exe_cron(self):
+        """
+        执行定时任务
+        注意：状态数据已通过 DataManage 立即保存，无需在定时任务中保存 =================
+        """
         for server in self.engine:
             print(f'[Cron] 执行{server}的定时任务')
             self.engine[server].Crontabs()
         print('[Cron] 执行定时任务完成')
-        
-        # 自动保存状态数据到数据库
-        print('[Cron] 开始保存状态数据到数据库')
-        save_success = self.all_save()
-        if save_success:
-            print('[Cron] 状态数据保存成功')
-        else:
-            print('[Cron] 状态数据保存失败')
-
-
-if __name__ == "__main__":
-    # 创建一个接口对象 ======================================================
-    hs_manage = HostManage()
-    # 添加一个主机 ==========================================================
-    # hs_manage.add_host(
-    #     "host1", "VMWareSetup",
-    #     HSConfig(
-    #         server_type="Win64VMW",
-    #         server_addr="localhost:8697",
-    #         server_user="root",
-    #         server_pass="VmD55!MkW@%Q",
-    #         filter_name="",
-    #         images_path=r"G:\OIDCS\Win64VMW\images",
-    #         system_path=r"G:\OIDCS\Win64VMW\system",
-    #         backup_path=r"G:\OIDCS\Win64VMW\backup",
-    #         extern_path=r"G:\OIDCS\Win64VMW\extern",
-    #         launch_path=r"C:\Program Files (x86)\VMware\VMware Workstation",
-    #         network_nat="nat",
-    #         network_pub="",
-    #         extend_data={
-    #
-    #         }
-    #     ))
-    # 加载所有主机 ==========================================================
-    hs_manage.all_load()
-    # 获取一个主机 ==========================================================
-    hs_server = hs_manage.get_host("host1")
-    # 创建虚拟机配置 ========================================================
-    vm_config = VMConfig(
-        vm_uuid="ecs_testvm",
-        os_name="windows10x64",
-        cpu_num=4,
-        mem_num=4096,
-        hdd_num=10240,
-        gpu_num=0,
-        net_num=100,
-        flu_num=100,
-        nat_num=100,
-        web_num=100,
-        gpu_mem=8192,
-        speed_u=100,
-        speed_d=100,
-        nic_all={
-            "ethernet0": NCConfig(
-                ip4_addr="192.168.4.101",
-                nic_type="nat",
-            )
-        }
-    )
-    # 创建虚拟机 ============================================================
-    # hs_result = hs_server.VMCreate(vm_config)
-    # print(hs_result)
-    # 启动虚拟机 ============================================================
-    # hs_result = hs_server.VMPowers(vm_config.vm_uuid, VMPowers.S_START)
-    # print(hs_result)
-    # 获取主机状态 ==========================================================
-    hs_status = hs_server.HSStatus()
-    print(hs_status)
-    # 获取虚拟机状态 ========================================================
-    vm_status = hs_server.VMStatus(vm_config.vm_uuid)
-    for name, nc_status in vm_status.items():
-        print(name, nc_status)
-    # 保存所有主机 ==========================================================
-    hs_manage.all_save()
-    # 退出程序 ==============================================================
-    hs_manage.all_exit()
-    # 调试 ==================================================================
-    # print(hs_server.__dict__())

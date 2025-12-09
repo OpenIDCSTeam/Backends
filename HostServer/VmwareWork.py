@@ -26,61 +26,39 @@ class HostServer(BaseServer):
             self.hs_config.server_pass,
         )
 
-    # 宿主机任务 ###########################################################
+    # 宿主机任务 =================
     def Crontabs(self) -> bool:
-        # 宿主机状态 ===============================
+        # 宿主机状态 =================
         hs_status = HSStatus()
-        try:
-            self.hs_status.append(hs_status.status())
-        except Exception as e:
-            return False
-        # 虚拟机状态 ===============================
-        # self.vm_status: dict[str, list[HWStatus]] = {}
-        # 电源状态映射（VMRest API返回值 -> VMPowers枚举）
-        power_map = {
-            "poweredOn": VMPowers.STARTED,
-            "poweredOff": VMPowers.STOPPED,
-            "suspended": VMPowers.SUSPEND,
-            "paused": VMPowers.SUSPEND,
-        }
+        if self.save_data and self.hs_config.server_name:
+            self.save_data.add_hs_status(self.hs_config.server_name, hs_status.status())
         all_vms = self.vmrest_api.return_vmx()
         if not all_vms.success:
             return False
-        # for now_vmx in all_vms.results:
-        #     vm_path = now_vmx.get("path", "")
-        #     # 从路径中提取虚拟机名称 =================================
-        #     vm_name = os.path.splitext(os.path.basename(vm_path))[0]
-        #     # 过滤虚拟机名称 =========================================
-        #     if self.hs_config.filter_name != "":
-        #         if not vm_name.startswith(self.hs_config.filter_name):
-        #             continue
-        #     # 获取电源状态 ===========================================
-        #     self.vm_status[vm_name] = []
-        #     power_result = self.vmrest_api.powers_get(vm_name)
-        #     ac_status = VMPowers.UNKNOWN
-        #     if power_result.success:
-        #         power_state = power_result.results.get("power_state", "")
-        #         ac_status = power_map.get(power_state, VMPowers.UNKNOWN)
-        #     self.vm_status[vm_name].append(HWStatus(ac_status=ac_status))
         return True
 
-    # 宿主机状态 ###########################################################
+    # 宿主机状态 =================
     def HSStatus(self) -> HWStatus:
-        if len(self.hs_status) == 0:
-            hs_status = HSStatus()
-            return hs_status.status()
-        return self.hs_status[-1]
+        if self.save_data and self.hs_config.server_name:
+            status_list = self.save_data.get_hs_status(self.hs_config.server_name)
+            if len(status_list) > 0:
+                return status_list[-1]
+        # 如果没有记录，返回当前状态
+        hs_status = HSStatus()
+        return hs_status.status()
 
-    # 初始宿主机 ###########################################################
+    # 初始宿主机 =================
     def HSCreate(self) -> ZMessage:
         hs_result = ZMessage(success=True, action="HSCreate")
-        self.hs_logger.append(hs_result)
+        if self.save_data and self.hs_config.server_name:
+            self.save_data.add_hs_logger(self.hs_config.server_name, hs_result)
         return hs_result
 
-    # 还原宿主机 ###########################################################
+    # 还原宿主机 =================
     def HSDelete(self) -> ZMessage:
         hs_result = ZMessage(success=True, action="HSDelete")
-        self.hs_logger.append(hs_result)
+        if self.save_data and self.hs_config.server_name:
+            self.save_data.add_hs_logger(self.hs_config.server_name, hs_result)
         return hs_result
 
     # 读取宿主机 ###########################################################
@@ -103,7 +81,8 @@ class HostServer(BaseServer):
             startupinfo=startupinfo,
             creationflags=subprocess.CREATE_NO_WINDOW)
         hs_result = ZMessage(success=True, action="HSLoader", message="OK")
-        self.hs_logger.append(hs_result)
+        if self.save_data and self.hs_config.server_name:
+            self.save_data.add_hs_logger(self.hs_config.server_name, hs_result)
         return hs_result
 
     # 卸载宿主机 ###########################################################
@@ -124,16 +103,18 @@ class HostServer(BaseServer):
             action="HSUnload",
             message="VM Rest Server stopped",
         )
-        self.hs_logger.append(hs_result)
+        if self.save_data and self.hs_config.server_name:
+            self.save_data.add_hs_logger(self.hs_config.server_name, hs_result)
         return hs_result
 
-    # 虚拟机列出 ###########################################################
+    # 虚拟机列出 =================
     def VMStatus(self, select: str = "") -> dict[str, list[HWStatus]]:
-        if len(select) > 0:
-            if select not in self.vm_status:
-                return {select: [HWStatus()]}
-            return {select: self.vm_status[select]}
-        return self.vm_status
+        if self.save_data and self.hs_config.server_name:
+            all_status = self.save_data.get_vm_status(self.hs_config.server_name)
+            if select:
+                return {select: all_status.get(select, [])}
+            return all_status
+        return {}
 
     # 创建虚拟机 ###########################################################
     def VMCreate(self, config: VMConfig) -> ZMessage:
@@ -182,13 +163,14 @@ class HostServer(BaseServer):
             self.vm_saving[config.vm_uuid] = config
 
             # 保存到数据库 =====================================================
-            if self.save_data and self.hs_server:
-                self.save_data.save_vm_saving(self.hs_server, self.vm_saving)
+            if self.save_data and self.hs_config.server_name:
+                self.save_data.set_vm_saving(self.hs_config.server_name, self.vm_saving)
 
             # 返回结果 =========================================================
             hs_result = ZMessage(success=True, action="VMCreate",
                                  message="虚拟机创建成功")
-            self.hs_logger.append(hs_result)
+            if self.save_data and self.hs_config.server_name:
+                self.save_data.add_hs_logger(self.hs_config.server_name, hs_result)
             return hs_result
         except Exception as e:
             # 创建失败时清理已创建的文件
@@ -201,7 +183,8 @@ class HostServer(BaseServer):
             # 返回错误信息
             error_msg = f"虚拟机创建失败: {str(e)}"
             hs_result = ZMessage(success=False, action="VMCreate", message=error_msg)
-            self.hs_logger.append(hs_result)
+            if self.save_data and self.hs_config.server_name:
+                self.save_data.add_hs_logger(self.hs_config.server_name, hs_result)
             return hs_result
 
     # 安装虚拟机 ###########################################################
@@ -229,15 +212,16 @@ class HostServer(BaseServer):
         hs_result = ZMessage(
             success=True, action="VMUpdate",
             message=f"虚拟机 {config.vm_uuid} 配置已更新")
-        self.hs_logger.append(hs_result)
+        if self.save_data and self.hs_config.server_name:
+            self.save_data.add_hs_logger(self.hs_config.server_name, hs_result)
         vm_save_conf = self.vmrest_api.create_vmx(config)
         vm_save_name = os.path.join(vm_saving, config.vm_uuid + ".vmx")
         with open(vm_save_name, "w") as vm_save_file:
             vm_save_file.write(vm_save_conf)
         self.VMPowers(config.vm_uuid, VMPowers.S_START)
         # 保存到数据库
-        if self.save_data and self.hs_server:
-            self.save_data.save_vm_saving(self.hs_server, self.vm_saving)
+        if self.save_data and self.hs_config.server_name:
+            self.save_data.set_vm_saving(self.hs_config.server_name, self.vm_saving)
         return hs_result
 
     # 删除虚拟机 ###########################################################
@@ -254,15 +238,16 @@ class HostServer(BaseServer):
         if select in self.vm_saving:
             del self.vm_saving[select]
         # 保存到数据库
-        if self.save_data and self.hs_server:
-            self.save_data.save_vm_saving(self.hs_server, self.vm_saving)
-        self.hs_logger.append(hs_result)
+        if self.save_data and self.hs_config.server_name:
+            self.save_data.set_vm_saving(self.hs_config.server_name, self.vm_saving)
+            self.save_data.add_hs_logger(self.hs_config.server_name, hs_result)
         return hs_result
 
-    # 虚拟机电源 ###########################################################
+    # 虚拟机电源 =================
     def VMPowers(self, select: str, power: VMPowers) -> ZMessage:
         hs_result = self.vmrest_api.powers_set(select, power)
-        self.hs_logger.append(hs_result)
+        if self.save_data and self.hs_config.server_name:
+            self.save_data.add_hs_logger(self.hs_config.server_name, hs_result)
         return hs_result
 
     def Password(self, select: str, password: str) -> ZMessage:

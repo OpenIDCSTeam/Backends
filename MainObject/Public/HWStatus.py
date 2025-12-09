@@ -26,6 +26,7 @@ class HWStatus:
         self.gpu_total: int = 0  # 当前显卡数量
         self.network_u: int = 0  # 当前上行带宽
         self.network_d: int = 0  # 当前下行带宽
+        self.network_a: int = 0  # 当前网卡带宽
         self.cpu_heats: int = 0  # 当前核心温度
         self.cpu_power: int = 0  # 当前核心功耗
         # 加载传入的参数 ======================
@@ -75,6 +76,7 @@ class HWStatus:
             "gpu_total": self.gpu_total,
             "network_u": self.network_u,
             "network_d": self.network_d,
+            "network_a": self.network_a,
             "cpu_heats": self.cpu_heats,
             "cpu_power": self.cpu_power,
         }

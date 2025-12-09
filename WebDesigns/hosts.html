@@ -31,7 +31,7 @@
 </div>
 
 <!-- 主机列表 -->
-<div id="hostsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
+<div id="hostsList" class="grid grid-cols-1 gap-4">
     <div class="col-span-full text-center py-16 text-gray-500">
         <span class="iconify animate-pulse-slow text-gray-400" data-icon="mdi:loading" data-width="48"></span>
         <p class="mt-4">加载中...</p>
@@ -462,15 +462,103 @@
             }
 
             container.innerHTML = '';
+            // 并行获取所有主机的状态信息
+            const statusPromises = Object.keys(hosts).map(name => 
+                apiRequest(`/api/server/status/${name}`).catch(() => null)
+            );
+            const statusResults = await Promise.all(statusPromises);
+            
+            // 创建状态映射
+            const statusMap = {};
+            Object.keys(hosts).forEach((name, index) => {
+                const statusResult = statusResults[index];
+                if (statusResult && statusResult.code === 200) {
+                    statusMap[name] = statusResult.data.status;
+                }
+            });
+
             for (const [name, host] of Object.entries(hosts)) {
-                container.innerHTML += renderHostCard(name, host);
+                container.innerHTML += renderHostCard(name, host, statusMap[name]);
             }
         }
     }
 
+    // 格式化字节大小
+    function formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+    // 格式化MB大小
+    function formatMB(mb) {
+        if (mb >= 1024) {
+            return (mb / 1024).toFixed(1) + ' GB';
+        }
+        return mb + ' MB';
+    }
+
+    // 获取进度条颜色
+    function getProgressColor(percent) {
+        if (percent >= 90) return 'bg-red-500';
+        if (percent >= 75) return 'bg-orange-500';
+        if (percent >= 50) return 'bg-yellow-500';
+        return 'bg-green-500';
+    }
+
     // 渲染主机卡片
-    function renderHostCard(name, host) {
+    function renderHostCard(name, host, status) {
         const typeInfo = engineTypes[host.type] || {};
+        
+        // 计算各项资源使用率
+        const cpuPercent = status ? Math.min(status.cpu_usage || 0, 100) : 0;
+        const memPercent = status && status.mem_total > 0 ? Math.min((status.mem_usage / status.mem_total * 100), 100) : 0;
+        const memUsageGB = status ? (status.mem_usage / 1024).toFixed(1) : 0;
+        const memTotalGB = status ? (status.mem_total / 1024).toFixed(1) : 0;
+        
+        // 获取第一个磁盘（系统盘）
+        let diskPercent = 0;
+        let diskTotal = 0;
+        let diskUsage = 0;
+        let diskName = '系统盘';
+        if (status && status.ext_usage) {
+            const disks = Object.entries(status.ext_usage);
+            if (disks.length > 0) {
+                const [name, [total, used]] = disks[0];
+                diskName = name;
+                diskTotal = total;
+                diskUsage = used;
+                diskPercent = total > 0 ? Math.min((used / total * 100), 100) : 0;
+            }
+        }
+        const diskUsageGB = (diskUsage / 1024).toFixed(1);
+        const diskTotalGB = (diskTotal / 1024).toFixed(1);
+        
+        // 网络带宽（从network_a获取，单位Mbps）
+        const networkA = status ? (status.network_a || 1000) : 1000; // Mbps
+        const maxBandwidth = networkA * 1024 / 8; // 转换为KB/s
+        const networkU = status ? (status.network_u || 0) : 0; // KB/s
+        const networkD = status ? (status.network_d || 0) : 0; // KB/s
+        const networkUPercent = Math.min((networkU / maxBandwidth * 100), 100);
+        const networkDPercent = Math.min((networkD / maxBandwidth * 100), 100);
+        
+        // GPU使用率（取第一个GPU）
+        let gpuPercent = 0;
+        if (status && status.gpu_usage) {
+            const gpuKeys = Object.keys(status.gpu_usage);
+            if (gpuKeys.length > 0) {
+                gpuPercent = Math.min(status.gpu_usage[gpuKeys[0]] || 0, 100);
+            }
+        }
+        
+        // CPU温度和功耗
+        const cpuTemp = status ? (status.cpu_heats || 0) : 0;
+        const cpuPower = status ? (status.cpu_power || 0) : 0;
+        const cpuTempPercent = Math.min((cpuTemp / 100 * 100), 100);
+        
         return `
             <div class="bg-white rounded-lg border border-gray-200 card-hover overflow-hidden">
                 <div class="p-4">
@@ -490,63 +578,156 @@
                         </span>
                     </div>
                     
-                    <div class="space-y-2 text-sm">
-                        <div class="flex items-center justify-between text-gray-600">
-                            <span class="flex items-center gap-1">
-                                <span class="iconify" data-icon="mdi:ip-network" data-width="16"></span>
-                                地址
-                            </span>
-                            <span class="font-medium text-gray-800">${host.addr || '未配置'}</span>
+                    <div class="grid grid-cols-2 gap-4">
+                        <!-- 左侧：基本信息 -->
+                        <div class="space-y-2 text-sm">
+                            <div class="flex items-center justify-between text-gray-600">
+                                <span class="flex items-center gap-1">
+                                    <span class="iconify" data-icon="mdi:ip-network" data-width="16"></span>
+                                    地址
+                                </span>
+                                <span class="font-medium text-gray-800">${host.addr || '未配置'}</span>
+                            </div>
+                            <div class="flex items-center justify-between text-gray-600">
+                                <span class="flex items-center gap-1">
+                                    <span class="iconify" data-icon="mdi:earth" data-width="16"></span>
+                                    外网IP
+                                </span>
+                                <span class="font-medium text-gray-800">${renderPublicAddr(host.config?.public_addr)}</span>
+                            </div>
+                            ${host.config?.i_kuai_addr ? `
+                            <div class="flex items-center justify-between text-gray-600">
+                                <span class="flex items-center gap-1">
+                                    <span class="iconify" data-icon="mdi:router-network" data-width="16"></span>
+                                    爱快OS
+                                </span>
+                                <span class="font-medium text-gray-800">${host.config.i_kuai_addr}</span>
+                            </div>
+                            ` : ''}
+                            ${host.config?.ports_start && host.config?.ports_close ? `
+                            <div class="flex items-center justify-between text-gray-600">
+                                <span class="flex items-center gap-1">
+                                    <span class="iconify" data-icon="mdi:network-outline" data-width="16"></span>
+                                    端口范围
+                                </span>
+                                <span class="font-medium text-gray-800">${host.config.ports_start}-${host.config.ports_close}</span>
+                            </div>
+                            ` : ''}
+                            ${host.config?.remote_port ? `
+                            <div class="flex items-center justify-between text-gray-600">
+                                <span class="flex items-center gap-1">
+                                    <span class="iconify" data-icon="mdi:remote-desktop" data-width="16"></span>
+                                    VNC端口
+                                </span>
+                                <span class="font-medium text-gray-800">${host.config.remote_port}</span>
+                            </div>
+                            ` : ''}
+                            ${host.config?.system_maps && Object.keys(host.config.system_maps).length > 0 ? `
+                            <div class="flex items-center justify-between text-gray-600">
+                                <span class="flex items-center gap-1">
+                                    <span class="iconify" data-icon="mdi:file-table-outline" data-width="16"></span>
+                                    系统映射
+                                </span>
+                                <span class="font-medium text-gray-800">${Object.keys(host.config.system_maps).length} 个</span>
+                            </div>
+                            ` : ''}
+                            <div class="flex items-center justify-between text-gray-600">
+                                <span class="flex items-center gap-1">
+                                    <span class="iconify" data-icon="mdi:cube-outline" data-width="16"></span>
+                                    虚拟机
+                                </span>
+                                <span class="font-medium text-gray-800">${host.vm_count || 0} 台</span>
+                            </div>
                         </div>
-                        <div class="flex items-center justify-between text-gray-600">
-                            <span class="flex items-center gap-1">
-                                <span class="iconify" data-icon="mdi:earth" data-width="16"></span>
-                                外网访问IP
-                            </span>
-                            <span class="font-medium text-gray-800">${renderPublicAddr(host.config?.public_addr)}</span>
-                        </div>
-                        ${host.config?.i_kuai_addr ? `
-                        <div class="flex items-center justify-between text-gray-600">
-                            <span class="flex items-center gap-1">
-                                <span class="iconify" data-icon="mdi:router-network" data-width="16"></span>
-                                爱快OS
-                            </span>
-                            <span class="font-medium text-gray-800">${host.config.i_kuai_addr}</span>
-                        </div>
-                        ` : ''}
-                        ${host.config?.ports_start && host.config?.ports_close ? `
-                        <div class="flex items-center justify-between text-gray-600">
-                            <span class="flex items-center gap-1">
-                                <span class="iconify" data-icon="mdi:network-outline" data-width="16"></span>
-                                端口范围
-                            </span>
-                            <span class="font-medium text-gray-800">${host.config.ports_start}-${host.config.ports_close}</span>
-                        </div>
-                        ` : ''}
-                        ${host.config?.remote_port ? `
-                        <div class="flex items-center justify-between text-gray-600">
-                            <span class="flex items-center gap-1">
-                                <span class="iconify" data-icon="mdi:remote-desktop" data-width="16"></span>
-                                VNC端口
-                            </span>
-                            <span class="font-medium text-gray-800">${host.config.remote_port}</span>
-                        </div>
-                        ` : ''}
-                        ${host.config?.system_maps && Object.keys(host.config.system_maps).length > 0 ? `
-                        <div class="flex items-center justify-between text-gray-600">
-                            <span class="flex items-center gap-1">
-                                <span class="iconify" data-icon="mdi:file-table-outline" data-width="16"></span>
-                                系统映射
-                            </span>
-                            <span class="font-medium text-gray-800">${Object.keys(host.config.system_maps).length} 个</span>
-                        </div>
-                        ` : ''}
-                        <div class="flex items-center justify-between text-gray-600">
-                            <span class="flex items-center gap-1">
-                                <span class="iconify" data-icon="mdi:cube-outline" data-width="16"></span>
-                                虚拟机
-                            </span>
-                            <span class="font-medium text-gray-800">${host.vm_count || 0} 台</span>
+                        
+                        <!-- 右侧：资源状态 -->
+                        <div class="space-y-2 text-sm">
+                            ${status ? `
+                            <!-- CPU -->
+                            <div>
+                                <div class="flex items-center justify-between text-gray-600 mb-1">
+                                    <span class="flex items-center gap-1" title="${status.cpu_model || 'CPU'}">
+                                        <span class="iconify" data-icon="mdi:chip" data-width="14"></span>
+                                        ${status.cpu_model || 'CPU'}
+                                    </span>
+                                    <span class="text-xs">${status.cpu_total || 0}核 ${cpuPercent.toFixed(1)}%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="${getProgressColor(cpuPercent)} h-2 rounded-full transition-all" style="width: ${cpuPercent}%"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- 内存 -->
+                            <div>
+                                <div class="flex items-center justify-between text-gray-600 mb-1">
+                                    <span class="flex items-center gap-1">
+                                        <span class="iconify" data-icon="mdi:memory" data-width="14"></span>
+                                        内存
+                                    </span>
+                                    <span class="text-xs">${memUsageGB}GB/${memTotalGB}GB ${memPercent.toFixed(1)}%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="${getProgressColor(memPercent)} h-2 rounded-full transition-all" style="width: ${memPercent}%"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- 系统盘 -->
+                            <div>
+                                <div class="flex items-center justify-between text-gray-600 mb-1">
+                                    <span class="flex items-center gap-1">
+                                        <span class="iconify" data-icon="mdi:harddisk" data-width="14"></span>
+                                        ${diskName}
+                                    </span>
+                                    <span class="text-xs">${diskUsageGB}GB/${diskTotalGB}GB ${diskPercent.toFixed(1)}%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="${getProgressColor(diskPercent)} h-2 rounded-full transition-all" style="width: ${diskPercent}%"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- 网络带宽 -->
+                            <div>
+                                <div class="flex items-center justify-between text-gray-600 mb-1">
+                                    <span class="flex items-center gap-1">
+                                        <span class="iconify" data-icon="mdi:network" data-width="14"></span>
+                                        网络
+                                    </span>
+                                    <span class="text-xs">↑${(networkU / 1024).toFixed(1)}MB/s ↓${(networkD / 1024).toFixed(1)}MB/s</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2 flex gap-0.5">
+                                    <div class="bg-blue-500 h-2 rounded-l-full transition-all" style="width: ${networkUPercent / 2}%"></div>
+                                    <div class="bg-green-500 h-2 rounded-r-full transition-all" style="width: ${networkDPercent / 2}%"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- GPU -->
+                            <div>
+                                <div class="flex items-center justify-between text-gray-600 mb-1">
+                                    <span class="flex items-center gap-1">
+                                        <span class="iconify" data-icon="mdi:expansion-card" data-width="14"></span>
+                                        GPU
+                                    </span>
+                                    <span class="text-xs">${status.gpu_total || 0}个 ${gpuPercent.toFixed(1)}%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="${getProgressColor(gpuPercent)} h-2 rounded-full transition-all" style="width: ${gpuPercent}%"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- CPU温度和功耗 -->
+                            <div>
+                                <div class="flex items-center justify-between text-gray-600 mb-1">
+                                    <span class="flex items-center gap-1">
+                                        <span class="iconify" data-icon="mdi:thermometer" data-width="14"></span>
+                                        温度/功耗
+                                    </span>
+                                    <span class="text-xs">${cpuTemp}℃ ${cpuPower}W</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="${getProgressColor(cpuTempPercent)} h-2 rounded-full transition-all" style="width: ${cpuTempPercent}%"></div>
+                                </div>
+                            </div>
+                            ` : '<div class="text-center text-gray-400 py-8 text-xs">暂无状态数据</div>'}
                         </div>
                     </div>
                 </div>

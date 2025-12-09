@@ -281,7 +281,7 @@ class NetsManage:
             print(f"❌ 端口转发删除失败: {identifier}")
         return success
 
-    # ARP绑定方法 ########################################################################
+    # ARP绑定方法 ############################################################################
     def add_arp(self, ip_addr: str, mac: str, interface: str = "lan1",
                 comment: str = "") -> bool:
         """
@@ -356,18 +356,14 @@ class NetsManage:
 if __name__ == "__main__":
     # 创建管理对象
     nets = NetsManage("http://192.168.4.251", "admin", "IM807581")
-
     # 登录
     if nets.login():
         print("登录成功")
-
         # 添加静态IP
         if nets.add_dhcp("10.1.9.101", "00:22:33:44:55:66", comment="测试设备"):
             print("静态IP添加成功")
-
         # 添加端口转发
         if nets.add_port("1081", "10.1.9.101", "1081", comment="测试转发"):
             print("端口转发添加成功")
-
     else:
         print("登录失败")

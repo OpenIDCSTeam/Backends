@@ -1,5 +1,4 @@
 import json
-
 import psutil
 import GPUtil
 import cpuinfo
@@ -49,9 +48,23 @@ class HSStatus:
         for gpu in gpus:
             self.hw_status.gpu_usage[gpu.id] = int(gpu.load * 100)  # 使用率
         # 获取网络带宽 ======================================================
-        net_io = psutil.net_io_counters()
-        self.hw_status.network_u = int(net_io.bytes_sent / (1024 * 1024))
-        self.hw_status.network_d = int(net_io.bytes_recv / (1024 * 1024))
+        nic_list = psutil.net_io_counters(True)
+        max_name = ""
+        total_tx = total_rx = 0
+        for nic_name in nic_list:
+            nic_data = nic_list[nic_name]
+            if nic_data.bytes_sent > total_tx:
+                total_tx = nic_data.bytes_sent
+                total_rx = nic_data.bytes_recv
+                max_name = nic_name
+        self.hw_status.flu_usage = total_tx + total_rx
+        self.hw_status.network_u = int(total_tx / (1024 * 1024) / 60 * 8)
+        self.hw_status.network_d = int(total_rx / (1024 * 1024) / 60 * 8)
+        psutil.net_io_counters.cache_clear()
+        # 物理网卡 ===========================================================
+        nic_list = psutil.net_if_stats()
+        if max_name in nic_list:
+            self.hw_status.network_a = nic_list[max_name].speed
         # 获取CPU温度和功耗 =================================================
         if platform.system() == "Windows":
             self.hw_status.cpu_temp = 0
