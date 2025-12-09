@@ -327,6 +327,19 @@ class HostDatabase:
 
             # 转换状态对象为字典
             status_dict = status.__dict__() if hasattr(status, '__dict__') else status
+            
+            # 累加流量消耗：从数据库取出之前的flu_usage，加上当前的
+            if vm_uuid in all_status and len(all_status[vm_uuid]) > 0:
+                # 获取最后一条状态记录中的flu_usage
+                last_status = all_status[vm_uuid][-1]
+                previous_flu_usage = last_status.get('flu_usage', 0) if isinstance(last_status, dict) else 0
+                current_flu_usage = status_dict.get('flu_usage', 0) if isinstance(status_dict, dict) else 0
+                # 累加流量
+                status_dict['flu_usage'] = previous_flu_usage + current_flu_usage
+                print(f"[DataManage] 流量累加: 之前={previous_flu_usage}MB, 本次={current_flu_usage}MB, 累计={status_dict['flu_usage']}MB")
+            else:
+                print(f"[DataManage] 首次上报流量: {status_dict.get('flu_usage', 0)}MB")
+            
             all_status[vm_uuid].append(status_dict)
 
             # 限制状态历史记录数量（保留最近100条）

@@ -2,7 +2,6 @@ class NCConfig:
     def __init__(self, **kwargs):
         self.mac_addr: str = ""
         self.nic_type: str = ""
-        self.nic_devs: str = ""
         self.ip4_addr: str = ""
         self.ip6_addr: str = ""
         self.__load__(**kwargs)
@@ -11,7 +10,6 @@ class NCConfig:
         return {
             "mac_addr": self.mac_addr,
             "nic_type": self.nic_type,
-            "nic_devs": self.nic_devs,
             "ip4_addr": self.ip4_addr,
             "ip6_addr": self.ip6_addr,
         }

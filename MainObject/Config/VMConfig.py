@@ -1,31 +1,37 @@
 import json
+import random
 
 from MainObject.Config.NCConfig import NCConfig
 from MainObject.Config.SDConfig import SDConfig
 
 
 class VMConfig:
+    @staticmethod
+    def generate_random_vnc_port():
+        """生成随机VNC端口，范围5900-6999"""
+        return str(random.randint(5900, 6999))
+
     def __init__(self, **kwargs):
         # 机器配置 ===========================
         self.vm_uuid = ""  # 设置虚拟机名-UUID
         self.os_name = ""  # 设置SYS操作系统名
         self.os_pass = ""  # 设置SYS系统的密码
         # 远程连接 ===========================
-        self.vc_port = ""  # 分配VNC远程的端口
+        self.vc_port = self.generate_random_vnc_port()  # 分配VNC远程的端口，默认随机生成
         self.vc_pass = ""  # 分配VNC远程的密码
         # 资源配置 ===========================
-        self.cpu_num = 0  # 分配的处理器核心数
-        self.cpu_per = 0  # 分配的处理器百分比
-        self.gpu_num = 0  # 分配物理卡(0-没有)
-        self.gpu_mem = 0  # 分配显存值(0-没有)
-        self.mem_num = 0  # 分配内存数(单位MB)
-        self.hdd_num = 0  # 分配硬盘数(单位MB)
+        self.cpu_num = 2  # 分配的处理器核心数，默认2
+        self.cpu_per = 50  # 分配的处理器百分比
+        self.gpu_num = 0  # 分配物理卡(0-没有)，默认0
+        self.gpu_mem = 2048  # 分配显存值(0-没有)，默认2048MB
+        self.mem_num = 2048  # 分配内存数(单位MB)，默认2048MB
+        self.hdd_num = 20480  # 分配硬盘数(单位MB)，默认20480MB
         # 网络配置 ===========================
-        self.speed_u = 0  # 上行带宽(单位Mbps)
-        self.speed_d = 0  # 下行带宽(单位Mbps)
-        self.flu_num = 0  # 分配流量(单位Mbps)
-        self.nat_num = 0  # 分配端口(0-不分配)
-        self.web_num = 0  # 分配代理(0-不分配)
+        self.speed_u = 100  # 上行带宽(单位Mbps)
+        self.speed_d = 100  # 下行带宽(单位Mbps)
+        self.flu_num = 102400  # 分配流量(单位Mbps)，默认102400
+        self.nat_num = 100  # 分配端口(0-不分配)，默认100
+        self.web_num = 100  # 分配代理(0-不分配)，默认100
         # 网卡配置 ===========================
         self.nic_all: dict[str, NCConfig] = {}
         self.hdd_all: dict[str, SDConfig] = {}
@@ -37,6 +43,11 @@ class VMConfig:
         for key, value in kwargs.items():
             if hasattr(self, key):
                 setattr(self, key, value)
+        
+        # 如果VNC端口为空，则重新生成随机端口
+        if not self.vc_port:
+            self.vc_port = self.generate_random_vnc_port()
+            
         nic_list = self.nic_all
         hdd_list = self.hdd_all
         self.nic_all = {}

@@ -58,8 +58,15 @@
                     </div>
             </div>
         </div>
-        <div id="vmStatus">
-            <span class="px-3 py-1 text-sm font-medium text-gray-600 bg-gray-100 rounded-full">加载中...</span>
+        <div class="flex items-center gap-3">
+            <div id="vmStatus">
+                <span class="px-3 py-1 text-sm font-medium text-gray-600 bg-gray-100 rounded-full">加载中...</span>
+            </div>
+            <button id="changePasswordBtn" onclick="showChangePasswordModal()" style="display: none;"
+                    class="px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition flex items-center gap-1">
+                <span class="iconify" data-icon="mdi:key" data-width="16"></span>
+                修改密码
+            </button>
         </div>
     </div>
 </div>
@@ -362,33 +369,27 @@
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
                 <!-- CPU使用率 -->
                 <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 w-full">
-                    <h3 class="text-sm font-medium text-gray-700 mb-3">CPU使用率</h3>
-                    <canvas id="cpuChart" width="400" height="200" class="w-full"></canvas>
+                    <div id="cpuChart" style="width: 100%; height: 300px;"></div>
                 </div>
                 <!-- 内存使用率 -->
                 <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 w-full">
-                    <h3 class="text-sm font-medium text-gray-700 mb-3">内存使用率</h3>
-                    <canvas id="memChart" width="400" height="200" class="w-full"></canvas>
+                    <div id="memChart" style="width: 100%; height: 300px;"></div>
                 </div>
                 <!-- 硬盘使用率 -->
                 <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 w-full">
-                    <h3 class="text-sm font-medium text-gray-700 mb-3">硬盘使用率</h3>
-                    <canvas id="hddChart" width="400" height="200" class="w-full"></canvas>
+                    <div id="hddChart" style="width: 100%; height: 300px;"></div>
                 </div>
                 <!-- GPU使用率 -->
                 <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 w-full">
-                    <h3 class="text-sm font-medium text-gray-700 mb-3">GPU使用率</h3>
-                    <canvas id="gpuChart" width="400" height="200" class="w-full"></canvas>
+                    <div id="gpuChart" style="width: 100%; height: 300px;"></div>
                 </div>
                 <!-- 上行带宽 -->
                 <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 w-full">
-                    <h3 class="text-sm font-medium text-gray-700 mb-3">上行带宽</h3>
-                    <canvas id="netUChart" width="400" height="200" class="w-full"></canvas>
+                    <div id="netUChart" style="width: 100%; height: 300px;"></div>
                 </div>
                 <!-- 下行带宽 -->
                 <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 w-full">
-                    <h3 class="text-sm font-medium text-gray-700 mb-3">下行带宽</h3>
-                    <canvas id="netDChart" width="400" height="200" class="w-full"></canvas>
+                    <div id="netDChart" style="width: 100%; height: 300px;"></div>
                 </div>
             </div>
         </div>
@@ -760,6 +761,60 @@
     </form>
 </dialog>
 
+<!-- 修改密码模态框 -->
+<dialog id="changePasswordModal" class="modal">
+    <div class="modal-box max-w-md">
+        <h3 class="font-bold text-lg flex items-center gap-2 text-blue-600">
+            <span class="iconify" data-icon="mdi:key" data-width="24"></span>
+            修改虚拟机密码
+        </h3>
+        <form id="changePasswordForm" class="mt-4 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">新密码 *</label>
+                <div class="flex gap-2">
+                    <input type="text" id="newPassword" required
+                           class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="至少12位，包含字母、数字、特殊符号中的两种"
+                           oninput="onPasswordInput()">
+                    <button type="button" onclick="generateNewPassword()" 
+                            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-1 whitespace-nowrap">
+                        <span class="iconify" data-icon="mdi:refresh" data-width="18"></span>
+                        随机
+                    </button>
+                </div>
+                <p id="newPasswordError" class="text-xs text-red-600 mt-1" style="display: none;"></p>
+                <p class="text-xs text-gray-500 mt-1">密码长度不得低于12位，且至少包含字母、数字、特殊符号中的两种</p>
+            </div>
+            
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <label class="flex items-start gap-2 cursor-pointer">
+                    <input type="checkbox" id="confirmForceShutdownPassword" 
+                           class="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                           onchange="togglePasswordConfirmButton()">
+                    <span class="text-sm text-gray-700">
+                        我已确认强制关闭虚拟机以修改密码
+                    </span>
+                </label>
+            </div>
+
+            <div class="modal-action">
+                <button type="button" onclick="closeChangePasswordModal()"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                    取消
+                </button>
+                <button type="submit" id="confirmPasswordChange"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    <span class="iconify" data-icon="mdi:check" data-width="18"></span>
+                    确认修改
+                </button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>关闭</button>
+    </form>
+</dialog>
+
 <!-- 电源操作确认模态框 -->
 <dialog id="powerConfirmModal" class="modal">
     <div class="modal-box">
@@ -810,46 +865,90 @@
 
 <!-- 编辑虚拟机配置模态框 -->
 <dialog id="vmEditModal" class="modal">
-    <div class="modal-box max-w-3xl">
-        <h3 class="font-bold text-lg flex items-center gap-2">
+    <div class="modal-box max-w-3xl max-h-[90vh] flex flex-col">
+        <h3 class="font-bold text-lg flex items-center gap-2 flex-shrink-0">
             <span class="iconify text-purple-600" data-icon="mdi:cube-outline" data-width="24"></span>
             编辑虚拟机配置
         </h3>
-        <form id="vmEditForm" class="mt-4 space-y-4">
-            <!-- 基本信息 -->
-            <div class="border border-gray-200 rounded-lg p-4">
-                <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-                    <span class="iconify" data-icon="mdi:information" data-width="18"></span>
-                    基本信息
-                </h4>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">虚拟机UUID</label>
-                        <input type="text" name="vm_uuid" id="editVmUuid" disabled
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">操作系统(下次重装时生效)</label>
-                        <select name="os_name" id="editOsName"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                            <option value="">请选择</option>
-                            <!-- 操作系统选项将从主机的system_maps动态加载 -->
-                        </select>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-gray-600 mb-1">系统密码</label>
-                        <input type="text" name="os_pass" id="editOsPass"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                               placeholder="设置系统登录密码">
+        <form id="vmEditForm" class="mt-4 flex flex-col flex-1 overflow-hidden">
+            <!-- 可滚动内容区域 -->
+            <div class="flex-1 overflow-y-auto space-y-4 pr-2">
+                <!-- 基本信息 -->
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                        <span class="iconify" data-icon="mdi:information" data-width="18"></span>
+                        基本信息
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-600 mb-1">虚拟机UUID *</label>
+                            <div class="flex gap-2">
+                                <input type="text" name="vm_uuid" id="editVmUuid" disabled
+                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                                       placeholder="例如: vm_test001">
+                                <button type="button" disabled
+                                        class="px-4 py-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed flex items-center gap-1 whitespace-nowrap min-w-[80px] opacity-50">
+                                    <span class="iconify" data-icon="mdi:refresh" data-width="18"></span>
+                                    随机
+                                </button>
+                            </div>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-600 mb-1">操作系统(下次重装时生效)</label>
+                            <select name="os_name" id="editOsName"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                <option value="">请选择</option>
+                                <!-- 操作系统选项将从主机的system_maps动态加载 -->
+                            </select>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-600 mb-1">系统密码</label>
+                            <div class="flex gap-2">
+                                <input type="text" name="os_pass" id="editOsPass"
+                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                       placeholder="设置系统登录密码"
+                                       oninput="validatePasswordInput('editOsPass', 'editOsPassError')">
+                                <button type="button" onclick="generateEditOsPass()" 
+                                        class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-1 whitespace-nowrap min-w-[80px]">
+                                    <span class="iconify" data-icon="mdi:refresh" data-width="18"></span>
+                                    随机
+                                </button>
+                            </div>
+                            <p id="editOsPassError" class="text-xs text-red-600 mt-1" style="display: none;"></p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">VNC密码</label>
+                            <input type="text" name="vc_pass" id="editVcPass"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                   placeholder="VNC远程密码"
+                                   oninput="validatePasswordInput('editVcPass', 'editVcPassError')">
+                            <p id="editVcPassError" class="text-xs text-red-600 mt-1" style="display: none;"></p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">VNC端口</label>
+                            <div class="flex gap-2">
+                                <input type="number" name="vc_port" id="editVcPort" min="1" max="65535"
+                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                       placeholder="VNC远程端口">
+                                <button type="button" onclick="generateRandomVncPortForInput()"
+                                        class="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-lg text-sm flex items-center gap-1"
+                                        title="生成随机端口">
+                                    <span class="iconify" data-icon="mdi:dice-6" data-width="16"></span>
+                                    随机
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+                {{ resource_config('edit') }}
+
+                {{ network_config('edit', true) }}
             </div>
+            <!-- 可滚动内容区域结束 -->
 
-            {{ resource_config('edit') }}
-
-            {{ network_config('edit', true) }}
-
-            <div class="modal-action">
+            <!-- 按钮区域固定在底部 -->
+            <div class="modal-action flex-shrink-0 pt-4 border-t border-gray-200 mt-4">
                 <button type="button" onclick="document.getElementById('vmEditModal').close()"
                         class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
                     取消
@@ -869,6 +968,8 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<!-- 引入 ECharts -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 <script>
     const hostName = '{{ hs_name }}';
     const vmUuid = '{{ vm_uuid }}';
@@ -902,14 +1003,17 @@
     function togglePasswordVisibility() {
         const passInput = document.getElementById('vmOsPass');
         const eyeIcon = document.getElementById('eyeIcon');
+        const actualPassword = $(passInput).data('password') || '';
         
         if (passInput.type === 'password') {
             // 当前是隐藏状态，切换为显示
             passInput.type = 'text';
+            passInput.value = actualPassword || '(无密码)';
             eyeIcon.setAttribute('data-icon', 'mdi:eye-off-outline');
         } else {
             // 当前是显示状态，切换为隐藏
             passInput.type = 'password';
+            passInput.value = '********';
             eyeIcon.setAttribute('data-icon', 'mdi:eye-outline');
         }
     }
@@ -986,6 +1090,10 @@
 
             try {
                 pendingEditVmData = collectEditVmFormData();
+                // 如果返回null，说明密码验证失败，直接返回不提交
+                if (pendingEditVmData === null) {
+                    return;
+                }
             } catch (error) {
                 // 显示验证错误
                 Swal.fire({
@@ -1174,19 +1282,30 @@
             </span>
         `);
 
+        // 如果虚拟机处于运行中状态，显示修改密码按钮
+        if (powerStatus === 'STARTED') {
+            $('#changePasswordBtn').show();
+        } else {
+            $('#changePasswordBtn').hide();
+        }
+
         // 更新操作系统
         $('#vmOsName').text(config.os_name || '未知系统');
 
         // 更新系统密码
         const osPass = config.os_pass || '';
-        $('#vmOsPass').val(osPass);
         $('#vmOsPass').data('password', osPass); // 存储实际密码
+        // 如果没有密码，显示8位星号；如果有密码，也显示8位星号（隐藏状态）
+        $('#vmOsPass').val('********');
+        $('#vmOsPass').attr('type', 'password');
 
         // 更新资源配置 - CPU
         $('#vmCpu').text((config.cpu_num || 0) + ' 核');
         const cpuPer = firstStatus.cpu_usage || 0;
         $('#vmCpuPerText').text(cpuPer + '%');
-        $('#vmCpuPerBar').css('width', Math.min(cpuPer, 100) + '%');
+        $('#vmCpuPerBar').css('width', Math.min(cpuPer, 100) + '%')
+            .removeClass('bg-green-500 bg-blue-500 bg-yellow-500 bg-orange-500 bg-red-500')
+            .addClass(getProgressBarColor(cpuPer));
 
         // 更新资源配置 - 内存
         const memTotal = config.mem_num || 0;
@@ -1195,7 +1314,9 @@
         $('#vmMemory').text(formatMemory(memTotal));
         $('#vmMemUsageText').text('已用 ' + memPer + '%');
         $('#vmMemPerText').text(memPer + '%');
-        $('#vmMemPerBar').css('width', Math.min(memPer, 100) + '%');
+        $('#vmMemPerBar').css('width', Math.min(memPer, 100) + '%')
+            .removeClass('bg-green-500 bg-blue-500 bg-yellow-500 bg-orange-500 bg-red-500')
+            .addClass(getProgressBarColor(memPer));
 
         // 更新资源配置 - 硬盘
         const hddTotal = config.hdd_num || 0;
@@ -1204,7 +1325,9 @@
         $('#vmDisk').text(formatDisk(hddTotal));
         $('#vmHddUsageText').text('已用 ' + formatDisk(hddUsage));
         $('#vmHddPerText').text(hddPer + '%');
-        $('#vmHddPerBar').css('width', Math.min(hddPer, 100) + '%');
+        $('#vmHddPerBar').css('width', Math.min(hddPer, 100) + '%')
+            .removeClass('bg-green-500 bg-blue-500 bg-yellow-500 bg-orange-500 bg-red-500')
+            .addClass(getProgressBarColor(hddPer));
 
         // 更新资源配置 - GPU显存
         const gpuMem = config.gpu_mem || 0;
@@ -1213,7 +1336,9 @@
         $('#vmGpu').text(gpuMem + ' MB');
         $('#vmGpuUsageText').text('已用 ' + gpuUsage + ' MB');
         $('#vmGpuPerText').text(gpuPer + '%');
-        $('#vmGpuPerBar').css('width', Math.min(gpuPer, 100) + '%');
+        $('#vmGpuPerBar').css('width', Math.min(gpuPer, 100) + '%')
+            .removeClass('bg-green-500 bg-blue-500 bg-yellow-500 bg-orange-500 bg-red-500')
+            .addClass(getProgressBarColor(gpuPer));
 
         // 更新资源配置 - 上行带宽
         const speedU = config.speed_u || 0;
@@ -1222,7 +1347,9 @@
         $('#vmSpeedU').text(speedU + ' Mbps');
         $('#vmNetUsageText').text('已用 ' + netUsage + ' Mbps');
         $('#vmNetPerText').text(netPer + '%');
-        $('#vmNetPerBar').css('width', Math.min(netPer, 100) + '%');
+        $('#vmNetPerBar').css('width', Math.min(netPer, 100) + '%')
+            .removeClass('bg-green-500 bg-blue-500 bg-yellow-500 bg-orange-500 bg-red-500')
+            .addClass(getProgressBarColor(netPer));
 
         // 更新资源配置 - 下行带宽
         const speedD = config.speed_d || 0;
@@ -1231,7 +1358,9 @@
         $('#vmSpeedD').text(speedD + ' Mbps');
         $('#vmNetDUsageText').text('已用 ' + netDUsage + ' Mbps');
         $('#vmNetDPerText').text(netDPer + '%');
-        $('#vmNetDPerBar').css('width', Math.min(netDPer, 100) + '%');
+        $('#vmNetDPerBar').css('width', Math.min(netDPer, 100) + '%')
+            .removeClass('bg-green-500 bg-blue-500 bg-yellow-500 bg-orange-500 bg-red-500')
+            .addClass(getProgressBarColor(netDPer));
 
         // 更新资源配置 - 反向代理
         const webNum = config.web_num || 0;
@@ -1240,7 +1369,9 @@
         $('#vmWebNum').text(webNum + ' 个');
         $('#vmWebUsageText').text('已用 ' + webUsage + ' 个');
         $('#vmWebPerText').text(webPer + '%');
-        $('#vmWebPerBar').css('width', Math.min(webPer, 100) + '%');
+        $('#vmWebPerBar').css('width', Math.min(webPer, 100) + '%')
+            .removeClass('bg-green-500 bg-blue-500 bg-yellow-500 bg-orange-500 bg-red-500')
+            .addClass(getProgressBarColor(webPer));
 
         // 更新网络配置 - NAT端口数
         const natNum = config.nat_num || 0;
@@ -1249,7 +1380,9 @@
         $('#vmNatNum').text(natNum + ' 个');
         $('#vmNatUsageText').text('已用 ' + natUsage + ' 个');
         $('#vmNatPerText').text(natPer + '%');
-        $('#vmNatPerBar').css('width', Math.min(natPer, 100) + '%');
+        $('#vmNatPerBar').css('width', Math.min(natPer, 100) + '%')
+            .removeClass('bg-green-500 bg-blue-500 bg-yellow-500 bg-orange-500 bg-red-500')
+            .addClass(getProgressBarColor(natPer));
 
         // 更新网络配置 - 流量限制
         const fluNum = config.flu_num || 0;
@@ -1258,7 +1391,9 @@
         $('#vmTraffic').text(fluNum > 0 ? formatTraffic(fluNum) : '无限制');
         $('#vmFluUsageText').text('已用 ' + formatTraffic(fluUsage));
         $('#vmFluPerText').text(fluPer + '%');
-        $('#vmFluPerBar').css('width', Math.min(fluPer, 100) + '%');
+        $('#vmFluPerBar').css('width', Math.min(fluPer, 100) + '%')
+            .removeClass('bg-green-500 bg-blue-500 bg-yellow-500 bg-orange-500 bg-red-500')
+            .addClass(getProgressBarColor(fluPer));
 
         // 更新网卡列表
         const nicAll = config.nic_all || {};
@@ -1544,6 +1679,244 @@
         }
     }
 
+    // 密码验证函数：最低12位，且至少包含字母、数字、特殊符号中的两种
+    function validatePassword(password, fieldName) {
+        if (password.length < 12) {
+            throw new Error(`${fieldName}长度不得低于12位`);
+        }
+
+        let typeCount = 0;
+        if (/[a-zA-Z]/.test(password)) typeCount++; // 包含字母
+        if (/[0-9]/.test(password)) typeCount++; // 包含数字
+        if (/[^a-zA-Z0-9]/.test(password)) typeCount++; // 包含特殊符号
+
+        if (typeCount < 2) {
+            throw new Error(`${fieldName}必须至少包含字母、数字、特殊符号中的两种`);
+        }
+    }
+
+    // 切换确认按钮的启用/禁用状态
+    function togglePasswordConfirmButton() {
+        const confirmButton = document.getElementById('confirmPasswordChange');
+        const confirmCheck = document.getElementById('confirmForceShutdownPassword');
+        const newPasswordInput = document.getElementById('newPassword');
+        const password = newPasswordInput.value.trim();
+
+        // 检查是否可以启用按钮：复选框已勾选 且 密码为空或密码有效
+        const isCheckboxChecked = confirmCheck.checked;
+        
+        let isPasswordValid = false;
+        if (!password) {
+            // 密码为空时，认为有效（用户不修改密码）
+            isPasswordValid = true;
+        } else {
+            // 密码不为空时，手动验证密码是否有效（不调用validatePasswordInput避免循环）
+            let errors = [];
+            
+            // 检查长度
+            if (password.length < 12) {
+                errors.push('密码长度不得低于12位');
+            }
+
+            // 检查复杂度
+            let typeCount = 0;
+            if (/[a-zA-Z]/.test(password)) typeCount++; // 包含字母
+            if (/[0-9]/.test(password)) typeCount++; // 包含数字
+            if (/[^a-zA-Z0-9]/.test(password)) typeCount++; // 包含特殊符号
+
+            if (typeCount < 2) {
+                errors.push('必须至少包含字母、数字、特殊符号中的两种');
+            }
+            
+            isPasswordValid = errors.length === 0;
+        }
+
+        if (isCheckboxChecked && isPasswordValid) {
+            confirmButton.disabled = false;
+        } else {
+            confirmButton.disabled = true;
+        }
+    }
+
+    // 实时密码验证函数（用于输入框实时验证）
+    // 密码输入处理函数
+    function onPasswordInput() {
+        validatePasswordInput('newPassword', 'newPasswordError');
+        togglePasswordConfirmButton();
+    }
+
+    function validatePasswordInput(inputId, errorId) {
+        const input = document.getElementById(inputId);
+        const errorElement = document.getElementById(errorId);
+        const password = input.value;
+
+        // 如果密码为空，不显示错误
+        if (!password) {
+            errorElement.style.display = 'none';
+            input.classList.remove('border-red-500');
+            return true;
+        }
+
+        let errors = [];
+
+        // 检查长度
+        if (password.length < 12) {
+            errors.push('密码长度不得低于12位');
+        }
+
+        // 检查复杂度
+        let typeCount = 0;
+        if (/[a-zA-Z]/.test(password)) typeCount++; // 包含字母
+        if (/[0-9]/.test(password)) typeCount++; // 包含数字
+        if (/[^a-zA-Z0-9]/.test(password)) typeCount++; // 包含特殊符号
+
+        if (typeCount < 2) {
+            errors.push('必须至少包含字母、数字、特殊符号中的两种');
+        }
+
+        // 显示或隐藏错误信息
+        if (errors.length > 0) {
+            errorElement.textContent = errors.join('；');
+            errorElement.style.display = 'block';
+            input.classList.add('border-red-500');
+            return false;
+        } else {
+            errorElement.style.display = 'none';
+            input.classList.remove('border-red-500');
+            return true;
+        }
+    }
+
+    // 生成随机密码（12位，包含字母、数字、特殊符号）
+    function generateRandomPassword(length = 12) {
+        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+        const numbers = '0123456789';
+        const specials = '!@#$%^&*()_+-=[]{}|;:,.<>?';
+        const allChars = letters + numbers + specials;
+        
+        let password = '';
+        // 确保至少包含一个字母、一个数字、一个特殊符号
+        password += letters.charAt(Math.floor(Math.random() * letters.length));
+        password += numbers.charAt(Math.floor(Math.random() * numbers.length));
+        password += specials.charAt(Math.floor(Math.random() * specials.length));
+        
+        // 填充剩余字符
+        for (let i = 3; i < length; i++) {
+            password += allChars.charAt(Math.floor(Math.random() * allChars.length));
+        }
+        
+        // 打乱顺序
+        return password.split('').sort(() => Math.random() - 0.5).join('');
+    }
+
+    // 生成随机VNC端口，范围5900-6999
+    function generateRandomVncPort() {
+        return Math.floor(Math.random() * (6999 - 5900 + 1)) + 5900;
+    }
+
+    // 为输入框生成随机VNC端口
+    function generateRandomVncPortForInput() {
+        const randomPort = generateRandomVncPort();
+        document.getElementById('editVcPort').value = randomPort;
+    }
+
+    // 生成编辑模式的随机系统密码，并同步到VNC密码
+    function generateEditOsPass() {
+        const randomPass = generateRandomPassword(12);
+        document.getElementById('editOsPass').value = randomPass;
+        document.getElementById('editVcPass').value = randomPass;
+        // 触发实时验证
+        validatePasswordInput('editOsPass', 'editOsPassError');
+        validatePasswordInput('editVcPass', 'editVcPassError');
+    }
+
+    // 显示修改密码模态框
+    function showChangePasswordModal() {
+        document.getElementById('newPassword').value = '';
+        document.getElementById('confirmForceShutdownPassword').checked = false;
+        document.getElementById('changePasswordModal').showModal();
+    }
+
+    // 关闭修改密码模态框
+    function closeChangePasswordModal() {
+        document.getElementById('changePasswordModal').close();
+    }
+
+    // 生成新密码
+    function generateNewPassword() {
+        const randomPass = generateRandomPassword(12);
+        document.getElementById('newPassword').value = randomPass;
+        // 触发实时验证
+        validatePasswordInput('newPassword', 'newPasswordError');
+    }
+
+    // 修改密码表单提交
+    document.addEventListener('DOMContentLoaded', function() {
+        const changePasswordForm = document.getElementById('changePasswordForm');
+        if (changePasswordForm) {
+            changePasswordForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const newPassword = document.getElementById('newPassword').value;
+                const confirmCheck = document.getElementById('confirmForceShutdownPassword').checked;
+
+                // 如果按钮是禁用状态，直接返回（说明验证条件未满足）
+                const confirmButton = document.getElementById('confirmPasswordChange');
+                if (confirmButton.disabled) {
+                    return;
+                }
+
+                // 触发实时验证并检查是否有错误
+                const isValid = validatePasswordInput('newPassword', 'newPasswordError');
+                if (!isValid) {
+                    // 如果验证失败，不提交表单，错误信息已经在输入框下方显示
+                    return;
+                }
+
+                // 关闭模态框
+                closeChangePasswordModal();
+
+                // 显示保存中状态
+                Swal.fire({
+                    title: '修改中...',
+                    html: '正在修改虚拟机密码',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    showConfirmButton: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                // 构建密码修改数据
+                const passwordData = {
+                    password: newPassword
+                };
+
+                // 调用密码修改API
+                const result = await apiRequest(`/api/client/password/${hostName}/${vmUuid}`, 'POST', passwordData);
+
+                if (result && result.code === 200) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '修改成功',
+                        text: '虚拟机密码已修改',
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => {
+                        location.reload(); // 刷新页面
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: '修改失败',
+                        text: result?.msg || '修改失败，请重试'
+                    });
+                }
+            });
+        }
+    });
+
     // 编辑虚拟机 - 直接弹出编辑窗口
     let editNicCounter = 0;
     let pendingEditVmData = null;
@@ -1562,6 +1935,10 @@
             updateOsOptions(config.os_name || '');
             
             document.getElementById('editOsPass').value = config.os_pass || '';
+            document.getElementById('editVcPass').value = config.vc_pass || '';
+            // VNC端口如果为空则生成随机端口
+            const vcPort = config.vc_port || generateRandomVncPort();
+            document.getElementById('editVcPort').value = vcPort;
             document.getElementById('editCpuNum').value = config.cpu_num ?? 0;
             document.getElementById('editMemNum').value = config.mem_num ?? 0;
             document.getElementById('editHddNum').value = config.hdd_num ?? 0;
@@ -1674,10 +2051,37 @@
             }
         });
 
+        // 获取密码
+        const osPass = document.getElementById('editOsPass').value;
+        const vcPass = document.getElementById('editVcPass').value;
+
+        // 验证密码：如果填写了密码，则必须满足要求
+        if (osPass) {
+            const isOsPassValid = validatePasswordInput('editOsPass', 'editOsPassError');
+            if (!isOsPassValid) {
+                return null; // 返回null表示验证失败，不提交表单
+            }
+        }
+        if (vcPass) {
+            const isVcPassValid = validatePasswordInput('editVcPass', 'editVcPassError');
+            if (!isVcPassValid) {
+                return null; // 返回null表示验证失败，不提交表单
+            }
+        }
+
+        // 获取VNC端口，如果为空则生成随机端口
+        let vcPort = document.getElementById('editVcPort').value;
+        if (!vcPort) {
+            vcPort = generateRandomVncPort();
+            document.getElementById('editVcPort').value = vcPort;
+        }
+
         return {
             vm_uuid: vmUuid,
             os_name: document.getElementById('editOsName').value,
-            os_pass: document.getElementById('editOsPass').value,
+            os_pass: osPass,
+            vc_pass: vcPass,
+            vc_port: parseInt(vcPort) || 0,
             cpu_num: parseInt(document.getElementById('editCpuNum').value) || 0,
             mem_num: parseInt(document.getElementById('editMemNum').value) || 0,
             hdd_num: parseInt(document.getElementById('editHddNum').value) || 0,
@@ -2051,6 +2455,15 @@
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
+    // 根据百分比获取进度条颜色类名
+    function getProgressBarColor(percent) {
+        if (percent < 20) return 'bg-green-500';
+        if (percent < 40) return 'bg-blue-500';
+        if (percent < 60) return 'bg-yellow-500';
+        if (percent < 80) return 'bg-orange-500';
+        return 'bg-red-500';
+    }
+
     // 更新重装系统下拉选项
     function updateReinstallOsOptions(selectedOsName = '') {
         const osSelect = document.getElementById('reinstallOsSelect');
@@ -2206,25 +2619,28 @@ async function reinstallSystem() {
         }
     }
 
+    // ECharts 实例存储
+    const chartInstances = {};
+
     // 绘制历史数据图表
     function drawHistoryCharts(statusList) {
         if (!statusList || statusList.length === 0) return;
 
-        // 准备数据 - 提取最近10分钟的历史数据
+        // 准备数据 - 提取最近的历史数据
         const chartData = prepareChartData(statusList);
         
         // 绘制各个图表
-        drawLineChart('cpuChart', chartData.cpu, 'CPU使用率 (%)', '#3B82F6');
-        drawLineChart('memChart', chartData.mem, '内存使用率 (%)', '#10B981');
-        drawLineChart('hddChart', chartData.hdd, '硬盘使用率 (%)', '#F59E0B');
-        drawLineChart('gpuChart', chartData.gpu, 'GPU使用率 (MB)', '#8B5CF6');
-        drawLineChart('netUChart', chartData.netU, '上行带宽 (Mbps)', '#06B6D4');
-        drawLineChart('netDChart', chartData.netD, '下行带宽 (Mbps)', '#14B8A6');
+        drawEChart('cpuChart', chartData.cpu, chartData.labels, 'CPU使用率', '%', '#3B82F6');
+        drawEChart('memChart', chartData.mem, chartData.labels, '内存使用率', '%', '#10B981');
+        drawEChart('hddChart', chartData.hdd, chartData.labels, '硬盘使用率', '%', '#F59E0B');
+        drawEChart('gpuChart', chartData.gpu, chartData.labels, 'GPU显存', 'MB', '#8B5CF6');
+        drawEChart('netUChart', chartData.netU, chartData.labels, '上行带宽', 'Mbps', '#06B6D4');
+        drawEChart('netDChart', chartData.netD, chartData.labels, '下行带宽', 'Mbps', '#14B8A6');
     }
 
     // 准备图表数据
     function prepareChartData(statusList) {
-        const maxPoints = 10; // 显示最近10个数据点
+        const maxPoints = 4320; // 最多显示4320个数据点 (144*30)
         const data = {
             cpu: [],
             mem: [],
@@ -2232,11 +2648,15 @@ async function reinstallSystem() {
             gpu: [],
             netU: [],
             netD: [],
-            labels: []
+            labels: [],
+            timestamps: [] // 保存完整的时间戳用于智能显示
         };
 
         // 取最近的数据点
         const recentData = statusList.slice(-maxPoints);
+        
+        // 获取当前时间
+        const now = new Date();
         
         recentData.forEach((status, index) => {
             // CPU使用率
@@ -2259,96 +2679,200 @@ async function reinstallSystem() {
             // 下行带宽
             data.netD.push(status.network_d || 0);
             
-            // 时间标签
-            data.labels.push(`${index + 1}`);
+            // 时间标签 - 每10分钟一个数据点，从当前时间往前推
+            const timeOffset = (recentData.length - 1 - index) * 10; // 分钟偏移
+            const time = new Date(now.getTime() - timeOffset * 60000);
+            const hours = String(time.getHours()).padStart(2, '0');
+            const minutes = String(time.getMinutes()).padStart(2, '0');
+            data.labels.push(`${hours}:${minutes}`);
+            data.timestamps.push(time);
         });
 
         return data;
     }
 
-    // 绘制折线图
-    function drawLineChart(canvasId, data, label, color) {
-        const canvas = document.getElementById(canvasId);
-        if (!canvas) return;
+    // 使用 ECharts 绘制折线图
+    function drawEChart(chartId, data, labels, title, unit, color) {
+        const chartDom = document.getElementById(chartId);
+        if (!chartDom) return;
 
-        const ctx = canvas.getContext('2d');
-        const width = canvas.width;
-        const height = canvas.height;
-        const padding = 40;
-        
-        // 清空画布
-        ctx.clearRect(0, 0, width, height);
-        
+        // 如果已存在实例，先销毁
+        if (chartInstances[chartId]) {
+            chartInstances[chartId].dispose();
+        }
+
+        // 创建新实例
+        const chart = echarts.init(chartDom);
+        chartInstances[chartId] = chart;
+
         if (!data || data.length === 0) {
-            ctx.fillStyle = '#9CA3AF';
-            ctx.font = '14px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('暂无数据', width / 2, height / 2);
+            chart.showLoading({
+                text: '暂无数据',
+                color: color,
+                textColor: '#6B7280',
+                maskColor: 'rgba(255, 255, 255, 0.8)'
+            });
             return;
         }
 
-        const maxValue = Math.max(...data, 1); // 最小值为1避免除零
-        const minValue = Math.min(...data, 0);
-        const valueRange = maxValue - minValue || 1;
-        
-        const chartWidth = width - padding * 2;
-        const chartHeight = height - padding * 2;
-        const stepX = chartWidth / (data.length - 1 || 1);
+        const option = {
+            title: {
+                text: title,
+                left: 'center',
+                top: 10,
+                textStyle: {
+                    fontSize: 14,
+                    fontWeight: 'bold',
+                    color: '#374151'
+                }
+            },
+            tooltip: {
+                trigger: 'axis',
+                formatter: function(params) {
+                    const param = params[0];
+                    return `${param.axisValue}<br/>${param.marker}${param.seriesName}: ${param.value.toFixed(2)} ${unit}`;
+                },
+                axisPointer: {
+                    type: 'cross',
+                    label: {
+                        backgroundColor: '#6a7985'
+                    }
+                }
+            },
+            grid: {
+                left: '50',
+                right: '30',
+                top: '50',
+                bottom: '80',
+                containLabel: true
+            },
+            xAxis: {
+                type: 'category',
+                boundaryGap: false,
+                data: labels,
+                axisLabel: {
+                    fontSize: 11,
+                    color: '#6B7280',
+                    rotate: 0,
+                    interval: 'auto',
+                    formatter: function(value, index) {
+                        // 智能显示标签
+                        const dataCount = labels.length;
+                        let showInterval = 1;
+                        
+                        if (dataCount > 144) {
+                            showInterval = 6; // 每60分钟
+                        } else if (dataCount > 72) {
+                            showInterval = 3; // 每30分钟
+                        } else if (dataCount > 36) {
+                            showInterval = 2; // 每20分钟
+                        } else if (dataCount > 12) {
+                            showInterval = 1; // 每10分钟
+                        }
+                        
+                        if (index % showInterval === 0 || index === dataCount - 1) {
+                            return value;
+                        }
+                        return '';
+                    }
+                },
+                axisLine: {
+                    lineStyle: {
+                        color: '#E5E7EB'
+                    }
+                }
+            },
+            yAxis: {
+                type: 'value',
+                name: unit,
+                nameTextStyle: {
+                    color: '#6B7280',
+                    fontSize: 12
+                },
+                axisLabel: {
+                    fontSize: 11,
+                    color: '#6B7280',
+                    formatter: '{value}'
+                },
+                splitLine: {
+                    lineStyle: {
+                        color: '#E5E7EB'
+                    }
+                }
+            },
+            dataZoom: [
+                {
+                    type: 'slider',
+                    show: true,
+                    start: 0,
+                    end: 100,
+                    height: 20,
+                    bottom: 10,
+                    handleSize: '80%',
+                    handleStyle: {
+                        color: color
+                    },
+                    textStyle: {
+                        color: '#6B7280',
+                        fontSize: 10
+                    },
+                    borderColor: '#E5E7EB',
+                    fillerColor: 'rgba(59, 130, 246, 0.1)',
+                    dataBackground: {
+                        lineStyle: {
+                            color: color,
+                            opacity: 0.5
+                        },
+                        areaStyle: {
+                            color: color,
+                            opacity: 0.2
+                        }
+                    }
+                },
+                {
+                    type: 'inside',
+                    start: 0,
+                    end: 100
+                }
+            ],
+            series: [
+                {
+                    name: title,
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 4,
+                    sampling: 'lttb',
+                    itemStyle: {
+                        color: color
+                    },
+                    lineStyle: {
+                        width: 2,
+                        color: color
+                    },
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            {
+                                offset: 0,
+                                color: color.replace(')', ', 0.3)').replace('rgb', 'rgba')
+                            },
+                            {
+                                offset: 1,
+                                color: color.replace(')', ', 0.05)').replace('rgb', 'rgba')
+                            }
+                        ])
+                    },
+                    data: data
+                }
+            ]
+        };
 
-        // 绘制网格线
-        ctx.strokeStyle = '#E5E7EB';
-        ctx.lineWidth = 1;
-        
-        // 水平网格线
-        for (let i = 0; i <= 4; i++) {
-            const y = padding + (chartHeight / 4) * i;
-            ctx.beginPath();
-            ctx.moveTo(padding, y);
-            ctx.lineTo(width - padding, y);
-            ctx.stroke();
-            
-            // Y轴标签
-            const value = maxValue - (valueRange / 4) * i;
-            ctx.fillStyle = '#6B7280';
-            ctx.font = '12px sans-serif';
-            ctx.textAlign = 'right';
-            ctx.fillText(value.toFixed(1), padding - 10, y + 4);
-        }
+        chart.setOption(option);
 
-        // 绘制折线
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        
-        data.forEach((value, index) => {
-            const x = padding + stepX * index;
-            const y = padding + chartHeight - ((value - minValue) / valueRange) * chartHeight;
-            
-            if (index === 0) {
-                ctx.moveTo(x, y);
-            } else {
-                ctx.lineTo(x, y);
-            }
+        // 响应式调整
+        window.addEventListener('resize', function() {
+            chart.resize();
         });
-        
-        ctx.stroke();
-
-        // 绘制数据点
-        ctx.fillStyle = color;
-        data.forEach((value, index) => {
-            const x = padding + stepX * index;
-            const y = padding + chartHeight - ((value - minValue) / valueRange) * chartHeight;
-            
-            ctx.beginPath();
-            ctx.arc(x, y, 3, 0, 2 * Math.PI);
-            ctx.fill();
-        });
-
-        // 绘制标题
-        ctx.fillStyle = '#374151';
-        ctx.font = 'bold 14px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(label, width / 2, 20);
     }
 </script>
 {% endblock %}

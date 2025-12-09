@@ -117,25 +117,35 @@
                             <div class="flex gap-2">
                                 <input type="text" name="os_pass" id="osPass"
                                        class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                       placeholder="设置系统登录密码">
+                                       placeholder="设置系统登录密码" oninput="validatePasswordInput('osPass')">
                                 <button type="button" onclick="generateOsPass()" 
                                         class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-1 whitespace-nowrap min-w-[80px]">
                                     <span class="iconify" data-icon="mdi:refresh" data-width="18"></span>
                                     随机
                                 </button>
                             </div>
+                            <div id="osPass-error" class="text-red-500 text-xs mt-1 hidden">密码长度至少12位，且必须包含字母、数字、特殊符号中的至少两种</div>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-600 mb-1">VNC密码</label>
                             <input type="text" name="vc_pass" id="vcPass"
                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                   placeholder="VNC远程密码">
+                                   placeholder="VNC远程密码" oninput="validatePasswordInput('vcPass')">
+                            <div id="vcPass-error" class="text-red-500 text-xs mt-1 hidden">密码长度至少12位，且必须包含字母、数字、特殊符号中的至少两种</div>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-600 mb-1">VNC端口</label>
-                            <input type="number" name="vc_port" id="vcPort" min="1" max="65535"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                   placeholder="VNC远程端口">
+                            <div class="flex gap-2">
+                                <input type="number" name="vc_port" id="vcPort" min="1" max="65535"
+                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                       placeholder="VNC远程端口">
+                                <button type="button" onclick="generateRandomVncPortForInput()"
+                                        class="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-lg text-sm flex items-center gap-1"
+                                        title="生成随机端口">
+                                    <span class="iconify" data-icon="mdi:dice-6" data-width="16"></span>
+                                    随机
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -274,6 +284,89 @@
     function generateOsPass() {
         const randomPass = generateRandomString(12);
         document.getElementById('osPass').value = randomPass;
+        document.getElementById('vcPass').value = randomPass;
+        // 触发验证
+        validatePasswordInput('osPass');
+        validatePasswordInput('vcPass');
+    }
+
+    // 生成随机VNC端口，范围5900-6999
+    function generateRandomVncPort() {
+        return Math.floor(Math.random() * (6999 - 5900 + 1)) + 5900;
+    }
+
+    // 为输入框生成随机VNC端口
+    function generateRandomVncPortForInput() {
+        const randomPort = generateRandomVncPort();
+        document.getElementById('vcPort').value = randomPort;
+    }
+
+    // 设置表单默认值
+    function setDefaultValues() {
+        // VNC端口：生成随机端口
+        document.getElementById('vcPort').value = generateRandomVncPort();
+        
+        // 资源配置默认值
+        document.getElementById('cpuNum').value = 2;
+        document.getElementById('memNum').value = 2048;
+        document.getElementById('hddNum').value = 20480;
+        document.getElementById('gpuNum').value = 0;
+        document.getElementById('gpuMem').value = 2048;
+        
+        // 网络配置默认值
+        document.getElementById('speedU').value = 100;
+        document.getElementById('speedD').value = 100;
+        document.getElementById('fluNum').value = 102400;
+        document.getElementById('natNum').value = 100;
+        document.getElementById('webNum').value = 100;
+    }
+
+    // 验证密码输入框
+    function validatePasswordInput(fieldId) {
+        const field = document.getElementById(fieldId);
+        const errorDiv = document.getElementById(fieldId + '-error');
+        
+        if (!field || !errorDiv) return;
+        
+        const password = field.value.trim();
+        
+        // 清除之前的错误状态
+        field.classList.remove('border-red-500');
+        errorDiv.classList.add('hidden');
+        
+        // 如果密码为空，不验证（允许不设置密码）
+        if (!password) {
+            return true;
+        }
+        
+        // 验证密码规则
+        if (!validatePassword(password)) {
+            field.classList.add('border-red-500');
+            errorDiv.classList.remove('hidden');
+            return false;
+        }
+        
+        return true;
+    }
+
+    // 验证密码是否符合规则
+    function validatePassword(password) {
+        // 如果密码为空，认为是有效的（允许不设置密码）
+        if (!password) return true;
+        
+        // 密码长度至少12位
+        if (password.length < 12) {
+            return false;
+        }
+        
+        // 检查字符类型
+        const hasLetter = /[a-zA-Z]/.test(password);
+        const hasNumber = /[0-9]/.test(password);
+        const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+        
+        // 必须至少包含字母、数字、特殊符号中的两种
+        const typeCount = [hasLetter, hasNumber, hasSpecial].filter(Boolean).length;
+        return typeCount >= 2;
     }
 
     // 全局变量存储主机配置
@@ -549,9 +642,14 @@
         document.getElementById('nicConfigs').innerHTML = '';
         nicCounter = 0;
         addNicConfig();
+        
         // 自动生成UUID和密码
         generateVmUuid();
         generateOsPass();
+        
+        // 设置默认值
+        setDefaultValues();
+        
         document.getElementById('vmModal').showModal();
     }
 
@@ -886,6 +984,13 @@
     function collectVmFormData() {
         const uuid = document.getElementById('vmUuid').value;
 
+        // 获取VNC端口，如果为空则生成随机端口
+        let vcPort = document.getElementById('vcPort').value;
+        if (!vcPort) {
+            vcPort = generateRandomVncPort();
+            document.getElementById('vcPort').value = vcPort;
+        }
+
         // 收集网卡配置
         const nicAll = {};
         const nicContainers = document.querySelectorAll('[id^="nic_"]');
@@ -908,7 +1013,7 @@
             os_name: document.getElementById('osName').value,
             os_pass: document.getElementById('osPass').value,
             vc_pass: document.getElementById('vcPass').value,
-            vc_port: parseInt(document.getElementById('vcPort').value) || 0,
+            vc_port: parseInt(vcPort) || 0,
             cpu_num: parseInt(document.getElementById('cpuNum').value) || 0,
             mem_num: parseInt(document.getElementById('memNum').value) || 0,
             hdd_num: parseInt(document.getElementById('hddNum').value) || 0,
@@ -926,6 +1031,15 @@
     // 表单提交
     document.getElementById('vmForm').addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        // 验证密码输入框
+        const osPassValid = validatePasswordInput('osPass');
+        const vcPassValid = validatePasswordInput('vcPass');
+        
+        // 如果有密码验证失败，阻止提交
+        if (!osPassValid || !vcPassValid) {
+            return;
+        }
 
         const editMode = document.getElementById('vmEditMode').value;
         const uuid = document.getElementById('vmUuid').value;

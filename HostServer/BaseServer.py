@@ -69,7 +69,7 @@ class BaseServer:
         """配置loguru日志系统"""
         if self.hs_config.server_name:
             # 为每个主机创建独立的日志文件
-            log_file = f"./logs/{self.hs_config.server_name}.log"
+            log_file = f"./DataSaving/log-{self.hs_config.server_name}.log"
             logger.add(
                 log_file,
                 rotation="10 MB",  # 日志文件达到10MB时轮转
@@ -207,18 +207,17 @@ class BaseServer:
                f"/vnc.html?autoconnect=true&path=websockify?" \
                f"token={rand_pass}"
 
-    # 网卡网络映射 =================
-    # :params nic_config: 网卡配置对象
-    # =================
-    def _get_network_device(self, nic_config) -> str:
-        """根据nic_type和nic_devs获取对应的网络设备"""
-        if nic_config.nic_type == 'nat':
-            return self.hs_config.network_nat
-        elif nic_config.nic_type == 'pub':
-            return self.hs_config.network_pub
-        else:
-            # 对于其他类型（如bridged），直接返回空或使用nic_devs
-            return nic_config.nic_devs
+    # # 网卡网络映射 =================
+    # # :params nic_config: 网卡配置对象
+    # # =================
+    # def _get_network_device(self, nic_config) -> str:
+    #     """根据nic_type和nic_devs获取对应的网络设备"""
+    #     if nic_config.nic_type == 'nat':
+    #         return self.hs_config.network_nat
+    #     elif nic_config.nic_type == 'pub':
+    #         return self.hs_config.network_pub
+    #     else:
+    #         return ""
 
     # 网络静态绑定 =================
     # :params ip: IP地址

@@ -8,21 +8,15 @@ from functools import wraps
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 
 from HostModule.HostManage import HostManage
-from HostModule.RestManage import (
-    reset_token, set_token, get_token, get_engine_types, save_system, load_system,
-    get_system_stats, get_logs, get_tasks, get_hosts, get_host, add_host, update_host,
-    delete_host, host_power, get_host_status, get_vms, get_vm, create_vm, update_vm,
-    delete_vm, vm_power, vm_console, get_vm_status, scan_vms, vm_upload,
-    get_vm_nat_rules, add_vm_nat_rule, delete_vm_nat_rule, get_vm_ip_addresses,
-    add_vm_ip_address, delete_vm_ip_address, get_vm_proxy_configs,
-    add_vm_proxy_config, delete_vm_proxy_config, api_response
-)
+from HostModule.RestManage import RestManager
 
 app = Flask(__name__, template_folder='WebDesigns', static_folder='static')
 app.secret_key = secrets.token_hex(32)
 
 # 全局主机管理实例
 hs_manage = HostManage()
+# 全局REST管理器实例
+rest_manager = RestManager(hs_manage)
 
 
 # ============================================================================
@@ -43,7 +37,7 @@ def require_auth(f):
             return f(*args, **kwargs)
         # API请求返回JSON错误
         if request.is_json or request.path.startswith('/api/'):
-            return api_response(401, '未授权访问', None)
+            return rest_manager.api_response(401, '未授权访问', None)
         # 页面请求重定向到登录页
         return redirect(url_for('login'))
     return decorated
@@ -51,7 +45,7 @@ def require_auth(f):
 
 def api_response_wrapper(code=200, msg='success', data=None):
     """统一API响应格式包装器"""
-    return api_response(code, msg, data)
+    return rest_manager.api_response(code, msg, data)
 
 
 # ============================================================================
@@ -167,7 +161,7 @@ def settings_page():
 @require_auth
 def api_reset_token():
     """重置访问Token"""
-    return reset_token(hs_manage)
+    return rest_manager.reset_token()
 
 
 # 设置Token ########################################################################
@@ -175,7 +169,7 @@ def api_reset_token():
 @require_auth
 def api_set_token():
     """设置指定Token"""
-    return set_token(hs_manage)
+    return rest_manager.set_token()
 
 
 # 获取Token ########################################################################
@@ -183,7 +177,7 @@ def api_set_token():
 @require_auth
 def api_get_token():
     """获取当前Token"""
-    return get_token(hs_manage)
+    return rest_manager.get_token()
 
 
 # 引擎类型 ########################################################################
@@ -191,7 +185,7 @@ def api_get_token():
 @require_auth
 def api_get_engine_types():
     """获取支持的主机引擎类型"""
-    return get_engine_types(hs_manage)
+    return rest_manager.get_engine_types()
 
 
 # 保存配置 ########################################################################
@@ -199,7 +193,7 @@ def api_get_engine_types():
 @require_auth
 def api_save_system():
     """保存系统配置"""
-    return save_system(hs_manage)
+    return rest_manager.save_system()
 
 
 # 加载配置 ########################################################################
@@ -207,7 +201,7 @@ def api_save_system():
 @require_auth
 def api_load_system():
     """加载系统配置"""
-    return load_system(hs_manage)
+    return rest_manager.load_system()
 
 
 # 系统统计 ########################################################################
@@ -215,7 +209,7 @@ def api_load_system():
 @require_auth
 def api_get_system_stats():
     """获取系统统计信息"""
-    return get_system_stats(hs_manage)
+    return rest_manager.get_system_stats()
 
 
 # 获取日志 ########################################################################
@@ -223,7 +217,7 @@ def api_get_system_stats():
 @require_auth
 def api_get_logs():
     """获取日志记录"""
-    return get_logs(hs_manage)
+    return rest_manager.get_logs()
 
 
 # 获取任务 ########################################################################
@@ -231,7 +225,7 @@ def api_get_logs():
 @require_auth
 def api_get_tasks():
     """获取任务记录"""
-    return get_tasks(hs_manage)
+    return rest_manager.get_tasks()
 
 
 # ============================================================================
@@ -243,7 +237,7 @@ def api_get_tasks():
 @require_auth
 def api_get_hosts():
     """获取所有主机列表"""
-    return get_hosts(hs_manage)
+    return rest_manager.get_hosts()
 
 
 # 主机详情 ########################################################################
@@ -251,7 +245,7 @@ def api_get_hosts():
 @require_auth
 def api_get_host(hs_name):
     """获取单个主机详情"""
-    return get_host(hs_manage, hs_name)
+    return rest_manager.get_host(hs_name)
 
 
 # 添加主机 ########################################################################
@@ -259,7 +253,7 @@ def api_get_host(hs_name):
 @require_auth
 def api_add_host():
     """添加主机"""
-    return add_host(hs_manage)
+    return rest_manager.add_host()
 
 
 # 修改主机 ########################################################################
@@ -267,7 +261,7 @@ def api_add_host():
 @require_auth
 def api_update_host(hs_name):
     """修改主机配置"""
-    return update_host(hs_manage, hs_name)
+    return rest_manager.update_host(hs_name)
 
 
 # 删除主机 ########################################################################
@@ -275,7 +269,7 @@ def api_update_host(hs_name):
 @require_auth
 def api_delete_host(hs_name):
     """删除主机"""
-    return delete_host(hs_manage, hs_name)
+    return rest_manager.delete_host(hs_name)
 
 
 # 电源控制 ########################################################################
@@ -283,7 +277,7 @@ def api_delete_host(hs_name):
 @require_auth
 def api_host_power(hs_name):
     """主机电源控制（启用/禁用）"""
-    return host_power(hs_manage, hs_name)
+    return rest_manager.host_power(hs_name)
 
 
 # 主机状态 ########################################################################
@@ -291,7 +285,7 @@ def api_host_power(hs_name):
 @require_auth
 def api_get_host_status(hs_name):
     """获取主机状态"""
-    return get_host_status(hs_manage, hs_name)
+    return rest_manager.get_host_status(hs_name)
 
 
 # ============================================================================
@@ -303,7 +297,7 @@ def api_get_host_status(hs_name):
 @require_auth
 def api_get_vms(hs_name):
     """获取主机下所有虚拟机"""
-    return get_vms(hs_manage, hs_name)
+    return rest_manager.get_vms(hs_name)
 
 
 # 虚拟机详情 ########################################################################
@@ -311,7 +305,7 @@ def api_get_vms(hs_name):
 @require_auth
 def api_get_vm(hs_name, vm_uuid):
     """获取单个虚拟机详情"""
-    return get_vm(hs_manage, hs_name, vm_uuid)
+    return rest_manager.get_vm(hs_name, vm_uuid)
 
 
 # 创建虚拟机 ########################################################################
@@ -319,7 +313,7 @@ def api_get_vm(hs_name, vm_uuid):
 @require_auth
 def api_create_vm(hs_name):
     """创建虚拟机"""
-    return create_vm(hs_manage, hs_name)
+    return rest_manager.create_vm(hs_name)
 
 
 # 修改虚拟机 ########################################################################
@@ -327,7 +321,7 @@ def api_create_vm(hs_name):
 @require_auth
 def api_update_vm(hs_name, vm_uuid):
     """修改虚拟机配置"""
-    return update_vm(hs_manage, hs_name, vm_uuid)
+    return rest_manager.update_vm(hs_name, vm_uuid)
 
 
 # 删除虚拟机 ########################################################################
@@ -335,7 +329,7 @@ def api_update_vm(hs_name, vm_uuid):
 @require_auth
 def api_delete_vm(hs_name, vm_uuid):
     """删除虚拟机"""
-    return delete_vm(hs_manage, hs_name, vm_uuid)
+    return rest_manager.delete_vm(hs_name, vm_uuid)
 
 
 # 电源控制 ########################################################################
@@ -343,7 +337,7 @@ def api_delete_vm(hs_name, vm_uuid):
 @require_auth
 def api_vm_power(hs_name, vm_uuid):
     """虚拟机电源控制"""
-    return vm_power(hs_manage, hs_name, vm_uuid)
+    return rest_manager.vm_power(hs_name, vm_uuid)
 
 
 # VNC控制台 ########################################################################
@@ -351,7 +345,15 @@ def api_vm_power(hs_name, vm_uuid):
 @require_auth
 def api_vm_console(hs_name, vm_uuid):
     """获取虚拟机VNC控制台URL"""
-    return vm_console(hs_manage, hs_name, vm_uuid)
+    return rest_manager.vm_console(hs_name, vm_uuid)
+
+
+# 修改密码 ########################################################################
+@app.route('/api/client/password/<hs_name>/<vm_uuid>', methods=['POST'])
+@require_auth
+def api_vm_password(hs_name, vm_uuid):
+    """修改虚拟机密码"""
+    return rest_manager.vm_password(hs_name, vm_uuid)
 
 
 # 虚拟机状态 ########################################################################
@@ -359,7 +361,7 @@ def api_vm_console(hs_name, vm_uuid):
 @require_auth
 def api_get_vm_status(hs_name, vm_uuid):
     """获取虚拟机状态"""
-    return get_vm_status(hs_manage, hs_name, vm_uuid)
+    return rest_manager.get_vm_status(hs_name, vm_uuid)
 
 
 # 扫描虚拟机 ########################################################################
@@ -367,14 +369,14 @@ def api_get_vm_status(hs_name, vm_uuid):
 @require_auth
 def api_scan_vms(hs_name):
     """扫描主机上的虚拟机"""
-    return scan_vms(hs_manage, hs_name)
+    return rest_manager.scan_vms(hs_name)
 
 
 # 上报状态 ########################################################################
 @app.route('/api/client/upload', methods=['POST'])
 def api_vm_upload():
     """虚拟机上报状态数据（无需认证）"""
-    return vm_upload(hs_manage)
+    return rest_manager.vm_upload()
 
 
 # ============================================================================
@@ -386,7 +388,7 @@ def api_vm_upload():
 @require_auth
 def api_get_vm_nat_rules(hs_name, vm_uuid):
     """获取虚拟机NAT端口转发规则"""
-    return get_vm_nat_rules(hs_manage, hs_name, vm_uuid)
+    return rest_manager.get_vm_nat_rules(hs_name, vm_uuid)
 
 
 # 添加NAT规则 ########################################################################
@@ -394,7 +396,7 @@ def api_get_vm_nat_rules(hs_name, vm_uuid):
 @require_auth
 def api_add_vm_nat_rule(hs_name, vm_uuid):
     """添加虚拟机NAT端口转发规则"""
-    return add_vm_nat_rule(hs_manage, hs_name, vm_uuid)
+    return rest_manager.add_vm_nat_rule(hs_name, vm_uuid)
 
 
 # 删除NAT规则 ########################################################################
@@ -402,7 +404,7 @@ def api_add_vm_nat_rule(hs_name, vm_uuid):
 @require_auth
 def api_delete_vm_nat_rule(hs_name, vm_uuid, rule_index):
     """删除虚拟机NAT端口转发规则"""
-    return delete_vm_nat_rule(hs_manage, hs_name, vm_uuid, rule_index)
+    return rest_manager.delete_vm_nat_rule(hs_name, vm_uuid, rule_index)
 
 
 # ============================================================================
@@ -414,7 +416,7 @@ def api_delete_vm_nat_rule(hs_name, vm_uuid, rule_index):
 @require_auth
 def api_get_vm_ip_addresses(hs_name, vm_uuid):
     """获取虚拟机IP地址列表"""
-    return get_vm_ip_addresses(hs_manage, hs_name, vm_uuid)
+    return rest_manager.get_vm_ip_addresses(hs_name, vm_uuid)
 
 
 # 添加IP地址 ########################################################################
@@ -422,7 +424,7 @@ def api_get_vm_ip_addresses(hs_name, vm_uuid):
 @require_auth
 def api_add_vm_ip_address(hs_name, vm_uuid):
     """添加虚拟机IP地址"""
-    return add_vm_ip_address(hs_manage, hs_name, vm_uuid)
+    return rest_manager.add_vm_ip_address(hs_name, vm_uuid)
 
 
 # 删除IP地址 ########################################################################
@@ -430,7 +432,7 @@ def api_add_vm_ip_address(hs_name, vm_uuid):
 @require_auth
 def api_delete_vm_ip_address(hs_name, vm_uuid, ip_index):
     """删除虚拟机IP地址"""
-    return delete_vm_ip_address(hs_manage, hs_name, vm_uuid, ip_index)
+    return rest_manager.delete_vm_ip_address(hs_name, vm_uuid, ip_index)
 
 
 # ============================================================================
@@ -442,7 +444,7 @@ def api_delete_vm_ip_address(hs_name, vm_uuid, ip_index):
 @require_auth
 def api_get_vm_proxy_configs(hs_name, vm_uuid):
     """获取虚拟机反向代理配置列表"""
-    return get_vm_proxy_configs(hs_manage, hs_name, vm_uuid)
+    return rest_manager.get_vm_proxy_configs(hs_name, vm_uuid)
 
 
 # 添加代理配置 ########################################################################
@@ -450,7 +452,7 @@ def api_get_vm_proxy_configs(hs_name, vm_uuid):
 @require_auth
 def api_add_vm_proxy_config(hs_name, vm_uuid):
     """添加虚拟机反向代理配置"""
-    return add_vm_proxy_config(hs_manage, hs_name, vm_uuid)
+    return rest_manager.add_vm_proxy_config(hs_name, vm_uuid)
 
 
 # 删除代理配置 ########################################################################
@@ -458,7 +460,7 @@ def api_add_vm_proxy_config(hs_name, vm_uuid):
 @require_auth
 def api_delete_vm_proxy_config(hs_name, vm_uuid, proxy_index):
     """删除虚拟机反向代理配置"""
-    return delete_vm_proxy_config(hs_manage, hs_name, vm_uuid, proxy_index)
+    return rest_manager.delete_vm_proxy_config(hs_name, vm_uuid, proxy_index)
 
 
 # ============================================================================

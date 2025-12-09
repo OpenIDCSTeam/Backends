@@ -17,7 +17,7 @@ from HostServer.VMRestHost.VRestAPI import VRestAPI
 class HostServer(BaseServer):
     # 宿主机服务 ###########################################################
     def __init__(self, config: HSConfig, **kwargs):
-        super().__init__(config)
+        super().__init__(config, **kwargs)  # 传递 kwargs，确保 db 参数能正确传递
         super().__load__(**kwargs)
         self.vmrest_pid = None
         self.vmrest_api = VRestAPI(
@@ -42,7 +42,12 @@ class HostServer(BaseServer):
         if self.save_data and self.hs_config.server_name:
             status_list = self.save_data.get_hs_status(self.hs_config.server_name)
             if len(status_list) > 0:
-                return status_list[-1]
+                # 将 dict 重新构造成 HWStatus 对象
+                raw = status_list[-1]
+                hw = HWStatus()
+                for k, v in raw.items():
+                    setattr(hw, k, v)
+                return hw
         # 如果没有记录，返回当前状态
         hs_status = HSStatus()
         return hs_status.status()
@@ -125,7 +130,7 @@ class HostServer(BaseServer):
             # VM文件名 =========================================================
             vm_file_name = os.path.join(vm_saving, config.vm_uuid)
             # VM配置 ===========================================================
-            vm_save_conf = self.vmrest_api.create_vmx(config)
+            vm_save_conf = self.vmrest_api.create_vmx(config, self.hs_config)
             with open(os.path.join(vm_file_name + ".vmx"), "w") as vm_save_file:
                 vm_save_file.write(vm_save_conf)
             # 复制镜像 =========================================================
@@ -193,6 +198,7 @@ class HostServer(BaseServer):
 
     # 配置虚拟机 ###########################################################
     def VMUpdate(self, config: VMConfig, old: VMConfig = None) -> ZMessage:
+
         vm_saving = os.path.join(self.hs_config.system_path, config.vm_uuid)
         vm_locker = os.path.join(vm_saving, config.vm_uuid + ".vmx.lck")
         if os.path.exists(vm_locker):
@@ -204,24 +210,62 @@ class HostServer(BaseServer):
                 message=f"虚拟机 {config.vm_uuid} 不存在")
         # 更新vm_saving中的配置
         self.vm_saving[config.vm_uuid] = config
+        # 关闭虚拟机 =======================================
         self.VMPowers(config.vm_uuid, VMPowers.H_CLOSE)
         time.sleep(1)
         # 更新网卡
-        super().VMUpdate(config, old)
+        network_result = super().VMUpdate(config, old)
+        if not network_result.success:
+            return ZMessage(
+                success=False, action="VMUpdate",
+                message=f"虚拟机 {config.vm_uuid} 网络配置更新失败: {network_result.message}")
+
+        # 读取现有的VMX文件内容
+        vm_save_name = os.path.join(vm_saving, config.vm_uuid + ".vmx")
+        if os.path.exists(vm_save_name):
+            try:
+                with open(vm_save_name, "r", encoding="utf-8") as vm_file:
+                    existing_vmx_content = vm_file.read()
+                # 使用update_vmx方法合并配置
+                vm_save_conf = self.vmrest_api.update_vmx(existing_vmx_content, config, self.hs_config)
+            except Exception as e:
+                return ZMessage(
+                    success=False, action="VMUpdate",
+                    message=f"虚拟机 {config.vm_uuid} 配置更新失败: {e}")
+        else:
+            # 如果文件不存在，重新创建
+            vm_save_conf = self.vmrest_api.create_vmx(config, self.hs_config)
+
+        # 写入VMX文件
+        try:
+            with open(vm_save_name, "w", encoding="utf-8") as vm_save_file:
+                vm_save_file.write(vm_save_conf)
+        except Exception as e:
+            return ZMessage(
+                success=False, action="VMUpdate",
+                message=f"虚拟机 {config.vm_uuid} VMX文件写入失败: {e}")
+
+        # 启动虚拟机
+        start_result = self.VMPowers(config.vm_uuid, VMPowers.S_START)
+        if not start_result.success:
+            return ZMessage(
+                success=False, action="VMUpdate",
+                message=f"虚拟机 {config.vm_uuid} 启动失败: {start_result.message}")
+
+        # 保存到数据库（在所有操作成功后）
+        if self.save_data and self.hs_config.server_name:
+            if not self.save_data.set_vm_saving(self.hs_config.server_name, self.vm_saving):
+                return ZMessage(
+                    success=False, action="VMUpdate",
+                    message=f"虚拟机 {config.vm_uuid} 配置保存到数据库失败")
+
         # 记录日志
         hs_result = ZMessage(
             success=True, action="VMUpdate",
             message=f"虚拟机 {config.vm_uuid} 配置已更新")
         if self.save_data and self.hs_config.server_name:
             self.save_data.add_hs_logger(self.hs_config.server_name, hs_result)
-        vm_save_conf = self.vmrest_api.create_vmx(config)
-        vm_save_name = os.path.join(vm_saving, config.vm_uuid + ".vmx")
-        with open(vm_save_name, "w") as vm_save_file:
-            vm_save_file.write(vm_save_conf)
-        self.VMPowers(config.vm_uuid, VMPowers.S_START)
-        # 保存到数据库
-        if self.save_data and self.hs_config.server_name:
-            self.save_data.set_vm_saving(self.hs_config.server_name, self.vm_saving)
+
         return hs_result
 
     # 删除虚拟机 ###########################################################
@@ -250,60 +294,102 @@ class HostServer(BaseServer):
             self.save_data.add_hs_logger(self.hs_config.server_name, hs_result)
         return hs_result
 
-    def Password(self, select: str, password: str) -> ZMessage:
-        pass
+    def Password(self, hs_name: str, vm_uuid: str, new_password: str) -> ZMessage:
+        """
+        修改虚拟机密码API
+        :param hs_name: 主机名（用于日志记录）
+        :param vm_uuid: 虚拟机UUID
+        :param new_password: 新密码
+        :return: 操作结果
+        """
+        try:
+            # 检查虚拟机是否存在
+            if vm_uuid not in self.vm_saving:
+                return ZMessage(
+                    success=False, action="Password",
+                    message=f"虚拟机 {vm_uuid} 不存在"
+                )
 
+            # 获取当前虚拟机配置
+            current_config = self.vm_saving[vm_uuid]
+            if not isinstance(current_config, VMConfig):
+                # 如果从数据库读取的是字典，需要转换为VMConfig对象
+                if isinstance(current_config, dict):
+                    current_config = VMConfig(**current_config)
+                else:
+                    return ZMessage(
+                        success=False, action="Password",
+                        message=f"虚拟机 {vm_uuid} 配置格式错误"
+                    )
 
+            # 验证新密码（可选，如果前端已经验证过可以跳过）
+            if len(new_password) < 12:
+                return ZMessage(
+                    success=False, action="Password",
+                    message="密码长度不得低于12位"
+                )
 
-# 测试代码 ========================================================================
-if __name__ == "__main__":
-    hs_config = HSConfig(
-        server_type="Win64VMW",
-        server_addr="localhost:8697",
-        server_user="root",
-        server_pass="VmD55!MkW@%Q",
-        filter_name="",
-        images_path=r"G:\OIDCS\Win64VMW\images",
-        system_path=r"G:\OIDCS\Win64VMW\system",
-        backup_path=r"G:\OIDCS\Win64VMW\backup",
-        extern_path=r"G:\OIDCS\Win64VMW\extern",
-        launch_path=r"C:\Program Files (x86)\VMware\VMware Workstation",
-        network_nat="nat",
-        network_pub="",
-        public_addr="42.42.42.42",
-        extend_data={
+            # 检查密码复杂度
+            type_count = 0
+            import re
+            if re.search(r'[a-zA-Z]', new_password):
+                type_count += 1
+            if re.search(r'[0-9]', new_password):
+                type_count += 1
+            if re.search(r'[^a-zA-Z0-9]', new_password):
+                type_count += 1
 
-        }
-    )
-    vm_config = VMConfig(
-        vm_uuid="Tests-All",
-        os_name="windows10x64",
-        cpu_num=4,
-        mem_num=2048,
-        hdd_num=10240,
-        gpu_num=0,
-        net_num=100,
-        flu_num=100,
-        nat_num=100,
-        web_num=100,
-        gpu_mem=8192,
-        speed_u=100,
-        speed_d=100,
-        nic_all={
-            "ethernet0": NCConfig(
-                ip4_addr="192.168.4.101",
-                nic_type="nat",
+            if type_count < 2:
+                return ZMessage(
+                    success=False, action="Password",
+                    message="密码必须至少包含字母、数字、特殊符号中的两种"
+                )
+
+            # 保存旧配置用于VMUpdate
+            old_config = VMConfig(**current_config.__dict__())
+
+            # 更新密码（同时更新系统密码和VNC密码）
+            current_config.os_pass = new_password
+            current_config.vc_pass = new_password
+
+            # 强制关闭虚拟机
+            close_result = self.VMPowers(vm_uuid, VMPowers.H_CLOSE)
+            if not close_result.success:
+                return ZMessage(
+                    success=False, action="Password",
+                    message=f"强制关闭虚拟机失败: {close_result.message}"
+                )
+
+            # 等待虚拟机关闭
+            time.sleep(2)
+
+            # 调用VMUpdate更新配置
+            update_result = self.VMUpdate(current_config, old_config)
+            if not update_result.success:
+                # 如果更新失败，恢复旧密码
+                self.vm_saving[vm_uuid] = old_config
+                return ZMessage(
+                    success=False, action="Password",
+                    message=f"更新虚拟机配置失败: {update_result.message}"
+                )
+
+            # 保存到数据库
+            if self.save_data and self.hs_config.server_name:
+                self.save_data.set_vm_saving(self.hs_config.server_name, self.vm_saving)
+
+            # 记录日志
+            hs_result = ZMessage(
+                success=True, action="Password",
+                message=f"虚拟机 {vm_uuid} 密码修改成功"
             )
-        }
-    )
-    hs_server = HostServer(hs_config)
-    hs_server.HSCreate()
-    hs_server.HSLoader()
-    # hs_server.VMCreate(vm_config)
-    # hs_server.VMPowers(vm_config.vm_uuid, VMPowers.S_START)
-    # hs_server.VMPowers(vm_config.vm_uuid, VMPowers.S_CLOSE)
-    # hs_server.VMDelete(vm_config.vm_uuid)
-    do_result = hs_server.VMStatus()
-    for i in do_result:
-        print(i)
-    hs_server.HSUnload()
+            if self.save_data and self.hs_config.server_name:
+                self.save_data.add_hs_logger(self.hs_config.server_name, hs_result)
+
+            return hs_result
+
+        except Exception as e:
+            error_msg = f"虚拟机 {vm_uuid} 密码修改失败: {str(e)}"
+            hs_result = ZMessage(success=False, action="Password", message=error_msg)
+            if self.save_data and self.hs_config.server_name:
+                self.save_data.add_hs_logger(self.hs_config.server_name, hs_result)
+            return hs_result

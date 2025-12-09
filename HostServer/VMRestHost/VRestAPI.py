@@ -1,8 +1,8 @@
 import requests
 from requests.auth import HTTPBasicAuth
 
+from MainObject.Config.HSConfig import HSConfig
 from MainObject.Config.VMConfig import VMConfig
-from MainObject.Config.NCConfig import NCConfig
 from MainObject.Public.ZMessage import ZMessage
 from MainObject.Config.VMPowers import VMPowers
 
@@ -309,6 +309,60 @@ class VRestAPI:
             )
         return self.vmrest_api(f"/vms/{vm_id}", config, "PUT")
 
+    # 更新VMX配置文件 ######################################################
+    # 读取现有VMX文件内容，与新配置合并后返回
+    # :param existing_vmx: 现有VMX文件内容
+    # :param vm_conf: VMConfig对象
+    # :return: 合并后的VMX内容
+    # #####################################################################
+    def update_vmx(self, existing_vmx: str, vm_conf: VMConfig, hs_config: HSConfig = None) -> str:
+        # 生成新的配置内容
+        new_vmx_content = self.create_vmx(vm_conf, hs_config)
+        new_config_lines = new_vmx_content.strip().split('\n')
+
+        # 解析现有VMX文件
+        existing_config = {}
+        existing_lines = existing_vmx.strip().split('\n')
+
+        for line in existing_lines:
+            line = line.strip()
+            if line and '=' in line and not line.startswith('#'):
+                key_part = line.split('=')[0].strip()
+                value_part = line.split('=', 1)[1].strip()
+                existing_config[key_part] = value_part
+
+        # 解析新配置并创建更新后的配置
+        updated_config = existing_config.copy()
+
+        for line in new_config_lines:
+            line = line.strip()
+            if line and '=' in line and not line.startswith('#'):
+                key_part = line.split('=')[0].strip()
+                value_part = line.split('=', 1)[1].strip()
+                # 用新配置替换现有配置
+                updated_config[key_part] = value_part
+
+        # 重新构建VMX内容
+        result_lines = []
+        for line in existing_lines:
+            line = line.strip()
+            if line and '=' in line and not line.startswith('#'):
+                key_part = line.split('=')[0].strip()
+                if key_part in updated_config:
+                    result_lines.append(f"{key_part} = {updated_config[key_part]}")
+                    del updated_config[key_part]
+                else:
+                    result_lines.append(line)
+            else:
+                # 保留注释和空行
+                result_lines.append(line)
+
+        # 添加新配置中不存在的项
+        for key, value in sorted(updated_config.items()):
+            result_lines.append(f"{key} = {value}")
+
+        return '\n'.join(result_lines) + '\n'
+
     # 获取网络列表 ########################################################
     # 获取所有虚拟网络
     # #####################################################################
@@ -319,7 +373,7 @@ class VRestAPI:
     # :param vm_conf: VMConfig对象
     # :return: 虚拟机名称
     # #####################################################################
-    def create_vmx(self, vm_conf: VMConfig = None) -> str:
+    def create_vmx(self, vm_conf: VMConfig = None, hs_config: HSConfig = None) -> str:
         vmx_config = {
             # 编码配置 ============================================
             ".encoding": "GBK",
@@ -373,8 +427,14 @@ class VRestAPI:
         nic_uuid = 0  # 网卡配置 ==========================================
         for nic_name, nic_data in vm_conf.nic_all.items():
             use_auto = nic_data.mac_addr is None or nic_data.mac_addr == ""
+            nic_types = ""
+            if nic_data.nic_type == 'nat':
+                nic_types = hs_config.network_nat
+            elif nic_data.nic_type == 'pub':
+                nic_types = hs_config.network_pub
+
             vmx_config[f"ethernet{nic_uuid}"] = {
-                "connectionType": nic_data.nic_devs,
+                "connectionType": nic_types,
                 "addressType": "generated" if use_auto else "static",
                 "address": nic_data.mac_addr if not use_auto else "",
                 "virtualDev": "e1000e",
@@ -392,31 +452,3 @@ class VRestAPI:
             }
             hdd_uuid += 1
         return VRestAPI.create_txt(vmx_config)
-
-
-# 测试代码 ################################################################
-if __name__ == "__main__":
-    vm_client = VRestAPI()
-    vm_config = VMConfig(
-        vm_uuid="Tests-All",
-        cpu_num=4,
-        mem_num=2048,
-        hdd_num=10240,
-        gpu_num=0,
-        net_num=100,
-        flu_num=100,
-        nat_num=100,
-        web_num=100,
-        gpu_mem=8192,
-        speed_u=100,
-        speed_d=100,
-        nic_all={
-            "ethernet0": NCConfig(
-                ip4_addr="192.168.1.1",
-            )
-        }
-    )
-    vm_string = vm_client.create_vmx(vm_config)
-    print(vm_string)
-    with open(vm_config.vm_uuid + ".vmx", "w", encoding="utf-8") as save_file:
-        save_file.write(vm_string)

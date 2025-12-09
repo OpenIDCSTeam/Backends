@@ -13,19 +13,19 @@
         <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">CPU核心数量</label>
             <input type="number" name="cpu_num" id="{{ id_prefix ~ 'C' if id_prefix else 'c' }}puNum" min="0" max="32"
-                   value="0"
+                   value="2"
                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">RAM内存(MB)</label>
             <input type="number" name="mem_num" id="{{ id_prefix ~ 'M' if id_prefix else 'm' }}emNum" min="0" step="512"
-                   value="0"
+                   value="2048"
                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">HDD硬盘(MB)</label>
             <input type="number" name="hdd_num" id="{{ id_prefix ~ 'H' if id_prefix else 'h' }}ddNum" min="0"
-                   step="1024" value="0"
+                   step="1024" value="20480"
                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
         </div>
         <div>
@@ -36,7 +36,7 @@
         <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">GPU显存(MB)</label>
             <input type="number" name="gpu_mem" id="{{ id_prefix ~ 'G' if id_prefix else 'g' }}puMem" min="0" step="256"
-                   value="0"
+                   value="2048"
                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
         </div>
     </div>
@@ -65,17 +65,17 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">流量限制MB</label>
-            <input type="number" name="flu_num" id="{{ id_prefix ~ 'F' if id_prefix else 'f' }}luNum" min="0" value="0"
+            <input type="number" name="flu_num" id="{{ id_prefix ~ 'F' if id_prefix else 'f' }}luNum" min="0" value="102400"
                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">Web代理数量</label>
-            <input type="number" name="web_num" id="{{ id_prefix ~ 'W' if id_prefix else 'w' }}ebNum" min="0" value="0"
+            <input type="number" name="web_num" id="{{ id_prefix ~ 'W' if id_prefix else 'w' }}ebNum" min="0" value="100"
                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">NAT端口数量</label>
-            <input type="number" name="nat_num" id="{{ id_prefix ~ 'N' if id_prefix else 'n' }}atNum" min="0" value="10"
+            <input type="number" name="nat_num" id="{{ id_prefix ~ 'N' if id_prefix else 'n' }}atNum" min="0" value="100"
                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
         </div>
     </div>
