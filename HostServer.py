@@ -4,6 +4,7 @@ OpenIDCS Flask Server
 """
 import secrets
 import threading
+import traceback
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 
@@ -471,6 +472,7 @@ def cron_scheduler():
     try:
         hs_manage.exe_cron()
     except Exception as e:
+        traceback.print_exc()
         print(f"[Cron] 执行定时任务出错: {e}")
 
     # 设置下一次执行（60秒后）
