@@ -2685,8 +2685,8 @@ async function reinstallSystem() {
             // 下行带宽
             data.netD.push(status.network_d || 0);
             
-            // 时间标签 - 每10分钟一个数据点，从当前时间往前推
-            const timeOffset = (recentData.length - 1 - index) * 10; // 分钟偏移
+            // 时间标签 - 每1分钟一个数据点，从当前时间往前推
+            const timeOffset = (recentData.length - 1 - index) * 1; // 分钟偏移
             const time = new Date(now.getTime() - timeOffset * 60000);
             const hours = String(time.getHours()).padStart(2, '0');
             const minutes = String(time.getMinutes()).padStart(2, '0');
@@ -2767,13 +2767,13 @@ async function reinstallSystem() {
                         let showInterval = 1;
                         
                         if (dataCount > 144) {
-                            showInterval = 6; // 每60分钟
+                            showInterval = 60; // 每60分钟
                         } else if (dataCount > 72) {
-                            showInterval = 3; // 每30分钟
+                            showInterval = 30; // 每30分钟
                         } else if (dataCount > 36) {
-                            showInterval = 2; // 每20分钟
+                            showInterval = 20; // 每20分钟
                         } else if (dataCount > 12) {
-                            showInterval = 1; // 每10分钟
+                            showInterval = 10; // 每10分钟
                         }
                         
                         if (index % showInterval === 0 || index === dataCount - 1) {

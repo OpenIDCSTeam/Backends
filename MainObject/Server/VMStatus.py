@@ -1,6 +1,7 @@
 import json
 import psutil
 import GPUtil
+from loguru import logger
 from .HWStatus import HWStatus
 from .VMPowers import VMPowers
 
@@ -49,10 +50,10 @@ class VMStatus:
         max_name = ""
         total_tx = total_rx = 0
         for nic_name in nic_list:
-            print("网卡 {} 信息: ".format(nic_name))
+            logger.debug("网卡 {} 信息: ".format(nic_name))
             nic_data = nic_list[nic_name]
-            print("网卡发送流量(MByte): ", nic_data.bytes_sent / (1024 * 1024))
-            print("网卡接收流量(MByte): ", nic_data.bytes_recv / (1024 * 1024))
+            logger.debug("网卡发送流量(MByte): ", nic_data.bytes_sent / (1024 * 1024))
+            logger.debug("网卡接收流量(MByte): ", nic_data.bytes_recv / (1024 * 1024))
             if nic_data.bytes_sent / (1024 * 1024) > total_tx:
                 total_tx = nic_data.bytes_sent / (1024 * 1024)
                 total_rx = nic_data.bytes_recv / (1024 * 1024)
@@ -60,9 +61,9 @@ class VMStatus:
         self.vm_status.flu_usage = int(total_tx + total_rx)
         self.vm_status.network_u = int(total_tx / 60 * 8)
         self.vm_status.network_d = int(total_rx / 60 * 8)
-        print("当前双向流量(MByte): ", self.vm_status.flu_usage)
-        print("当前上行带宽(MByte): ", self.vm_status.network_u)
-        print("当前下行带宽(MByte): ", self.vm_status.network_d)
+        logger.debug("当前双向流量(MByte): ", self.vm_status.flu_usage)
+        logger.debug("当前上行带宽(MByte): ", self.vm_status.network_u)
+        logger.debug("当前下行带宽(MByte): ", self.vm_status.network_d)
         psutil.net_io_counters.cache_clear()
         # 物理网卡 ===========================================================
         nic_list = psutil.net_if_stats()

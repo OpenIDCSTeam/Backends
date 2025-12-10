@@ -8,6 +8,7 @@ import string
 import traceback
 from functools import wraps
 from flask import request, jsonify, session, redirect, url_for
+from loguru import logger
 
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Server.HSEngine import HEConfig
@@ -164,7 +165,7 @@ class RestManager:
             limit = int(request.args.get('limit', 100))
 
             # 使用 DataManage 的 get_hs_logger 函数获取日志
-            logs = self.hs_manage.saving.get_hs_logger(hs_name)
+            logs = self.hs_manage.save_data.get_hs_logger(hs_name)
 
             # 处理日志数据并限制数量
             processed_logs = []
@@ -200,7 +201,7 @@ class RestManager:
                 return self.api_response(400, '主机名称不能为空')
 
             # 使用 DataManage 的 get_vm_tasker 函数获取任务
-            tasks = self.hs_manage.saving.get_vm_tasker(hs_name)
+            tasks = self.hs_manage.save_data.get_vm_tasker(hs_name)
 
             # 限制数量并返回
             limited_tasks = tasks[:limit]
@@ -529,13 +530,11 @@ class RestManager:
             return self.api_response(404, '主机不存在')
 
         data = request.get_json() or {}
-
         # 处理网卡配置
         nic_all = {}
         nic_data = data.pop('nic_all', {})
         for nic_name, nic_conf in nic_data.items():
             nic_all[nic_name] = NCConfig(**nic_conf)
-
         # 创建虚拟机配置
         vm_config = VMConfig(**data, nic_all=nic_all)
         vm_config.vc_port = random.randint(10000, 59999)
@@ -543,29 +542,8 @@ class RestManager:
             vm_config.vc_pass = ''.join(
                 random.sample(string.ascii_letters + string.digits, 8))
         result = server.VMCreate(vm_config)
-
-        if result and result.success:
-            # 绑定静态IP ========================================================
-            # 遍历所有网卡配置，如果指定了IP地址，则调用NCStatic绑定静态IP
-            for nic_name, nic_config in vm_config.nic_all.items():
-                if hasattr(nic_config, 'ip4_addr') and nic_config.ip4_addr:
-                    # 获取MAC地址
-                    mac_addr = nic_config.mac_addr if hasattr(nic_config, 'mac_addr') else ""
-                    if mac_addr and mac_addr != "00:00:00:00:00:00":
-                        try:
-                            print(f"[API] 绑定静态IP: {nic_config.ip4_addr} -> {mac_addr}")
-                            nc_result = server.NCStatic(nic_config.ip4_addr, mac_addr, vm_config.vm_uuid, flag=True)
-                            if nc_result.success:
-                                print(f"[API] 静态IP绑定成功: {nic_config.ip4_addr}")
-                            else:
-                                print(f"[API] 静态IP绑定失败: {nc_result.message}")
-                        except Exception as e:
-                            print(f"[API] 静态IP绑定异常: {str(e)}")
-
-            self.hs_manage.all_save()
-            return self.api_response(200, result.message if result.message else '虚拟机创建成功')
-
-        return self.api_response(400, result.message if result else '创建失败')
+        self.hs_manage.all_save()
+        return self.api_response(200 if result and result.success else 400, result.message)
 
     # 修改虚拟机配置 ########################################################################
     # :param hs_name: 主机名称
@@ -697,7 +675,7 @@ class RestManager:
             return self.api_response(404, '主机不存在')
         try:
             console_url = server.VCRemote(vm_uuid)
-            print("[VNC控制台地址]", console_url)
+            logger.info(f"[VNC控制台地址] {console_url}")
             if console_url:
                 return self.api_response(200, '获取成功', console_url)
             return self.api_response(400, '无法获取VNC控制台地址')
@@ -773,7 +751,7 @@ class RestManager:
         if not status_data:
             return self.api_response(400, '状态数据为空')
 
-        print(f"[虚拟机上报] 收到MAC地址: {mac_addr}")
+        logger.info(f"[虚拟机上报] 收到MAC地址: {mac_addr}")
 
         # 遍历所有主机，查找匹配MAC地址的虚拟机
         found = False
@@ -784,9 +762,9 @@ class RestManager:
             # 从数据库重新加载虚拟机配置
             try:
                 server.data_get()
-                print(f"[虚拟机上报] 主机 {hs_name} 已加载 {len(server.vm_saving)} 个虚拟机配置")
+                logger.info(f"[虚拟机上报] 主机 {hs_name} 已加载 {len(server.vm_saving)} 个虚拟机配置")
             except Exception as e:
-                print(f"[虚拟机上报] 主机 {hs_name} 加载配置失败: {e}")
+                logger.error(f"[虚拟机上报] 主机 {hs_name} 加载配置失败: {e}")
                 continue
 
             # 遍历该主机下的所有虚拟机配置
@@ -794,35 +772,35 @@ class RestManager:
                 # 处理vm_config可能是字典或VMConfig对象的情况
                 nic_all = vm_config.nic_all if hasattr(vm_config, 'nic_all') else vm_config.get('nic_all', {})
 
-                print(f"[虚拟机上报] 检查虚拟机 {vm_uuid}, 网卡数量: {len(nic_all)}")
+                logger.debug(f"[虚拟机上报] 检查虚拟机 {vm_uuid}, 网卡数量: {len(nic_all)}")
 
                 # 检查虚拟机的网卡配置
                 for nic_name, nic_config in nic_all.items():
                     # 处理nic_config可能是字典或NCConfig对象的情况
                     nic_mac = nic_config.mac_addr if hasattr(nic_config, 'mac_addr') else nic_config.get('mac_addr', '')
 
-                    print(f"[虚拟机上报] 网卡 {nic_name} MAC: {nic_mac} vs 上报MAC: {mac_addr}")
+                    logger.debug(f"[虚拟机上报] 网卡 {nic_name} MAC: {nic_mac} vs 上报MAC: {mac_addr}")
 
                     if nic_mac.lower() == mac_addr.lower():
                         # 找到匹配的虚拟机，创建HWStatus对象
-                        print(f"[虚拟机上报] 找到匹配的虚拟机! 主机: {hs_name}, UUID: {vm_uuid}")
-                        print(f"[虚拟机上报] 状态数据: {status_data}")
+                        logger.info(f"[虚拟机上报] 找到匹配的虚拟机! 主机: {hs_name}, UUID: {vm_uuid}")
+                        logger.debug(f"[虚拟机上报] 状态数据: {status_data}")
                         try:
                             hw_status = HWStatus(**status_data)
-                            print(f"[虚拟机上报] HWStatus对象创建成功: {hw_status}")
+                            logger.debug(f"[虚拟机上报] HWStatus对象创建成功: {hw_status}")
 
                             # 直接使用 DataManage 保存状态（立即写入数据库）=================
                             if server.save_data and server.hs_config.server_name:
-                                print(f"[虚拟机上报] 开始调用 DataManage.add_vm_status")
+                                logger.debug(f"[虚拟机上报] 开始调用 DataManage.add_vm_status")
                                 result = server.save_data.add_vm_status(server.hs_config.server_name, vm_uuid,
                                                                         hw_status)
-                                print(f"[虚拟机上报] add_vm_status 返回结果: {result}")
+                                logger.debug(f"[虚拟机上报] add_vm_status 返回结果: {result}")
                                 if result:
-                                    print(f"[虚拟机上报] 状态已成功保存到数据库")
+                                    logger.success(f"[虚拟机上报] 状态已成功保存到数据库")
                                 else:
-                                    print(f"[虚拟机上报] 状态保存失败")
+                                    logger.warning(f"[虚拟机上报] 状态保存失败")
                             else:
-                                print(
+                                logger.warning(
                                     f"[虚拟机上报] 警告: 数据库未初始化，save_data={server.save_data}, server_name={server.hs_config.server_name if server.hs_config else 'None'}")
 
                             found = True
@@ -834,11 +812,11 @@ class RestManager:
                                 'vm_pass': vm_pass
                             })
                         except Exception as e:
-                            print(f"[虚拟机上报] 状态数据处理失败: {e}")
+                            logger.error(f"[虚拟机上报] 状态数据处理失败: {e}")
                             return self.api_response(500, f'状态数据处理失败: {str(e)}')
 
         if not found:
-            print(f"[虚拟机上报] 未找到MAC地址为 {mac_addr} 的虚拟机")
+            logger.warning(f"[虚拟机上报] 未找到MAC地址为 {mac_addr} 的虚拟机")
             return self.api_response(404, f'未找到MAC地址为 {mac_addr} 的虚拟机')
 
     # ========================================================================

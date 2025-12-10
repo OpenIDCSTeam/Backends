@@ -1,6 +1,9 @@
 import os
 import shutil
 import subprocess
+
+from pyexpat.errors import messages
+
 from HostServer.BaseServer import BaseServer
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Config.VMPowers import VMPowers
@@ -98,6 +101,7 @@ class HostServer(BaseServer):
         vm_conf, net_result = self.NetCheck(vm_conf)
         if not net_result.success:
             return net_result
+        self.NCCreate(vm_conf, True)
         # 专用操作 =============================================================
         try:
             # 路径处理 =========================================================
@@ -152,6 +156,7 @@ class HostServer(BaseServer):
         vm_conf, net_result = self.NetCheck(vm_conf)
         if not net_result.success:
             return net_result
+        self.NCCreate(vm_conf, True)
         # 专用操作 =============================================================
         vm_saving = os.path.join(self.hs_config.system_path, vm_conf.vm_uuid)
         vm_locker = os.path.join(vm_saving, vm_conf.vm_uuid + ".vmx.lck")
@@ -212,7 +217,12 @@ class HostServer(BaseServer):
     # 删除虚拟机 ###############################################################
     def VMDelete(self, vm_name: str) -> ZMessage:
         # 专用操作 =============================================================
+        vm_conf = self.VMSelect(vm_name)
+        if vm_conf is None:
+            return ZMessage(
+                success=False, action="VMDelete", messages=f"虚拟机 {vm_name} 不存在")
         self.VMPowers(vm_name, VMPowers.H_CLOSE)
+        self.NCCreate(vm_conf, False)
         vm_saving = os.path.join(self.hs_config.system_path, vm_name)
         vm_locker = os.path.join(vm_saving, vm_name + ".vmx.lck")
         if os.path.exists(vm_locker):

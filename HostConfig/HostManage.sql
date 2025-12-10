@@ -2,7 +2,7 @@
 -- SQLite数据库表结构定义
 
 -- 全局配置表 (hs_global)
-CREATE TABLE hs_global
+CREATE TABLE IF NOT EXISTS hs_global
 (
     id   TEXT PRIMARY KEY,
     data TEXT NOT NULL

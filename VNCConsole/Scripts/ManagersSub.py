@@ -2,6 +2,7 @@ import os
 import sys
 import subprocess
 from typing import Dict, Optional
+from loguru import logger
 
 
 class VNCStart:
@@ -23,7 +24,7 @@ class VNCStart:
                 for line in f:
                     token, target = line.strip().split(": ")
                     self.storage[token] = target
-                    print(f"已加载 VNC: {token} -> {target}")
+                    logger.info(f"已加载 VNC: {token} -> {target}")
 
     # 将 token 写入配置文件 ######################################################
     def cfg_save(self):
@@ -39,11 +40,11 @@ class VNCStart:
 
         # 检查 web 路径是否存在
         if not os.path.exists(self.web_path):
-            print(f"警告: Web 资源路径不存在: {self.web_path}")
+            logger.warning(f"警告: Web 资源路径不存在: {self.web_path}")
 
-        print(f"启动 websockify 服务，端口: {self.web_port}")
-        print(f"配置文件路径: {self.vnc_save}")
-        print(f"Web 资源路径: {self.web_path}")
+        logger.info(f"启动 websockify 服务，端口: {self.web_port}")
+        logger.info(f"配置文件路径: {self.vnc_save}")
+        logger.info(f"Web 资源路径: {self.web_path}")
 
         # 使用 PowerShell 启动 websockify
         cmd = (f'"{sys.executable}"'
@@ -54,7 +55,7 @@ class VNCStart:
                f' "{os.path.join(os.getcwd(), self.vnc_save)}"'
                f'  {self.web_port}'
                f' --web "{os.path.join(os.getcwd(), self.web_path)}"')
-        print(f"执行命令: {cmd}")
+        logger.debug(f"执行命令: {cmd}")
 
         self.process = subprocess.Popen(
             cmd,
@@ -69,13 +70,13 @@ class VNCStart:
             self.process.wait(timeout=0.5)
             # 如果能 wait 到，说明进程已退出
             stdout, stderr = self.process.communicate()
-            print(f"错误: websockify 进程已退出")
-            # print(f"stdout: {stdout.decode()}")
-            # print(f"stderr: {stderr.decode()}")
+            logger.error(f"错误: websockify 进程已退出")
+            # logger.debug(f"stdout: {stdout.decode()}")
+            # logger.debug(f"stderr: {stderr.decode()}")
             self.process = None
         except subprocess.TimeoutExpired:
             # 进程仍在运行，说明启动成功
-            print("websockify 服务已启动")
+            logger.info("websockify 服务已启动")
 
     # 停止 websockify 服务 #######################################################
     def web_stop(self):
@@ -85,7 +86,7 @@ class VNCStart:
                 self.process.wait(timeout=3)
             except subprocess.TimeoutExpired:
                 self.process.kill()
-            print("websockify 服务已停止")
+            logger.info("websockify 服务已停止")
         self.process = None
 
     # 添加 VNC 目标 ##############################################################
@@ -94,18 +95,18 @@ class VNCStart:
         # 检查是否已存在相同目标的 token
         for existing_token, existing_target in self.storage.items():
             if existing_target == target:
-                print(f"VNC 目标 {target} 已存在，token: {existing_token}")
+                logger.info(f"VNC 目标 {target} 已存在，token: {existing_token}")
                 return existing_token
         self.storage[token] = target
         self.cfg_save()
-        print(f"已添加 VNC: {target}, token: {token}")
+        logger.info(f"已添加 VNC: {target}, token: {token}")
         return token
 
     # 删除 VNC 目标 ##############################################################
     def del_port(self, token: str = ""):
         if token in self.storage:
             target = self.storage.pop(token)
-            print(f"已删除 VNC: {target}, token: {token}")
+            logger.info(f"已删除 VNC: {target}, token: {token}")
             self.cfg_save()
 
 

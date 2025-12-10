@@ -2,6 +2,7 @@ import sqlite3
 import json
 import os
 from typing import Dict, List, Any, Optional
+from loguru import logger
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Config.VMConfig import VMConfig
 from MainObject.Public.ZMessage import ZMessage
@@ -49,22 +50,22 @@ class HostDatabase:
                     except sqlite3.OperationalError as e:
                         # 忽略ALTER TABLE的重复字段错误
                         if "duplicate column name" in str(e).lower():
-                            print(f"字段已存在，跳过: {e}")
+                            logger.warning(f"字段已存在，跳过: {e}")
                             continue
                         else:
                             raise e
 
                 conn.commit()
-                print(f"[HostDatabase] 数据库初始化完成: {self.db_path}")
+                logger.info(f"[HostDatabase] 数据库初始化完成: {self.db_path}")
             except Exception as e:
-                print(f"数据库初始化错误: {e}")
+                logger.error(f"数据库初始化错误: {e}")
                 conn.rollback()
             finally:
                 conn.close()
         else:
-            print(f"[HostDatabase] 警告: SQL文件不存在: {sql_file_path}")
-            print(f"[HostDatabase] 当前工作目录: {os.getcwd()}")
-            print(f"[HostDatabase] 项目根目录: {project_root}")
+            logger.warning(f"[HostDatabase] 警告: SQL文件不存在: {sql_file_path}")
+            logger.warning(f"[HostDatabase] 当前工作目录: {os.getcwd()}")
+            logger.warning(f"[HostDatabase] 项目根目录: {project_root}")
 
     # ==================== 全局配置操作 ====================
 
@@ -93,7 +94,7 @@ class HostDatabase:
                     )
                     config[key] = value
                 conn.commit()
-                print("[HostDatabase] 已创建默认全局配置")
+                logger.info("[HostDatabase] 已创建默认全局配置")
 
             return config
         finally:
@@ -119,7 +120,7 @@ class HostDatabase:
                 )
             conn.commit()
         except Exception as e:
-            print(f"更新全局配置错误: {e}")
+            logger.error(f"更新全局配置错误: {e}")
             conn.rollback()
         finally:
             conn.close()
@@ -172,7 +173,7 @@ class HostDatabase:
             conn.commit()
             return True
         except Exception as e:
-            print(f"保存主机配置错误: {e}")
+            logger.error(f"保存主机配置错误: {e}")
             conn.rollback()
             return False
         finally:
@@ -207,7 +208,7 @@ class HostDatabase:
             conn.commit()
             return True
         except Exception as e:
-            print(f"删除主机配置错误: {e}")
+            logger.error(f"删除主机配置错误: {e}")
             conn.rollback()
             return False
         finally:
@@ -237,7 +238,7 @@ class HostDatabase:
             # 立即保存到数据库
             return self.set_hs_status(hs_name, all_status)
         except Exception as e:
-            print(f"[DataManage] 添加主机状态失败: {e}")
+            logger.error(f"[DataManage] 添加主机状态失败: {e}")
             import traceback
             traceback.print_exc()
             return False
@@ -258,7 +259,7 @@ class HostDatabase:
             conn.commit()
             return True
         except Exception as e:
-            print(f"保存主机状态错误: {e}")
+            logger.error(f"保存主机状态错误: {e}")
             conn.rollback()
             return False
         finally:
@@ -294,7 +295,7 @@ class HostDatabase:
             conn.commit()
             return True
         except Exception as e:
-            print(f"保存虚拟机存储配置错误: {e}")
+            logger.error(f"保存虚拟机存储配置错误: {e}")
             conn.rollback()
             return False
         finally:
@@ -340,9 +341,9 @@ class HostDatabase:
                 current_flu_usage = status_dict.get('flu_usage', 0) if isinstance(status_dict, dict) else 0
                 # 累加流量
                 status_dict['flu_usage'] = previous_flu_usage + current_flu_usage
-                print(f"[DataManage] 流量累加: 之前={previous_flu_usage}MB, 本次={current_flu_usage}MB, 累计={status_dict['flu_usage']}MB")
+                logger.debug(f"[DataManage] 流量累加: 之前={previous_flu_usage}MB, 本次={current_flu_usage}MB, 累计={status_dict['flu_usage']}MB")
             else:
-                print(f"[DataManage] 首次上报流量: {status_dict.get('flu_usage', 0)}MB")
+                logger.debug(f"[DataManage] 首次上报流量: {status_dict.get('flu_usage', 0)}MB")
             
             all_status[vm_uuid].append(status_dict)
 
@@ -353,7 +354,7 @@ class HostDatabase:
             # 立即保存到数据库
             return self.set_vm_status(hs_name, all_status)
         except Exception as e:
-            print(f"[DataManage] 添加虚拟机状态失败: {e}")
+            logger.error(f"[DataManage] 添加虚拟机状态失败: {e}")
             import traceback
             traceback.print_exc()
             return False
@@ -362,11 +363,11 @@ class HostDatabase:
         """保存虚拟机状态"""
         conn = self.get_db_sqlite()
         try:
-            print(f"[DataManage] 开始保存虚拟机状态，主机: {hs_name}, 虚拟机数量: {len(vm_status)}")
+            logger.debug(f"[DataManage] 开始保存虚拟机状态，主机: {hs_name}, 虚拟机数量: {len(vm_status)}")
 
             # 清除旧状态
             delete_result = conn.execute("DELETE FROM vm_status WHERE hs_name = ?", (hs_name,))
-            print(f"[DataManage] 已清除旧状态，删除行数: {delete_result.rowcount}")
+            logger.debug(f"[DataManage] 已清除旧状态，删除行数: {delete_result.rowcount}")
 
             # 插入新状态
             sql = "INSERT INTO vm_status (hs_name, vm_uuid, status_data) VALUES (?, ?, ?)"
@@ -374,16 +375,16 @@ class HostDatabase:
             for vm_uuid, status_list in vm_status.items():
                 status_data = json.dumps(
                     [status.__dict__() if hasattr(status, '__dict__') else status for status in status_list])
-                print(
+                logger.debug(
                     f"[DataManage] 插入虚拟机 {vm_uuid} 状态，记录数: {len(status_list)}, 数据长度: {len(status_data)}")
                 conn.execute(sql, (hs_name, vm_uuid, status_data))
                 insert_count += 1
 
             conn.commit()
-            print(f"[DataManage] 虚拟机状态保存成功，共插入 {insert_count} 条记录")
+            logger.debug(f"[DataManage] 虚拟机状态保存成功，共插入 {insert_count} 条记录")
             return True
         except Exception as e:
-            print(f"[DataManage] 保存虚拟机状态错误: {e}")
+            logger.error(f"[DataManage] 保存虚拟机状态错误: {e}")
             import traceback
             traceback.print_exc()
             conn.rollback()
@@ -420,7 +421,7 @@ class HostDatabase:
             conn.commit()
             return True
         except Exception as e:
-            print(f"保存虚拟机任务错误: {e}")
+            logger.error(f"保存虚拟机任务错误: {e}")
             conn.rollback()
             return False
         finally:
@@ -456,7 +457,7 @@ class HostDatabase:
             conn.commit()
             return True
         except Exception as e:
-            print(f"[DataManage] 添加日志失败: {e}")
+            logger.error(f"[DataManage] 添加日志失败: {e}")
             conn.rollback()
             return False
         finally:
@@ -482,7 +483,7 @@ class HostDatabase:
             conn.commit()
             return deleted_count
         except Exception as e:
-            print(f"[DataManage] 清理日志失败: {e}")
+            logger.error(f"[DataManage] 清理日志失败: {e}")
             conn.rollback()
             return 0
         finally:
@@ -508,7 +509,7 @@ class HostDatabase:
             conn.commit()
             return True
         except Exception as e:
-            print(f"保存日志记录错误: {e}")
+            logger.error(f"保存日志记录错误: {e}")
             conn.rollback()
             return False
         finally:
@@ -573,7 +574,7 @@ class HostDatabase:
 
             return success
         except Exception as e:
-            print(f"保存主机完整数据错误: {e}")
+            logger.error(f"保存主机完整数据错误: {e}")
             return False
 
     def get_ap_server(self, hs_name: str) -> Dict[str, Any]:

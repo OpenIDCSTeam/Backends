@@ -2,6 +2,7 @@ import os
 import time
 from multiprocessing import Process
 from typing import Dict, Optional
+from loguru import logger
 
 
 def _run_websockify(web_port: int, vnc_save: str, web_path: str):
@@ -39,7 +40,7 @@ class VNCStart:
                 for line in f:
                     token, target = line.strip().split(": ")
                     self.storage[token] = target
-                    print(f"已加载 VNC: {token} -> {target}")
+                    logger.info(f"已加载 VNC: {token} -> {target}")
 
     # 将 token 写入配置文件 ######################################################
     def cfg_save(self):
@@ -59,11 +60,11 @@ class VNCStart:
         
         # 检查 web 路径是否存在
         if not os.path.exists(abs_web_path):
-            print(f"警告: Web 资源路径不存在: {abs_web_path}")
+            logger.warning(f"警告: Web 资源路径不存在: {abs_web_path}")
         
-        print(f"启动 websockify 服务，端口: {self.web_port}")
-        print(f"配置文件路径: {abs_vnc_save}")
-        print(f"Web 资源路径: {abs_web_path}")
+        logger.info(f"启动 websockify 服务，端口: {self.web_port}")
+        logger.info(f"配置文件路径: {abs_vnc_save}")
+        logger.info(f"Web 资源路径: {abs_web_path}")
         
         # 使用 multiprocessing 启动 websockify 子进程
         self.process = Process(
@@ -76,17 +77,17 @@ class VNCStart:
         # 等待一小段时间检查进程是否正常启动
         time.sleep(0.5)
         if not self.process.is_alive():
-            print("错误: websockify 进程已退出")
+            logger.error("错误: websockify 进程已退出")
             self.process = None
         else:
-            print("websockify 服务已启动")
+            logger.info("websockify 服务已启动")
 
     # 停止 websockify 服务 #######################################################
     def web_stop(self):
         if self.process is not None and self.process.is_alive():
             self.process.terminate()
             self.process.join(timeout=3)
-            print("websockify 服务已停止")
+            logger.info("websockify 服务已停止")
         self.process = None
 
     # 添加 VNC 目标 ##############################################################
@@ -95,18 +96,18 @@ class VNCStart:
         # 检查是否已存在相同目标的 token
         for existing_token, existing_target in self.storage.items():
             if existing_target == target:
-                print(f"VNC 目标 {target} 已存在，token: {existing_token}")
+                logger.info(f"VNC 目标 {target} 已存在，token: {existing_token}")
                 return existing_token
         self.storage[token] = target
         self.cfg_save()
-        print(f"已添加 VNC: {target}, token: {token}")
+        logger.info(f"已添加 VNC: {target}, token: {token}")
         return token
 
     # 删除 VNC 目标 ##############################################################
     def del_port(self, token: str = ""):
         if token in self.storage:
             target = self.storage.pop(token)
-            print(f"已删除 VNC: {target}, token: {token}")
+            logger.info(f"已删除 VNC: {target}, token: {token}")
             self.cfg_save()
 
 

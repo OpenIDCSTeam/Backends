@@ -4,6 +4,7 @@ import subprocess
 import requests
 from requests.auth import HTTPBasicAuth
 
+from loguru import logger
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Config.VMConfig import VMConfig
 from MainObject.Public.ZMessage import ZMessage
@@ -463,8 +464,8 @@ class VRestAPI:
     # #####################################################################
     def extend_hdd(self, vm_vmdk, vm_size) -> ZMessage:
         vm_disk = os.path.join(self.host_path, "vmware-vdiskmanager.exe")
-        print(f"[VMCreate] 开始扩展硬盘: {vm_size}MB")
-        print(f"[VMCreate] 执行命令: {vm_disk} -x {vm_size}MB {vm_vmdk}")
+        logger.info(f"[VMCreate] 开始扩展硬盘: {vm_size}MB")
+        logger.debug(f"[VMCreate] 执行命令: {vm_disk} -x {vm_size}MB {vm_vmdk}")
 
         vm_exec = subprocess.Popen(
             [vm_disk, "-x", f"{vm_size}MB", vm_vmdk],
@@ -472,8 +473,8 @@ class VRestAPI:
         stdout, stderr = vm_exec.communicate(timeout=60)
         if vm_exec.returncode != 0:
             error_msg = f"硬盘扩展失败: {stderr.strip() if stderr else ''}"
-            print(f"[VMCreate] {error_msg}")
-        print(f"[VMCreate] 硬盘扩展完成: {vm_size}MB")
+            logger.error(f"[VMCreate] {error_msg}")
+        logger.info(f"[VMCreate] 硬盘扩展完成: {vm_size}MB")
         return ZMessage(
             success=True if vm_exec.returncode == 0 else False,
             actions="extend_hdd",

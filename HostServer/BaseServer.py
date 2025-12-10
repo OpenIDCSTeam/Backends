@@ -9,7 +9,7 @@ from MainObject.Public.HWStatus import HWStatus
 from MainObject.Public.ZMessage import ZMessage
 from MainObject.Config.VMConfig import VMConfig
 from HostModule.NetsManage import NetsManage
-from HostModule.IPConfig import IPConfig
+from MainObject.Config.IPConfig import IPConfig
 from MainObject.Server.HSStatus import HSStatus
 
 from VNCConsole.VNCManager import VNCStart, VProcess
@@ -221,14 +221,14 @@ class BaseServer:
     def VCRemote(self, vm_uuid: str, ip_addr: str = "127.0.0.1") -> str:
         if vm_uuid not in self.vm_saving:
             return ""
-        print(f"[DEBUG VCRemote] vm_saving 内容: {self.vm_saving}")
-        print(f"[DEBUG VCRemote] {vm_uuid} 的类型: {type(self.vm_saving[vm_uuid])}")
-        print(f"[DEBUG VCRemote] {vm_uuid} 的值: {self.vm_saving[vm_uuid]}")
+        logger.debug(f"[DEBUG VCRemote] vm_saving 内容: {self.vm_saving}")
+        logger.debug(f"[DEBUG VCRemote] {vm_uuid} 的类型: {type(self.vm_saving[vm_uuid])}")
+        logger.debug(f"[DEBUG VCRemote] {vm_uuid} 的值: {self.vm_saving[vm_uuid]}")
         if self.vm_saving[vm_uuid].vc_port == "":
-            print(f"[VCRemote] {vm_uuid} 的 vc_port 为空")
+            logger.warning(f"[VCRemote] {vm_uuid} 的 vc_port 为空")
             return ""
         if self.vm_saving[vm_uuid].vc_pass == "":
-            print(f"[VCRemote] {vm_uuid} 的 vc_pass 为空")
+            logger.warning(f"[VCRemote] {vm_uuid} 的 vc_pass 为空")
             return ""
         public_addr = self.hs_config.public_addr[0]
         if len(self.vm_saving[vm_uuid].vc_pass) == 0:
@@ -285,6 +285,28 @@ class BaseServer:
             nc_server.del_dhcp(ip)
             nc_server.del_arp(ip)
         return ZMessage(success=True, action="NCStatic")
+
+    # 网络动态绑定 ##################################################################
+    def NCCreate(self, vm_conf: VMConfig, flag=True) -> ZMessage:
+        for nic_name, nic_conf in vm_conf.nic_all.items():
+            try:
+                logger.info(f"[API] 绑定静态IP: {nic_conf.ip4_addr} -> {nic_conf.mac_addr}")
+                nc_result = self.NCStatic(
+                    nic_conf.ip4_addr,
+                    nic_conf.mac_addr,
+                    vm_conf.vm_uuid,
+                    flag=flag,
+                    dns1=self.hs_config.ipaddr_dnss[0],
+                    dns2=self.hs_config.ipaddr_dnss[1]
+                )
+                if nc_result.success:
+                    logger.success(f"[API] 静态IP绑定成功: {nic_conf.ip4_addr}")
+                else:
+                    logger.warning(f"[API] 静态IP绑定失败: {nc_result.message}")
+                return nc_result
+            except Exception as e:
+                logger.error(f"[API] 静态IP绑定异常: {str(e)}")
+                return ZMessage(success=False, action="NCStatic", message=str(e))
 
     # 配置虚拟机 ########################################################################
     # :params vm_conf: 虚拟机配置对象

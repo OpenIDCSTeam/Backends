@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 import tempfile
 import signal
+from loguru import logger
 
 
 class VNCCaddyProxy:
@@ -75,7 +76,7 @@ class VNCCaddyProxy:
             "--heartbeat", "30",
         ]
 
-        print(f"启动WebSockify [{token}]: 端口{port} -> {vnc_addr}")
+        logger.info(f"启动WebSockify [{token}]: 端口{port} -> {vnc_addr}")
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -96,7 +97,7 @@ class VNCCaddyProxy:
         """停止单个websockify实例"""
         if token in self.websockify_processes:
             process, port = self.websockify_processes[token]
-            print(f"停止WebSockify [{token}]: 端口{port}")
+            logger.info(f"停止WebSockify [{token}]: 端口{port}")
             process.terminate()
             try:
                 process.wait(timeout=3)
@@ -141,7 +142,7 @@ class VNCCaddyProxy:
         with open(self.caddyfile_path, "w", encoding="utf-8") as f:
             f.write(caddyfile_content)
 
-        print(f"Caddyfile已生成: {self.caddyfile_path}")
+        logger.info(f"Caddyfile已生成: {self.caddyfile_path}")
         return self.caddyfile_path
 
     def _start_caddy(self):
@@ -156,7 +157,7 @@ class VNCCaddyProxy:
             "--config", str(self.caddyfile_path),
         ]
 
-        print(f"启动Caddy: {' '.join(cmd)}")
+        logger.info(f"启动Caddy: {' '.join(cmd)}")
         self.caddy_process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -170,12 +171,12 @@ class VNCCaddyProxy:
             _, stderr = self.caddy_process.communicate()
             raise RuntimeError(f"Caddy启动失败: {stderr}")
 
-        print("✅ Caddy启动成功")
+        logger.success("✅ Caddy启动成功")
 
     def _stop_caddy(self):
         """停止Caddy服务"""
         if self.caddy_process:
-            print("停止Caddy...")
+            logger.info("停止Caddy...")
             self.caddy_process.terminate()
             try:
                 self.caddy_process.wait(timeout=5)
@@ -185,16 +186,16 @@ class VNCCaddyProxy:
 
     def _reload_caddy(self):
         """重载Caddy配置（由于禁用了admin，使用重启方式）"""
-        print("重载Caddy配置（重启方式）...")
+        logger.info("重载Caddy配置（重启方式）...")
         self._stop_caddy()
         self._start_caddy()
-        print("✅ Caddy配置已重载")
+        logger.success("✅ Caddy配置已重载")
 
     def _start_all(self):
         """启动所有服务"""
-        print("\n" + "=" * 60)
-        print("正在启动VNC Caddy代理服务...")
-        print("=" * 60)
+        logger.info("\n" + "=" * 60)
+        logger.info("正在启动VNC Caddy代理服务...")
+        logger.info("=" * 60)
 
         # 1. 启动所有websockify实例
         for token, addr in self.vnc_servers.items():
@@ -204,7 +205,7 @@ class VNCCaddyProxy:
         self._start_caddy()
 
         self.is_running = True
-        print("\n✅ 所有服务已启动")
+        logger.success("\n✅ 所有服务已启动")
 
     def add_server(self, token, addr):
         """
@@ -220,7 +221,7 @@ class VNCCaddyProxy:
 
         # 如果已存在，先移除
         if token in self.vnc_servers:
-            print(f"⚠️ Token '{token}' 已存在，将更新为 {addr}")
+            logger.warning(f"⚠️ Token '{token}' 已存在，将更新为 {addr}")
             self._stop_websockify(token)
 
         self.vnc_servers[token] = addr
@@ -232,7 +233,7 @@ class VNCCaddyProxy:
         if self.is_running:
             self._reload_caddy()
 
-        print(f"✅ 服务器已添加: {token} -> {addr}")
+        logger.success(f"✅ 服务器已添加: {token} -> {addr}")
 
     def remove_server(self, token):
         """
@@ -240,7 +241,7 @@ class VNCCaddyProxy:
         :param token: 要删除的token
         """
         if token not in self.vnc_servers:
-            print(f"⚠️ Token '{token}' 不存在")
+            logger.warning(f"⚠️ Token '{token}' 不存在")
             return False
 
         # 停止websockify
@@ -251,20 +252,20 @@ class VNCCaddyProxy:
         if self.is_running:
             self._reload_caddy()
 
-        print(f"✅ 服务器已移除: {token}")
+        logger.success(f"✅ 服务器已移除: {token}")
         return True
 
     def list_servers(self):
         """列出当前所有VNC服务器"""
-        print("\n当前VNC服务器列表:")
+        logger.info("\n当前VNC服务器列表:")
         if not self.vnc_servers:
-            print("  (空)")
+            logger.info("  (空)")
         for token, addr in self.vnc_servers.items():
             if token in self.websockify_processes:
                 _, port = self.websockify_processes[token]
-                print(f"  【{token}】: {addr} (ws端口: {port})")
+                logger.info(f"  【{token}】: {addr} (ws端口: {port})")
             else:
-                print(f"  【{token}】: {addr} (未运行)")
+                logger.info(f"  【{token}】: {addr} (未运行)")
         return self.vnc_servers.copy()
 
     def get_url(self, token):
@@ -294,7 +295,7 @@ class VNCCaddyProxy:
 
     def stop(self):
         """完全停止所有服务并清理"""
-        print("\n正在停止VNC Caddy代理服务...")
+        logger.info("\n正在停止VNC Caddy代理服务...")
 
         # 停止所有websockify
         for token in list(self.websockify_processes.keys()):
@@ -304,7 +305,7 @@ class VNCCaddyProxy:
         self._stop_caddy()
 
         self.is_running = False
-        print("✅ 服务已完全停止")
+        logger.success("✅ 服务已完全停止")
 
 
 # ==================== 使用示例 ====================
@@ -321,25 +322,25 @@ if __name__ == "__main__":
         novnc_path="./VNCConsole/Sources"
     )
 
-    print("\n" + "=" * 60)
-    print(f"VNC Caddy代理服务已启动!")
-    print(f"Caddy统一入口端口: {proxy.caddy_port}")
-    print("-" * 60)
-    print("访问链接:")
+    logger.info("\n" + "=" * 60)
+    logger.info(f"VNC Caddy代理服务已启动!")
+    logger.info(f"Caddy统一入口端口: {proxy.caddy_port}")
+    logger.info("-" * 60)
+    logger.info("访问链接:")
     for token, url in proxy.get_all_urls().items():
-        print(f"  【{token}】: {url}")
-    print("=" * 60)
+        logger.info(f"  【{token}】: {url}")
+    logger.info("=" * 60)
 
     # 交互式操作
     try:
         while True:
-            print("\n" + "=" * 60)
-            print("操作选项:")
-            print("  1. 添加服务器")
-            print("  2. 移除服务器")
-            print("  3. 列出所有服务器")
-            print("  4. 显示访问链接")
-            print("  5. 退出")
+            logger.info("\n" + "=" * 60)
+            logger.info("操作选项:")
+            logger.info("  1. 添加服务器")
+            logger.info("  2. 移除服务器")
+            logger.info("  3. 列出所有服务器")
+            logger.info("  4. 显示访问链接")
+            logger.info("  5. 退出")
 
             choice = input("\n选择操作 (1-5): ").strip()
 
@@ -348,9 +349,9 @@ if __name__ == "__main__":
                 addr = input("输入VNC地址 (IP:端口): ").strip()
                 try:
                     proxy.add_server(token, addr)
-                    print(f"新访问链接: {proxy.get_url(token)}")
+                    logger.success(f"新访问链接: {proxy.get_url(token)}")
                 except Exception as e:
-                    print(f"❌ 添加失败: {e}")
+                    logger.error(f"❌ 添加失败: {e}")
 
             elif choice == "2":
                 token = input("输入要移除的Token: ").strip()
@@ -360,17 +361,17 @@ if __name__ == "__main__":
                 proxy.list_servers()
 
             elif choice == "4":
-                print("\n访问链接:")
+                logger.info("\n访问链接:")
                 for token, url in proxy.get_all_urls().items():
-                    print(f"  【{token}】: {url}")
+                    logger.info(f"  【{token}】: {url}")
 
             elif choice == "5":
                 break
 
             else:
-                print("无效选项")
+                logger.warning("无效选项")
 
     except KeyboardInterrupt:
-        print("\n收到中断信号")
+        logger.info("\n收到中断信号")
     finally:
         proxy.stop()

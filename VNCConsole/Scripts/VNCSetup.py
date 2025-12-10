@@ -5,6 +5,7 @@ import sys
 import time
 import atexit
 from pathlib import Path
+from loguru import logger
 
 
 class NoVNCService:
@@ -29,8 +30,8 @@ class NoVNCService:
 
     def start(self):
         """启动WebSockify代理服务"""
-        print("=" * 60)
-        print("启动noVNC服务...")
+        logger.info("=" * 60)
+        logger.info("启动noVNC服务...")
 
         # WebSockify命令（使用Python模块方式调用，兼容Windows）
         cmd = [
@@ -42,7 +43,7 @@ class NoVNCService:
             "--heartbeat", "30",  # 心跳检测
         ]
 
-        print(f"执行: {' '.join(cmd)}")
+        logger.info(f"执行: {' '.join(cmd)}")
 
         # 启动进程
         self.websockify_process = subprocess.Popen(
@@ -60,14 +61,14 @@ class NoVNCService:
 
         # 检查进程状态
         if self.websockify_process.poll() is None:
-            print("✅ WebSockify代理启动成功")
+            logger.success("✅ WebSockify代理启动成功")
             url = self._generate_url()
-            print(f"访问链接: {url}")
-            print("=" * 60)
+            logger.info(f"访问链接: {url}")
+            logger.info("=" * 60)
             return url
         else:
             _, stderr = self.websockify_process.communicate()
-            print(f"❌ 启动失败: {stderr}")
+            logger.error(f"❌ 启动失败: {stderr}")
             raise RuntimeError("WebSockify启动失败")
 
     def _generate_url(self):
@@ -88,10 +89,10 @@ class NoVNCService:
     def stop(self):
         """停止服务"""
         if self.websockify_process:
-            print("\n正在停止WebSockify服务...")
+            logger.info("\n正在停止WebSockify服务...")
             self.websockify_process.terminate()
             self.websockify_process.wait()
-            print("服务已停止")
+            logger.success("服务已停止")
 
 
 def start_novnc_service(vnc_connect_str, username=None, password=None, web_port=6080):
@@ -131,12 +132,12 @@ if __name__ == "__main__":
             password="1234",  # 替换为你的VNC密码
             web_port=6090
         )
-        print(f"\n请在浏览器中打开: {url}")
-        print("服务运行中，按Ctrl+C停止...")
+        logger.info(f"\n请在浏览器中打开: {url}")
+        logger.info("服务运行中，按Ctrl+C停止...")
 
         # 保持运行
         while True:
             time.sleep(1)
 
     except KeyboardInterrupt:
-        print("\n收到停止信号")
+        logger.info("\n收到停止信号")

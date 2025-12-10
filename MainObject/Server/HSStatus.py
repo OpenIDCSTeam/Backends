@@ -3,6 +3,7 @@ import psutil
 import GPUtil
 import cpuinfo
 import platform
+from loguru import logger
 from MainObject.Public.HWStatus import HWStatus
 from MainObject.Config.VMPowers import VMPowers
 
@@ -86,4 +87,4 @@ class HSStatus:
 
 if __name__ == "__main__":
     hs = HSStatus()
-    print(hs.status())
+    logger.info(hs.status())

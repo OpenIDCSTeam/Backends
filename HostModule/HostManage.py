@@ -2,6 +2,7 @@ import json
 import secrets
 import traceback
 
+from loguru import logger
 from HostServer.BaseServer import BaseServer
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Server.HSEngine import HEConfig
@@ -40,7 +41,7 @@ class HostManage:
             self.bearer = secrets.token_hex(8)
             # 保存到数据库
             self.saving.set_ap_config(bearer=self.bearer)
-            print(f"[HostManage] 自动生成新Token: {self.bearer}")
+            logger.info(f"[HostManage] 自动生成新Token: {self.bearer}")
 
     # 设置/重置访问Token #########################################################
     def set_pass(self, bearer: str = "") -> str:
@@ -181,7 +182,7 @@ class HostManage:
                     self.engine[hs_name].HSLoader()
                     self.engine[hs_name].VCLoader()
         except Exception as e:
-            print(f"加载数据时出错: {e}")
+            logger.error(f"加载数据时出错: {e}")
             traceback.print_exc()
 
     # 保存信息 ###################################################################
@@ -199,7 +200,7 @@ class HostManage:
 
             return success
         except Exception as e:
-            print(e)
+            logger.error(f"保存数据时出错: {e}")
             traceback.print_exc()
             return False
 
@@ -305,6 +306,6 @@ class HostManage:
         注意：状态数据已通过 DataManage 立即保存，无需在定时任务中保存 =================
         """
         for server in self.engine:
-            print(f'[Cron] 执行{server}的定时任务')
+            logger.debug(f'[Cron] 执行{server}的定时任务')
             self.engine[server].Crontabs()
-        print('[Cron] 执行定时任务完成')
+        logger.debug('[Cron] 执行定时任务完成')

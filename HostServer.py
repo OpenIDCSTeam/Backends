@@ -8,6 +8,7 @@ import traceback
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 
+from loguru import logger
 from HostModule.HostManage import HostManage
 from HostModule.RestManage import RestManager
 
@@ -473,7 +474,7 @@ def cron_scheduler():
         hs_manage.exe_cron()
     except Exception as e:
         traceback.print_exc()
-        print(f"[Cron] 执行定时任务出错: {e}")
+        logger.error(f"[Cron] 执行定时任务出错: {e}")
 
     # 设置下一次执行（60秒后）
     timer = threading.Timer(60, cron_scheduler)
@@ -488,20 +489,20 @@ def start_cron_scheduler():
         """初始执行，在单独线程中运行以避免阻塞启动"""
         try:
             hs_manage.exe_cron()
-            print("[Cron] 初始执行完成")
+            logger.info("[Cron] 初始执行完成")
         except Exception as e:
-            print(f"[Cron] 初始执行出错: {e}")
+            logger.error(f"[Cron] 初始执行出错: {e}")
 
         # 初始执行完成后，60秒后开始定时循环
         timer = threading.Timer(60, cron_scheduler)
         timer.daemon = True
         timer.start()
 
-    print("[Cron] 启动定时任务调度器...")
+    logger.info("[Cron] 启动定时任务调度器...")
     # 在单独线程中执行初始化，不阻塞主程序启动
     init_thread = threading.Thread(target=initial_run, daemon=True)
     init_thread.start()
-    print("[Cron] 定时任务已启动（后台运行），每60秒执行一次")
+    logger.info("[Cron] 定时任务已启动（后台运行），每60秒执行一次")
 
 
 # ============================================================================
@@ -513,12 +514,12 @@ def init_app():
     try:
         hs_manage.all_load()
     except Exception as e:
-        print(f"加载配置失败: {e}")
+        logger.error(f"加载配置失败: {e}")
 
     # 如果没有Token，生成一个
     if not hs_manage.bearer:
         hs_manage.set_pass()
-        print(f"已生成访问Token: {hs_manage.bearer}")
+        logger.info(f"已生成访问Token: {hs_manage.bearer}")
 
     # 启动定时任务调度器
     start_cron_scheduler()
@@ -526,10 +527,10 @@ def init_app():
 
 if __name__ == '__main__':
     init_app()
-    print(f"\n{'=' * 60}")
-    print(f"OpenIDCS Server 启动中...")
-    print(f"访问地址: http://127.0.0.1:1880")
-    print(f"访问Token: {hs_manage.bearer}")
-    print(f"{'=' * 60}\n")
+    logger.info(f"\n{'=' * 60}")
+    logger.info(f"OpenIDCS Server 启动中...")
+    logger.info(f"访问地址: http://127.0.0.1:1880")
+    logger.info(f"访问Token: {hs_manage.bearer}")
+    logger.info(f"{'=' * 60}\n")
 
     app.run(host='0.0.0.0', port=1880, debug=True)

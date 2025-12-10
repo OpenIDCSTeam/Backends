@@ -1119,31 +1119,81 @@
     async function submitVmForm(vmData, editMode) {
         let result;
         if (editMode === 'add') {
-            result = await apiRequest(`/api/client/create/${hostName}`, 'POST', vmData);
-        } else {
-            const originalUuid = document.getElementById('originalUuid').value;
-            result = await apiRequest(`/api/client/update/${hostName}/${originalUuid}`, 'PUT', vmData);
-        }
-
-        if (result && result.code === 200) {
             // 先关闭弹窗
             document.getElementById('vmModal').close();
-            // 再显示成功消息
+            
+            // 显示创建中的加载状态
             Swal.fire({
-                icon: 'success',
-                title: editMode === 'add' ? '创建成功' : '保存成功',
-                text: editMode === 'add' ? '虚拟机创建成功' : '虚拟机配置已保存',
-                timer: 1500,
-                showConfirmButton: false
-            }).then(() => {
-                location.reload(); // 刷新页面
+                title: '虚拟机创建中...',
+                html: '正在创建虚拟机，请稍候...',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
             });
+            
+            // 禁用所有操作按钮
+            setAllButtonsDisabled(true);
+            
+            try {
+                result = await apiRequest(`/api/client/create/${hostName}`, 'POST', vmData);
+                
+                if (result && result.code === 200) {
+                    // 创建成功
+                    Swal.fire({
+                        icon: 'success',
+                        title: '创建成功',
+                        text: result.msg || '虚拟机创建成功',
+                        timer: 2000,
+                        showConfirmButton: false
+                    }).then(() => {
+                        location.reload(); // 刷新页面
+                    });
+                } else {
+                    // 创建失败
+                    Swal.fire({
+                        icon: 'error',
+                        title: '创建失败',
+                        text: result?.msg || '虚拟机创建失败，请重试'
+                    });
+                }
+            } catch (error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: '创建失败',
+                    text: '网络错误或服务器异常'
+                });
+            } finally {
+                // 恢复所有按钮
+                setAllButtonsDisabled(false);
+            }
         } else {
-            Swal.fire({
-                icon: 'error',
-                title: '操作失败',
-                text: result?.msg || '操作失败，请重试'
-            });
+            // 编辑模式
+            const originalUuid = document.getElementById('originalUuid').value;
+            result = await apiRequest(`/api/client/update/${hostName}/${originalUuid}`, 'PUT', vmData);
+            
+            if (result && result.code === 200) {
+                // 先关闭弹窗
+                document.getElementById('vmModal').close();
+                // 再显示成功消息
+                Swal.fire({
+                    icon: 'success',
+                    title: '保存成功',
+                    text: '虚拟机配置已保存',
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => {
+                    location.reload(); // 刷新页面
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: '操作失败',
+                    text: result?.msg || '操作失败，请重试'
+                });
+            }
         }
     }
 </script>
