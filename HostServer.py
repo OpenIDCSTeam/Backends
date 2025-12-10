@@ -158,30 +158,6 @@ def settings_page():
 # 系统管理API - /api/system/<option>
 # ============================================================================
 
-# 重置Token ########################################################################
-@app.route('/api/system/resets', methods=['POST'])
-@require_auth
-def api_reset_token():
-    """重置访问Token"""
-    return rest_manager.reset_token()
-
-
-# 设置Token ########################################################################
-@app.route('/api/system/create', methods=['POST'])
-@require_auth
-def api_set_token():
-    """设置指定Token"""
-    return rest_manager.set_token()
-
-
-# 获取Token ########################################################################
-@app.route('/api/system/tquery', methods=['GET'])
-@require_auth
-def api_get_token():
-    """获取当前Token"""
-    return rest_manager.get_token()
-
-
 # 引擎类型 ########################################################################
 @app.route('/api/system/engine', methods=['GET'])
 @require_auth
@@ -198,11 +174,27 @@ def api_save_system():
     return rest_manager.save_system()
 
 
+# 保存配置（别名） ##################################################################
+@app.route('/api/system/save', methods=['POST'])
+@require_auth
+def api_save_system_alias():
+    """保存系统配置（别名路由）"""
+    return rest_manager.save_system()
+
+
 # 加载配置 ########################################################################
 @app.route('/api/system/loader', methods=['POST'])
 @require_auth
 def api_load_system():
     """加载系统配置"""
+    return rest_manager.load_system()
+
+
+# 加载配置（别名） ##################################################################
+@app.route('/api/system/load', methods=['POST'])
+@require_auth
+def api_load_system_alias():
+    """加载系统配置（别名路由）"""
     return rest_manager.load_system()
 
 
@@ -212,6 +204,72 @@ def api_load_system():
 def api_get_system_stats():
     """获取系统统计信息"""
     return rest_manager.get_system_stats()
+
+
+# 获取当前Token ####################################################################
+@app.route('/api/token/current', methods=['GET'])
+@require_auth
+def api_get_current_token():
+    """获取当前的API Token"""
+    try:
+        return api_response_wrapper(200, '获取Token成功', {'token': hs_manage.bearer})
+    except Exception as e:
+        logger.error(f"获取Token失败: {e}")
+        return api_response_wrapper(500, f'获取Token失败: {str(e)}')
+
+
+# 设置Token ########################################################################
+@app.route('/api/token/set', methods=['POST'])
+@require_auth
+def api_set_token():
+    """设置新的API Token"""
+    try:
+        data = request.get_json()
+        new_token = data.get('token', '')
+        
+        if not new_token:
+            return api_response_wrapper(400, 'Token不能为空')
+        
+        # 设置新的Token
+        hs_manage.set_pass(new_token)
+        
+        return api_response_wrapper(200, 'Token设置成功', {'token': hs_manage.bearer})
+    except Exception as e:
+        logger.error(f"设置Token失败: {e}")
+        return api_response_wrapper(500, f'设置Token失败: {str(e)}')
+
+
+# 重置Token ########################################################################
+@app.route('/api/token/reset', methods=['POST'])
+@require_auth
+def api_reset_token():
+    """重置API Token（生成新的随机Token）"""
+    try:
+        # 重置Token（不传参数会自动生成新Token）
+        new_token = hs_manage.set_pass()
+        
+        return api_response_wrapper(200, 'Token重置成功', {'token': new_token})
+    except Exception as e:
+        logger.error(f"重置Token失败: {e}")
+        return api_response_wrapper(500, f'重置Token失败: {str(e)}')
+
+
+# 获取系统统计信息 ##################################################################
+@app.route('/api/system/stats', methods=['GET'])
+@require_auth
+def api_get_stats():
+    """获取系统统计信息（主机数量、虚拟机数量）"""
+    try:
+        host_count = len(hs_manage.engine)
+        vm_count = sum(len(server.vm_saving) for server in hs_manage.engine.values())
+        
+        return api_response_wrapper(200, '获取统计信息成功', {
+            'host_count': host_count,
+            'vm_count': vm_count
+        })
+    except Exception as e:
+        logger.error(f"获取统计信息失败: {e}")
+        return api_response_wrapper(500, f'获取统计信息失败: {str(e)}')
 
 
 # 获取日志 ########################################################################

@@ -165,7 +165,7 @@ class RestManager:
             limit = int(request.args.get('limit', 100))
 
             # 使用 DataManage 的 get_hs_logger 函数获取日志
-            logs = self.hs_manage.save_data.get_hs_logger(hs_name)
+            logs = self.hs_manage.saving.get_hs_logger(hs_name)
 
             # 处理日志数据并限制数量
             processed_logs = []
@@ -201,7 +201,7 @@ class RestManager:
                 return self.api_response(400, '主机名称不能为空')
 
             # 使用 DataManage 的 get_vm_tasker 函数获取任务
-            tasks = self.hs_manage.save_data.get_vm_tasker(hs_name)
+            tasks = self.hs_manage.saving.get_vm_tasker(hs_name)
 
             # 限制数量并返回
             limited_tasks = tasks[:limit]
