@@ -24,8 +24,8 @@ class HSConfig:
         self.remote_port: int = 0  # VNC服务端口
         self.limits_nums: int = 0  # VMS虚拟数量
         self.public_addr: list = []  # 公共IPV46
-        self.extend_data: dict = {}  # API可选项
         self.server_dnss: list = []  # DNS服务器
+        self.extend_data: dict = {}  # API可选项
         self.system_maps: dict[str, list] = {}
         self.ipaddr_maps: dict[str, dict] = {}
         # self.ipaddr_maps：{
@@ -36,9 +36,9 @@ class HSConfig:
         #         "mask": "255.255.255.0",
         #         "from": "192.168.1.100",
         #         "nums": 100,
-        #         "dnss": ["8.8.8.8", "8.8.4.4"]
         #     }
         # }
+        self.ipaddr_dnss: list = ["8.8.8.8", "8.8.4.4"]
         # 加载传入的参数 =======================
         if config is not None:
             self.__read__(config)
@@ -78,9 +78,13 @@ class HSConfig:
             "ports_start": self.ports_start,
             "ports_close": self.ports_close,
             "remote_port": self.remote_port,
+            "limits_nums": self.limits_nums,
             "system_maps": self.system_maps,
+            "ipaddr_maps": self.ipaddr_maps,
+            "ipaddr_dnss": self.ipaddr_dnss,
             "public_addr": self.public_addr,
             "extend_data": self.extend_data,
+            "server_dnss": self.server_dnss,
         }
 
     # 转换为字符串 ===========================

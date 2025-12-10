@@ -144,6 +144,12 @@ class HostManage:
                     "system_maps") else {}
                 hs_conf_data["public_addr"] = json.loads(host_config["public_addr"]) if host_config.get(
                     "public_addr") else []
+                hs_conf_data["server_dnss"] = json.loads(host_config["server_dnss"]) if host_config.get(
+                    "server_dnss") else []
+                hs_conf_data["ipaddr_maps"] = json.loads(host_config["ipaddr_maps"]) if host_config.get(
+                    "ipaddr_maps") else {}
+                hs_conf_data["ipaddr_dnss"] = json.loads(host_config["ipaddr_dnss"]) if host_config.get(
+                    "ipaddr_dnss") else ["8.8.8.8", "8.8.4.4"]
 
                 # 移除数据库字段，只保留配置字段
                 for field in ["id", "hs_name", "created_at", "updated_at"]:

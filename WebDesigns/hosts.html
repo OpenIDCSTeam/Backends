@@ -190,7 +190,7 @@
                     <span class="iconify" data-icon="mdi:network-outline" data-width="18"></span>
                     端口配置
                 </h4>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">TCP端口起始</label>
                         <input type="number" name="ports_start" id="portsStart"
@@ -208,6 +208,12 @@
                         <input type="number" name="remote_port" id="remotePort"
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                placeholder="例如: 5900" min="0" max="65535">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">虚拟机数量限制</label>
+                        <input type="number" name="limits_nums" id="limitsNums"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="例如: 100" min="0">
                     </div>
                 </div>
             </div>
@@ -229,6 +235,40 @@
                         <span class="iconify" data-icon="mdi:plus" data-width="16"></span>
                         添加系统映射
                     </button>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-200 pt-4">
+                <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <span class="iconify" data-icon="mdi:ip-network-outline" data-width="18"></span>
+                    IP地址池配置
+                </h4>
+                <div class="mb-3">
+                    <p class="text-sm text-gray-600">配置虚拟机可分配的IP地址段</p>
+                </div>
+                <div id="ipaddrMapsContainer" class="space-y-2">
+                    <!-- IP地址池配置行将动态添加到这里 -->
+                </div>
+                <div class="mt-3">
+                    <button type="button" onclick="addIpaddrMapRow()"
+                            class="px-3 py-1.5 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 flex items-center gap-1">
+                        <span class="iconify" data-icon="mdi:plus" data-width="16"></span>
+                        添加IP地址池
+                    </button>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-200 pt-4">
+                <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <span class="iconify" data-icon="mdi:dns" data-width="18"></span>
+                    DNS服务器配置
+                </h4>
+                <div class="mb-2">
+                    <label class="block text-sm font-medium text-gray-600 mb-1">DNS服务器（多个用逗号分隔）</label>
+                    <input type="text" name="ipaddr_dnss" id="ipaddrDnss"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="例如: 8.8.8.8, 8.8.4.4">
+                    <p class="text-xs text-gray-500 mt-1">为虚拟机统一配置DNS服务器</p>
                 </div>
             </div>
 
@@ -352,8 +392,7 @@
                     <div class="md:col-span-1">
                         <button type="button" onclick="removeSystemMapRow('${rowId}')" 
                             class="w-full px-2 py-1.5 bg-red-500 text-white text-sm rounded hover:bg-red-600 flex items-center justify-center gap-1 whitespace-nowrap">
-                            <span class="iconify" data-icon="mdi:delete" data-width="14"></span>
-                            <span class="hidden sm:inline">删除</span>
+                            <span class="iconify" data-icon="mdi:delete" data-width="16"></span>
                         </button>
                     </div>
                 </div>
@@ -404,6 +443,143 @@
         // 如果没有任何映射，添加一个空行作为默认
         if (Object.keys(systemMaps || {}).length === 0) {
             addSystemMapRow();
+        }
+    }
+
+    // IP地址池配置相关函数 =======================================
+
+    // 添加IP地址池配置行
+    function addIpaddrMapRow(setName = '', vers = 'ipv4', type = 'nat', gate = '', mask = '', fromIp = '', nums = '') {
+        const container = document.getElementById('ipaddrMapsContainer');
+        const rowId = Date.now() + Math.random();
+        const rowHtml = `
+            <div class="ipaddr-map-row bg-gray-50 p-3 rounded-lg" data-row-id="${rowId}">
+                <!-- 第一行：基本配置 -->
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end mb-3">
+                    <div class="md:col-span-3">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">配置名称</label>
+                        <input type="text" 
+                            class="set-name w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent" 
+                            placeholder="例如: default"
+                            value="${setName}">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">IP版本</label>
+                        <select class="ip-vers w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent">
+                            <option value="ipv4" ${vers === 'ipv4' ? 'selected' : ''}>IPv4</option>
+                            <option value="ipv6" ${vers === 'ipv6' ? 'selected' : ''}>IPv6</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">网络类型</label>
+                        <select class="ip-type w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent">
+                            <option value="nat" ${type === 'nat' ? 'selected' : ''}>NAT</option>
+                            <option value="pub" ${type === 'pub' ? 'selected' : ''}>PUB</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-4">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">数量</label>
+                        <input type="number" 
+                            class="ip-nums w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent" 
+                            placeholder="100" 
+                            min="1" 
+                            value="${nums}">
+                    </div>
+                    <div class="md:col-span-1">
+                        <button type="button" onclick="removeIpaddrMapRow('${rowId}')" 
+                            class="w-full px-2 py-1.5 bg-red-500 text-white text-sm rounded hover:bg-red-600 flex items-center justify-center gap-1">
+                            <span class="iconify" data-icon="mdi:delete" data-width="16"></span>
+                        </button>
+                    </div>
+                </div>
+                <!-- 第二行：网络配置 -->
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                    <div class="md:col-span-4">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">起始IP地址</label>
+                        <input type="text" 
+                            class="ip-from w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent" 
+                            placeholder="例如: 192.168.1.100"
+                            value="${fromIp}">
+                    </div>
+                    <div class="md:col-span-4">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">网关地址</label>
+                        <input type="text" 
+                            class="ip-gate w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent" 
+                            placeholder="例如: 192.168.1.1"
+                            value="${gate}">
+                    </div>
+                    <div class="md:col-span-4">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">子网掩码</label>
+                        <input type="text" 
+                            class="ip-mask w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent" 
+                            placeholder="例如: 255.255.255.0" 
+                            value="${mask}">
+                    </div>
+                </div>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', rowHtml);
+    }
+
+    // 删除IP地址池配置行
+    function removeIpaddrMapRow(rowId) {
+        const row = document.querySelector(`[data-row-id="${rowId}"]`);
+        if (row) {
+            row.remove();
+        }
+    }
+
+    // 获取IP地址池配置数据
+    function getIpaddrMapsData() {
+        const maps = {};
+        const rows = document.querySelectorAll('.ipaddr-map-row');
+        rows.forEach(row => {
+            const setName = row.querySelector('.set-name').value.trim();
+            const vers = row.querySelector('.ip-vers').value;
+            const type = row.querySelector('.ip-type').value;
+            const gate = row.querySelector('.ip-gate').value.trim();
+            const mask = row.querySelector('.ip-mask').value.trim();
+            const fromIp = row.querySelector('.ip-from').value.trim();
+            const nums = parseInt(row.querySelector('.ip-nums').value) || 0;
+
+            if (setName && fromIp && nums > 0) {
+                maps[setName] = {
+                    vers: vers,
+                    type: type,
+                    gate: gate,
+                    mask: mask,
+                    from: fromIp,
+                    nums: nums
+                };
+            }
+        });
+        return maps;
+    }
+
+    // 加载IP地址池配置数据
+    function loadIpaddrMapsData(ipaddrMaps) {
+        const container = document.getElementById('ipaddrMapsContainer');
+        container.innerHTML = ''; // 清空现有内容
+
+        if (ipaddrMaps && typeof ipaddrMaps === 'object') {
+            for (const [setName, config] of Object.entries(ipaddrMaps)) {
+                if (config && typeof config === 'object') {
+                    addIpaddrMapRow(
+                        setName,
+                        config.vers || 'ipv4',
+                        config.type || 'nat',
+                        config.gate || '',
+                        config.mask || '',
+                        config.from || '',
+                        config.nums || ''
+                    );
+                }
+            }
+        }
+
+        // 如果没有任何配置，添加一个空行作为默认
+        if (Object.keys(ipaddrMaps || {}).length === 0) {
+            addIpaddrMapRow();
         }
     }
 
@@ -808,7 +984,10 @@
             document.getElementById('portsStart').value = config.ports_start || '';
             document.getElementById('portsClose').value = config.ports_close || '';
             document.getElementById('remotePort').value = config.remote_port || '';
+            document.getElementById('limitsNums').value = config.limits_nums || '';
             loadSystemMapsData(config.system_maps || {});
+            loadIpaddrMapsData(config.ipaddr_maps || {});
+            document.getElementById('ipaddrDnss').value = (config.ipaddr_dnss || []).join(', ');
             document.getElementById('publicAddr').value = (config.public_addr || []).join(', ');
             document.getElementById('extendData').value = config.extend_data ? JSON.stringify(config.extend_data, null, 2) : '';
             document.getElementById('hostModal').showModal();
@@ -924,7 +1103,10 @@
             ports_start: parseInt(document.getElementById('portsStart').value) || 0,
             ports_close: parseInt(document.getElementById('portsClose').value) || 0,
             remote_port: parseInt(document.getElementById('remotePort').value) || 0,
+            limits_nums: parseInt(document.getElementById('limitsNums').value) || 0,
             system_maps: getSystemMapsData(),
+            ipaddr_maps: getIpaddrMapsData(),
+            ipaddr_dnss: document.getElementById('ipaddrDnss').value.split(',').map(s => s.trim()).filter(s => s),
             public_addr: document.getElementById('publicAddr').value.split(',').map(s => s.trim()).filter(s => s),
             extend_data: parseExtendData(document.getElementById('extendData').value)
         };

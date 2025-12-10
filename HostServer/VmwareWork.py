@@ -118,7 +118,7 @@ class HostServer(BaseServer):
             register_result = self.vmrest_api.loader_vmx(vm_file + ".vmx")
             if not register_result.success:
                 raise Exception(f"注册虚拟机失败: {register_result.message}")
-
+            self.VMPowers(vm_conf.vm_uuid, VMPowers.S_START)
         except Exception as e:  # 创建失败时清理已创建的文件 ===================
             vm_path = os.path.join(self.hs_config.system_path, vm_conf.vm_uuid)
             if os.path.exists(vm_path):
@@ -212,6 +212,7 @@ class HostServer(BaseServer):
     # 删除虚拟机 ###############################################################
     def VMDelete(self, vm_name: str) -> ZMessage:
         # 专用操作 =============================================================
+        self.VMPowers(vm_name, VMPowers.H_CLOSE)
         vm_saving = os.path.join(self.hs_config.system_path, vm_name)
         vm_locker = os.path.join(vm_saving, vm_name + ".vmx.lck")
         if os.path.exists(vm_locker):

@@ -9,6 +9,7 @@ from MainObject.Public.HWStatus import HWStatus
 from MainObject.Public.ZMessage import ZMessage
 from MainObject.Config.VMConfig import VMConfig
 from HostModule.NetsManage import NetsManage
+from HostModule.IPConfig import IPConfig
 from MainObject.Server.HSStatus import HSStatus
 
 from VNCConsole.VNCManager import VNCStart, VProcess
@@ -114,14 +115,9 @@ class BaseServer:
         if self.save_data and self.hs_config.server_name:
             self.save_data.add_hs_logger(self.hs_config.server_name, log)
 
-    # 网络检查 ######################################################################
-    def NetCheck(self, vm_conf: VMConfig) -> (VMConfig, ZMessage):
-        pass
-
     # 保存主机状态数据 ##############################################################
     # :return: 保存是否成功
     # ###############################################################################
-
     def host_get(self) -> list[HSStatus]:
         if self.save_data and self.hs_config.server_name:
             return self.save_data.get_hs_status(self.hs_config.server_name)
@@ -199,16 +195,13 @@ class BaseServer:
                 return False
         return False
 
-    # =================
-    # 默认的方法 
-    # =================
     # 获取虚拟机配置 ########################################################################
     def VMSelect(self, select: str) -> VMConfig | None:
         if select in self.vm_saving:
             return self.vm_saving[select]
         return None
 
-    # 读取远程 ########################################################################
+    # 读取远程 ######################################################################
     # :param ip_addr: 远程IP地址
     # :returns: 是否成功
     # ###############################################################################
@@ -222,7 +215,7 @@ class BaseServer:
         self.vm_remote.start()
         return True
 
-    # 虚拟机控制台 ########################################################################
+    # 虚拟机控制台 ##################################################################
     # :params vm_uuid: 虚拟机UUID
     # ###############################################################################
     def VCRemote(self, vm_uuid: str, ip_addr: str = "127.0.0.1") -> str:
@@ -249,7 +242,31 @@ class BaseServer:
                f"/vnc.html?autoconnect=true&path=websockify?" \
                f"token={rand_pass}"
 
-    # 网络静态绑定 ########################################################################
+    # 获取当前主机所有虚拟机已分配的IP地址 ###########################################
+    # :returns: IP地址列表
+    # ################################################################################
+    def IPGrants(self) -> set:
+        allocated = set()
+        for vm_uuid, vm_config in self.vm_saving.items():
+            for nic_name, nic_config in vm_config.nic_all.items():
+                if nic_config.ip4_addr:
+                    allocated.add(nic_config.ip4_addr.strip())
+                if nic_config.ip6_addr:
+                    allocated.add(nic_config.ip6_addr.strip())
+        return allocated
+
+    # 网络检查 ######################################################################
+    def NetCheck(self, vm_conf: VMConfig) -> (VMConfig, ZMessage):
+        """
+        检查并自动分配虚拟机网卡IP地址
+        :param vm_conf: 虚拟机配置对象
+        :return: (更新后的虚拟机配置, 操作结果消息)
+        """
+        ip_config = IPConfig(self.hs_config.ipaddr_maps, self.hs_config.ipaddr_dnss)
+        allocated_ips = self.IPGrants()
+        return ip_config.check_and_allocate(vm_conf, allocated_ips)
+
+    # 网络静态绑定 ##################################################################
     # :params ip: IP地址
     # :params mac: MAC地址
     # :params uuid: 虚拟机UUID
@@ -285,7 +302,10 @@ class BaseServer:
             nic_data = vm_conf.nic_all[nic_name]
             self.NCStatic(
                 nic_data.ip4_addr, nic_data.mac_addr,
-                vm_conf.vm_uuid, True)
+                vm_conf.vm_uuid, True,
+                nic_data.dns_addr[0] if len(nic_data.dns_addr) > 0 else "119.29.29.29",
+                nic_data.dns_addr[1] if len(nic_data.dns_addr) > 1 else "223.5.5.5"
+            )
         return ZMessage(success=True, action="VMUpdate")
 
     # 端口映射 ########################################################################
@@ -311,13 +331,13 @@ class BaseServer:
     # 需实现方法
     # ###############################################################################
 
-    # 执行定时任务 ########################################################################
+    # 执行定时任务 ##################################################################
     def Crontabs(self) -> bool:
         hs_status = HSStatus()
         self.host_set(hs_status)
         return True
 
-    # 宿主机状态 ########################################################################
+    # 宿主机状态 ####################################################################
     def HSStatus(self) -> HWStatus:
         status_list = self.host_get()
         if len(status_list) > 0:
@@ -410,11 +430,8 @@ class BaseServer:
         if vm_name in self.vm_saving:
             del self.vm_saving[vm_name]
         # 保存到数据库 =========================================================
-        if self.save_data and self.hs_config.server_name:
-            self.save_data.set_vm_saving(
-                self.hs_config.server_name, self.vm_saving)
-            self.save_data.add_hs_logger(
-                self.hs_config.server_name, ZMessage(success=True, action="VMDelete"))
+        self.data_set()
+        self.logs_set(ZMessage(success=True, action="VMDelete"))
 
     # 虚拟机电源 ########################################################################
     # :params select: 虚拟机UUID

@@ -136,8 +136,8 @@ class HostDatabase:
              filter_name, images_path, system_path, backup_path, extern_path,
              launch_path, network_nat, network_pub, i_kuai_addr, i_kuai_user, 
              i_kuai_pass, ports_start, ports_close, remote_port, system_maps, 
-             public_addr, extend_data, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+             public_addr, extend_data, server_dnss, limits_nums, ipaddr_maps, ipaddr_dnss, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             """
             params = (
                 hs_name,
@@ -162,7 +162,11 @@ class HostDatabase:
                 hs_config.remote_port,
                 json.dumps(hs_config.system_maps) if hs_config.system_maps else "{}",
                 json.dumps(hs_config.public_addr) if hs_config.public_addr else "[]",
-                json.dumps(hs_config.extend_data) if hs_config.extend_data else "{}"
+                json.dumps(hs_config.extend_data) if hs_config.extend_data else "{}",
+                json.dumps(hs_config.server_dnss) if hs_config.server_dnss else "[]",
+                hs_config.limits_nums,
+                json.dumps(hs_config.ipaddr_maps) if hs_config.ipaddr_maps else "{}",
+                json.dumps(hs_config.ipaddr_dnss) if hs_config.ipaddr_dnss else '["8.8.8.8", "8.8.4.4"]'
             )
             conn.execute(sql, params)
             conn.commit()

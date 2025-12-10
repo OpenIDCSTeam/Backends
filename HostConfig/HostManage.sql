@@ -36,6 +36,10 @@ CREATE TABLE IF NOT EXISTS hs_config
     system_maps TEXT      DEFAULT '{}', -- 系统映射字典
     public_addr TEXT      DEFAULT '[]', -- 公共IP46列表
     extend_data TEXT      DEFAULT '{}', -- 存储扩展数据
+    server_dnss TEXT      DEFAULT '[]', -- NS服务器列表
+    limits_nums INTEGER   DEFAULT 0,    -- VMS虚拟数量
+    ipaddr_maps TEXT      DEFAULT '{}', -- IP地址的字典
+    ipaddr_dnss TEXT      DEFAULT '["8.8.8.8", "8.8.4.4"]', -- DNS服务器列表
     created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -106,10 +110,4 @@ CREATE INDEX IF NOT EXISTS idx_vm_status_name ON vm_status (hs_name);
 CREATE INDEX IF NOT EXISTS idx_vm_status_uuid ON vm_status (vm_uuid);
 CREATE INDEX IF NOT EXISTS idx_vm_tasker_name ON vm_tasker (hs_name);
 CREATE INDEX IF NOT EXISTS idx_hs_logger_name ON hs_logger (hs_name);
-CREATE INDEX IF NOT EXISTS idx_hs_logger_created ON hs_logger (created_at);
-
-
--- 注意事项：
--- 1. 以上ALTER TABLE语句如果字段已存在会报错，这是正常的
--- 2. 执行前请备份数据库
--- 3. 执行完成后可以注释掉这些ALTER TABLE语句
+CREATE INDEX IF NOT EXISTS idx_hs_logger_time ON hs_logger (created_at);
