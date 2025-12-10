@@ -17,9 +17,10 @@ app.secret_key = secrets.token_hex(32)
 
 # 全局主机管理实例
 hs_manage = HostManage()
+
 # 全局REST管理器实例
 rest_manager = RestManager(hs_manage)
-
+# rest_manager.load_system()
 
 # ============================================================================
 # 认证装饰器（保持向后兼容）
