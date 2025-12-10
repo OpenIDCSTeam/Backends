@@ -1,3 +1,6 @@
+import os
+import subprocess
+
 import requests
 from requests.auth import HTTPBasicAuth
 
@@ -12,10 +15,12 @@ class VRestAPI:
                  host_addr="localhost:8697",
                  host_user="root",
                  host_pass="password",
+                 host_path="",
                  ver_agent=21):
         self.host_addr = host_addr
         self.host_user = host_user
         self.host_pass = host_pass
+        self.host_path = host_path
         self.ver_agent = ver_agent
 
     @staticmethod
@@ -220,9 +225,7 @@ class VRestAPI:
             power_map = {
                 VMPowers.S_START: "on",
                 VMPowers.S_CLOSE: "shutdown",
-                VMPowers.S_RESET: "reset",
                 VMPowers.H_CLOSE: "off",
-                VMPowers.H_RESET: "reset",
                 VMPowers.A_PAUSE: "pause",
                 VMPowers.A_WAKED: "unpause",
             }
@@ -452,3 +455,27 @@ class VRestAPI:
             }
             hdd_uuid += 1
         return VRestAPI.create_txt(vmx_config)
+
+    # 扩展VM磁盘 ##########################################################
+    # :param vm_vmdk: VM磁盘文件路径
+    # :param vm_size: VM磁盘大小
+    # :return: ZMessage
+    # #####################################################################
+    def extend_hdd(self, vm_vmdk, vm_size) -> ZMessage:
+        vm_disk = os.path.join(self.host_path, "vmware-vdiskmanager.exe")
+        print(f"[VMCreate] 开始扩展硬盘: {vm_size}MB")
+        print(f"[VMCreate] 执行命令: {vm_disk} -x {vm_size}MB {vm_vmdk}")
+
+        vm_exec = subprocess.Popen(
+            [vm_disk, "-x", f"{vm_size}MB", vm_vmdk],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        stdout, stderr = vm_exec.communicate(timeout=60)
+        if vm_exec.returncode != 0:
+            error_msg = f"硬盘扩展失败: {stderr.strip() if stderr else ''}"
+            print(f"[VMCreate] {error_msg}")
+        print(f"[VMCreate] 硬盘扩展完成: {vm_size}MB")
+        return ZMessage(
+            success=True if vm_exec.returncode == 0 else False,
+            actions="extend_hdd",
+            message="硬盘扩展成功" if vm_exec.returncode == 0 \
+                else f"硬盘扩展失败: {stderr.strip() if stderr else ''}")

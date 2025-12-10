@@ -4,6 +4,7 @@ class NCConfig:
         self.nic_type: str = ""
         self.ip4_addr: str = ""
         self.ip6_addr: str = ""
+        self.dns_addr: list[str] = []
         self.__load__(**kwargs)
 
     def __dict__(self):
@@ -12,6 +13,7 @@ class NCConfig:
             "nic_type": self.nic_type,
             "ip4_addr": self.ip4_addr,
             "ip6_addr": self.ip6_addr,
+            "dns_addr": self.dns_addr,
         }
 
     # 加载数据 ===============================

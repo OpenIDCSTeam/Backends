@@ -105,7 +105,7 @@
                             </div>
                         </div>
                         <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-600 mb-1">操作系统(下次重装时生效)</label>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">操作系统</label>
                             <select name="os_name" id="osName"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                                 <option value="">请选择</option>
@@ -752,7 +752,7 @@
 
         Swal.fire({
             title: '确认删除',
-            html: `<p class="mb-4">此操作将永久删除虚拟机 "<strong class="text-red-600">${uuid}</strong>"，且不可恢复。</p>
+            html: `<p class="mb-4">此操作将永久删除虚拟机 "<strong class="text-red-600">${uuid}</strong>"<br />且不可恢复</p>
                    <p class="text-sm text-gray-600">请输入虚拟机名称以确认删除：</p>`,
             input: 'text',
             inputPlaceholder: '输入虚拟机名称',

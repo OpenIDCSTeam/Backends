@@ -22,9 +22,23 @@ class HSConfig:
         self.ports_start: int = 0  # TCP端口起始
         self.ports_close: int = 0  # TCP端口结束
         self.remote_port: int = 0  # VNC服务端口
-        self.system_maps: dict[str, list] = {}
+        self.limits_nums: int = 0  # VMS虚拟数量
         self.public_addr: list = []  # 公共IPV46
         self.extend_data: dict = {}  # API可选项
+        self.server_dnss: list = []  # DNS服务器
+        self.system_maps: dict[str, list] = {}
+        self.ipaddr_maps: dict[str, dict] = {}
+        # self.ipaddr_maps：{
+        #     "Set1": {
+        #         "vers": "ipv4",
+        #         "type": "nat",
+        #         "gate": "192.168.1.1",
+        #         "mask": "255.255.255.0",
+        #         "from": "192.168.1.100",
+        #         "nums": 100,
+        #         "dnss": ["8.8.8.8", "8.8.4.4"]
+        #     }
+        # }
         # 加载传入的参数 =======================
         if config is not None:
             self.__read__(config)

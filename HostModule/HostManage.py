@@ -173,7 +173,7 @@ class HostManage:
                         vm_saving=vm_saving_converted
                     )
                     self.engine[hs_name].HSLoader()
-                    self.engine[hs_name].VNCLoads()
+                    self.engine[hs_name].VCLoader()
         except Exception as e:
             print(f"加载数据时出错: {e}")
             traceback.print_exc()

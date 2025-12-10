@@ -164,7 +164,7 @@ class RestManager:
             limit = int(request.args.get('limit', 100))
 
             # 使用 DataManage 的 get_hs_logger 函数获取日志
-            logs = self.hs_manage.save_data.get_hs_logger(hs_name)
+            logs = self.hs_manage.saving.get_hs_logger(hs_name)
 
             # 处理日志数据并限制数量
             processed_logs = []
@@ -200,7 +200,7 @@ class RestManager:
                 return self.api_response(400, '主机名称不能为空')
 
             # 使用 DataManage 的 get_vm_tasker 函数获取任务
-            tasks = self.hs_manage.save_data.get_vm_tasker(hs_name)
+            tasks = self.hs_manage.saving.get_vm_tasker(hs_name)
 
             # 限制数量并返回
             limited_tasks = tasks[:limit]
@@ -539,7 +539,9 @@ class RestManager:
         # 创建虚拟机配置
         vm_config = VMConfig(**data, nic_all=nic_all)
         vm_config.vc_port = random.randint(10000, 59999)
-        vm_config.vc_pass = ''.join(random.sample(string.ascii_letters + string.digits, 16))
+        if vm_config.vc_pass == '':
+            vm_config.vc_pass = ''.join(
+                random.sample(string.ascii_letters + string.digits, 8))
         result = server.VMCreate(vm_config)
 
         if result and result.success:
@@ -637,17 +639,17 @@ class RestManager:
         # 验证新密码是否提供
         if not new_password:
             return self.api_response(400, '新密码不能为空')
-
-        # 调用Password方法
-        result = server.Password(hs_name, vm_uuid, new_password)
-
+        # vm_conf = server.VMSelect(vm_uuid)
+        # if not vm_conf:
+        #     return self.api_response(404, '虚拟机不存在')
+        result = server.Password(vm_uuid, new_password)
         if result and result.success:
             self.hs_manage.all_save()
             return self.api_response(200, result.message if result.message else '密码修改成功')
 
         return self.api_response(400, result.message if result else '密码修改失败')
 
-    # 虚拟机控制台 ########################################################################
+    # 虚拟机控制台 ######################################################################
     # :param hs_name: 主机名称
     # :param vm_uuid: 虚拟机UUID
     # :return: 虚拟机电源控制结果的API响应
@@ -694,7 +696,7 @@ class RestManager:
         if not server:
             return self.api_response(404, '主机不存在')
         try:
-            console_url = server.VConsole(vm_uuid)
+            console_url = server.VCRemote(vm_uuid)
             print("[VNC控制台地址]", console_url)
             if console_url:
                 return self.api_response(200, '获取成功', console_url)
@@ -825,8 +827,7 @@ class RestManager:
 
                             found = True
                             # 获取虚拟机密码
-                            vm_pass = vm_config.vc_pass if hasattr(vm_config, 'vc_pass') else vm_config.get('vc_pass',
-                                                                                                            '')
+                            vm_pass = vm_config.os_pass
                             return self.api_response(200, f'虚拟机 {vm_uuid} 状态已更新', {
                                 'hs_name': hs_name,
                                 'vm_uuid': vm_uuid,

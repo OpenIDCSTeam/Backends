@@ -774,7 +774,7 @@
                 <div class="flex gap-2">
                     <input type="text" id="newPassword" required
                            class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                           placeholder="至少12位，包含字母、数字、特殊符号中的两种"
+                           placeholder="至少8位，包含字母、数字、特殊符号中的两种"
                            oninput="onPasswordInput()">
                     <button type="button" onclick="generateNewPassword()" 
                             class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-1 whitespace-nowrap">
@@ -783,7 +783,7 @@
                     </button>
                 </div>
                 <p id="newPasswordError" class="text-xs text-red-600 mt-1" style="display: none;"></p>
-                <p class="text-xs text-gray-500 mt-1">密码长度不得低于12位，且至少包含字母、数字、特殊符号中的两种</p>
+                <p class="text-xs text-gray-500 mt-1">密码长度不得低于8位，且至少包含字母、数字、特殊符号中的两种</p>
             </div>
             
             <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
@@ -894,7 +894,7 @@
                             </div>
                         </div>
                         <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-600 mb-1">操作系统(下次重装时生效)</label>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">操作系统</label>
                             <select name="os_name" id="editOsName"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                                 <option value="">请选择</option>
@@ -907,7 +907,7 @@
                                 <input type="text" name="os_pass" id="editOsPass"
                                        class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                        placeholder="设置系统登录密码"
-                                       oninput="validatePasswordInput('editOsPass', 'editOsPassError')">
+                                       oninput="syncOsPassToVncPass()">
                                 <button type="button" onclick="generateEditOsPass()" 
                                         class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-1 whitespace-nowrap min-w-[80px]">
                                     <span class="iconify" data-icon="mdi:refresh" data-width="18"></span>
@@ -1256,8 +1256,8 @@
             const imageFile = Array.isArray(osConfig) ? osConfig[0] : osConfig;
             option.value = imageFile; // 值设置为镜像文件名
             option.textContent = osName; // 显示文本为系统名称
-            // 如果是编辑模式且匹配当前系统名称，则选中
-            if (selectedOsName && osName === selectedOsName) {
+            // 如果是编辑模式且匹配当前值，则选中
+            if (selectedOsName && imageFile === selectedOsName) {
                 option.selected = true;
             }
             osSelect.appendChild(option);
@@ -1714,8 +1714,8 @@
             let errors = [];
             
             // 检查长度
-            if (password.length < 12) {
-                errors.push('密码长度不得低于12位');
+            if (password.length < 8) {
+                errors.push('密码长度不得低于8位');
             }
 
             // 检查复杂度
@@ -1760,8 +1760,8 @@
         let errors = [];
 
         // 检查长度
-        if (password.length < 12) {
-            errors.push('密码长度不得低于12位');
+        if (password.length < 8) {
+            errors.push('密码长度不得低于8位');
         }
 
         // 检查复杂度
@@ -1787,21 +1787,18 @@
         }
     }
 
-    // 生成随机密码（12位，包含字母、数字、特殊符号）
-    function generateRandomPassword(length = 12) {
+    // 生成随机密码（8位，包含字母、数字、特殊符号）
+    function generateRandomPassword(length = 8) {
         const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
         const numbers = '0123456789';
-        const specials = '!@#$%^&*()_+-=[]{}|;:,.<>?';
-        const allChars = letters + numbers + specials;
+        const allChars = letters + numbers;
         
         let password = '';
-        // 确保至少包含一个字母、一个数字、一个特殊符号
+        // 确保至少包含一个字母、一个数字
         password += letters.charAt(Math.floor(Math.random() * letters.length));
         password += numbers.charAt(Math.floor(Math.random() * numbers.length));
-        password += specials.charAt(Math.floor(Math.random() * specials.length));
-        
         // 填充剩余字符
-        for (let i = 3; i < length; i++) {
+        for (let i = 2; i < length; i++) {
             password += allChars.charAt(Math.floor(Math.random() * allChars.length));
         }
         
@@ -1820,9 +1817,18 @@
         document.getElementById('editVcPort').value = randomPort;
     }
 
+    // 同步系统密码到VNC密码
+    function syncOsPassToVncPass() {
+        const osPass = document.getElementById('editOsPass').value;
+        document.getElementById('editVcPass').value = osPass;
+        // 触发实时验证
+        validatePasswordInput('editOsPass', 'editOsPassError');
+        validatePasswordInput('editVcPass', 'editVcPassError');
+    }
+
     // 生成编辑模式的随机系统密码，并同步到VNC密码
     function generateEditOsPass() {
-        const randomPass = generateRandomPassword(12);
+        const randomPass = generateRandomPassword(8);
         document.getElementById('editOsPass').value = randomPass;
         document.getElementById('editVcPass').value = randomPass;
         // 触发实时验证
@@ -1844,7 +1850,7 @@
 
     // 生成新密码
     function generateNewPassword() {
-        const randomPass = generateRandomPassword(12);
+        const randomPass = generateRandomPassword(8);
         document.getElementById('newPassword').value = randomPass;
         // 触发实时验证
         validatePasswordInput('newPassword', 'newPasswordError');

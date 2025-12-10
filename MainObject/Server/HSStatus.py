@@ -23,7 +23,10 @@ class HSStatus:
     def status(self) -> HWStatus:
         self.hw_status.ac_status = VMPowers.STARTED
         # 获取CPU信息 =======================================================
-        self.hw_status.cpu_model = cpuinfo.get_cpu_info()['brand_raw']
+        try:
+            self.hw_status.cpu_model = cpuinfo.get_cpu_info()['brand_raw']
+        except Exception as e:
+            self.hw_status.cpu_model = "Unknown"
         self.hw_status.cpu_total = psutil.cpu_count(logical=True)
         self.hw_status.cpu_usage = int(psutil.cpu_percent(interval=1))
         # 获取内存信息 ======================================================
