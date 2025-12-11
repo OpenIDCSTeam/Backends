@@ -477,37 +477,29 @@
         <form id="addNATForm" class="space-y-4">
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">协议 *</label>
-                    <select id="natProtocol" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                        <option value="tcp">TCP</option>
-                        <option value="udp">UDP</option>
-                        <option value="both">TCP+UDP</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">外部端口 *</label>
-                    <input type="number" id="natExternalPort" required min="1" max="65535"
+                    <label class="block text-sm font-medium text-gray-600 mb-1">外网端口 (WAN)</label>
+                    <input type="number" id="natExternalPort" min="1" max="65535"
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                           placeholder="1-65535">
+                           placeholder="留空自动分配">
+                    <p class="text-xs text-gray-500 mt-1">留空将自动分配可用端口</p>
                 </div>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">内部端口 *</label>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">内网端口 (LAN) *</label>
                     <input type="number" id="natInternalPort" required min="1" max="65535"
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                            placeholder="1-65535">
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">内部IP地址</label>
-                    <input type="text" id="natInternalIP"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                           placeholder="留空使用默认IP">
-                </div>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-600 mb-1">描述</label>
+                <label class="block text-sm font-medium text-gray-600 mb-1">内网地址 *</label>
+                <select id="natInternalIP" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                    <option value="">请选择IP地址</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">从虚拟机已分配的IP地址中选择</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">备注</label>
                 <input type="text" id="natDescription"
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                        placeholder="端口用途说明">
@@ -535,46 +527,41 @@
     <div class="modal-box max-w-lg">
         <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
             <span class="iconify text-purple-600" data-icon="mdi:ip-network" data-width="24"></span>
-            添加IP地址
+            添加网卡
         </h3>
         <form id="addIPForm" class="space-y-4">
             <div>
-                <label class="block text-sm font-medium text-gray-600 mb-1">IP类型 *</label>
-                <select id="ipType" required
+                <label class="block text-sm font-medium text-gray-600 mb-1">网卡类型 *</label>
+                <select id="ipNicType" required
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                    <option value="ipv4">IPv4</option>
-                    <option value="ipv6">IPv6</option>
+                    <option value="nat">内网(NAT)</option>
+                    <option value="pub">公网(Public)</option>
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-600 mb-1">IP地址 *</label>
-                <input type="text" id="ipAddress" required
+                <label class="block text-sm font-medium text-gray-600 mb-1">IPv4地址</label>
+                <input type="text" id="ipAddress"
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                       placeholder="例如: 192.168.1.100 或 2001:db8::1">
+                       placeholder="留空自动分配，例如: 192.168.1.100">
+                <p class="text-xs text-gray-500 mt-1">留空将由后端自动分配IP地址</p>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-600 mb-1">子网掩码/前缀</label>
-                <input type="text" id="ipNetmask"
+                <label class="block text-sm font-medium text-gray-600 mb-1">IPv6地址</label>
+                <input type="text" id="ipAddress6"
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                       placeholder="例如: 255.255.255.0 或 64">
+                       placeholder="例如: 2001:db8::1">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-600 mb-1">网关</label>
                 <input type="text" id="ipGateway"
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                       placeholder="例如: 192.168.1.1">
+                       placeholder="留空自动分配，例如: 192.168.1.1">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-600 mb-1">绑定网卡</label>
-                <select id="ipNic"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-600 mb-1">描述</label>
-                <input type="text" id="ipDescription"
+                <label class="block text-sm font-medium text-gray-600 mb-1">子网掩码</label>
+                <input type="text" id="ipNetmask" value="255.255.255.0"
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                       placeholder="IP用途说明">
+                       placeholder="默认: 255.255.255.0">
             </div>
             <div class="modal-action">
                 <button type="button" onclick="closeIPModal()"
@@ -585,6 +572,62 @@
                         class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
                     <span class="iconify" data-icon="mdi:check" data-width="18"></span>
                     添加
+                </button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>关闭</button>
+    </form>
+</dialog>
+
+<!-- 编辑IP地址模态框 -->
+<dialog id="editIPModal" class="modal">
+    <div class="modal-box max-w-lg">
+        <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+            <span class="iconify text-purple-600" data-icon="mdi:pencil" data-width="24"></span>
+            编辑网卡配置
+        </h3>
+        <form id="editIPForm" class="space-y-4">
+            <input type="hidden" id="editNicName">
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">网卡名称</label>
+                <input type="text" id="editNicNameDisplay" disabled
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">IPv4地址</label>
+                <input type="text" id="editIpAddress"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                       placeholder="例如: 192.168.1.100">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">IPv6地址</label>
+                <input type="text" id="editIpAddress6"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                       placeholder="例如: 2001:db8::1">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">网关</label>
+                <input type="text" id="editIpGateway"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                       placeholder="例如: 192.168.1.1">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">子网掩码</label>
+                <input type="text" id="editIpNetmask"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                       placeholder="默认: 255.255.255.0">
+            </div>
+            <div class="modal-action">
+                <button type="button" onclick="closeEditIPModal()"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                    取消
+                </button>
+                <button type="submit"
+                        class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                    <span class="iconify" data-icon="mdi:check" data-width="18"></span>
+                    保存
                 </button>
             </div>
         </form>
@@ -610,10 +653,12 @@
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">后端IP</label>
-                    <input type="text" id="proxyBackendIP"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                           placeholder="留空使用默认IP">
+                    <label class="block text-sm font-medium text-gray-600 mb-1">后端IP *</label>
+                    <select id="proxyBackendIP" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        <option value="">请选择网卡地址</option>
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">从虚拟机网卡地址中选择</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">后端端口 *</label>
@@ -629,31 +674,31 @@
                 <label for="proxySSLEnabled" class="text-sm font-medium text-gray-700">启用 HTTPS (SSL/TLS)</label>
             </div>
 
-            <div id="sslOptions" style="display: none;" class="space-y-4 p-4 bg-gray-50 rounded-lg">
-                <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">SSL证书类型</label>
-                    <select id="proxySSLType"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                        <option value="auto">自动申请证书 (Let's Encrypt)</option>
-                        <option value="self-signed">自签名证书</option>
-                        <option value="custom">自定义证书</option>
-                    </select>
-                </div>
-                <div id="customCertFields" style="display: none;" class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">SSL证书内容</label>
-                        <textarea id="proxySSLCert" rows="3"
-                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
-                                  placeholder="-----BEGIN CERTIFICATE-----"></textarea>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">SSL私钥内容</label>
-                        <textarea id="proxySSLKey" rows="3"
-                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
-                                  placeholder="-----BEGIN PRIVATE KEY-----"></textarea>
-                    </div>
-                </div>
-            </div>
+<!--            <div id="sslOptions" style="display: none;" class="space-y-4 p-4 bg-gray-50 rounded-lg">-->
+<!--                <div>-->
+<!--                    <label class="block text-sm font-medium text-gray-600 mb-1">SSL证书类型</label>-->
+<!--                    <select id="proxySSLType"-->
+<!--                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">-->
+<!--                        <option value="auto">自动申请证书 (Let's Encrypt)</option>-->
+<!--                        <option value="self-signed">自签名证书</option>-->
+<!--                        <option value="custom">自定义证书</option>-->
+<!--                    </select>-->
+<!--                </div>-->
+<!--                <div id="customCertFields" style="display: none;" class="space-y-4">-->
+<!--                    <div>-->
+<!--                        <label class="block text-sm font-medium text-gray-600 mb-1">SSL证书内容</label>-->
+<!--                        <textarea id="proxySSLCert" rows="3"-->
+<!--                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"-->
+<!--                                  placeholder="-&#45;&#45;&#45;&#45;BEGIN CERTIFICATE-&#45;&#45;&#45;&#45;"></textarea>-->
+<!--                    </div>-->
+<!--                    <div>-->
+<!--                        <label class="block text-sm font-medium text-gray-600 mb-1">SSL私钥内容</label>-->
+<!--                        <textarea id="proxySSLKey" rows="3"-->
+<!--                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"-->
+<!--                                  placeholder="-&#45;&#45;&#45;&#45;BEGIN PRIVATE KEY-&#45;&#45;&#45;&#45;"></textarea>-->
+<!--                    </div>-->
+<!--                </div>-->
+<!--            </div>-->
 
             <div>
                 <label class="block text-sm font-medium text-gray-600 mb-1">描述</label>
@@ -1077,6 +1122,11 @@
         $('#addIPForm').on('submit', function (e) {
             e.preventDefault();
             submitIPAddress();
+        });
+
+        $('#editIPForm').on('submit', function (e) {
+            e.preventDefault();
+            submitEditIPAddress();
         });
 
         $('#addProxyForm').on('submit', function (e) {
@@ -1968,8 +2018,7 @@
                             class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded">
                         <select name="edit_nic_type_${editNicCounter}" class="px-2 py-1 text-sm border border-gray-300 rounded">
                             <option value="nat" ${nicConfig.nic_type === 'nat' ? 'selected' : ''}>内网</option>
-                            <option value="pub" ${nicConfig.nic_type === 'pub' ? 'selected' : ''}>外网</option>
-                            <option value="bridged" ${nicConfig.nic_type === 'bridged' ? 'selected' : ''}>桥接</option>
+                            <option value="pub" ${nicConfig.nic_type === 'pub' ? 'selected' : ''}>公网</option>
                         </select>
                 <input type="text" style="width: 100px" name="edit_nic_ip_${editNicCounter}" value="${nicConfig.ip4_addr || ''}" placeholder="IPv4地址"
                     class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded">
@@ -2012,9 +2061,8 @@
                 <input type="text" style="width: 100px" name="edit_nic_name_${editNicCounter}" value="${nicName}" placeholder="网卡名称"
                     class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded">
                 <select name="edit_nic_type_${editNicCounter}" class="px-2 py-1 text-sm border border-gray-300 rounded">
-                    <option value="nat">NAT</option>
-                    <option value="bridged">桥接</option>
-                    <option value="host-only">仅主机</option>
+                    <option value="nat">内网</option>
+                    <option value="pub">公网</option>
                 </select>
                 <input type="text" style="width: 100px" name="edit_nic_ip_${editNicCounter}" placeholder="IPv4地址 (必填)" required
                     class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded">
@@ -2181,11 +2229,10 @@
                 <table class="table table-sm w-full">
                     <thead>
                         <tr class="bg-gray-50">
-                            <th class="text-xs text-gray-600">协议</th>
-                            <th class="text-xs text-gray-600">外部端口</th>
-                            <th class="text-xs text-gray-600">内部端口</th>
-                            <th class="text-xs text-gray-600">内部IP</th>
-                            <th class="text-xs text-gray-600">描述</th>
+                            <th class="text-xs text-gray-600">外网端口</th>
+                            <th class="text-xs text-gray-600">内网端口</th>
+                            <th class="text-xs text-gray-600">内网地址</th>
+                            <th class="text-xs text-gray-600">备注</th>
                             <th class="text-xs text-gray-600">操作</th>
                         </tr>
                     </thead>
@@ -2195,11 +2242,10 @@
         rules.forEach((r, idx) => {
             html += `
                 <tr class="hover">
-                    <td><span class="px-2 py-0.5 text-xs font-medium text-gray-700 bg-gray-100 rounded uppercase">${r.protocol || 'tcp'}</span></td>
-                    <td><code class="text-sm font-mono text-gray-700">${r.external_port}</code></td>
-                    <td><code class="text-sm font-mono text-gray-700">${r.internal_port}</code></td>
-                    <td><code class="text-sm font-mono text-gray-600">${r.internal_ip || '-'}</code></td>
-                    <td class="text-sm text-gray-600">${r.description || '-'}</td>
+                    <td><code class="text-sm font-mono text-gray-700">${r.wan_port || '-'}</code></td>
+                    <td><code class="text-sm font-mono text-gray-700">${r.lan_port || '-'}</code></td>
+                    <td><code class="text-sm font-mono text-gray-600">${r.lan_addr || '-'}</code></td>
+                    <td class="text-sm text-gray-600">${r.nat_tips || '-'}</td>
                     <td>
                         <button onclick="deleteNATRule(${idx})" class="px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded transition">删除</button>
                     </td>
@@ -2212,6 +2258,43 @@
     }
 
     function showAddNATModal() {
+        // 填充IP地址选项
+        const ipSelect = $('#natInternalIP');
+        ipSelect.html('<option value="">请选择IP地址</option>');
+        
+        // 从vmData中获取IP地址列表
+        if (vmData && vmData.config) {
+            const config = vmData.config;
+            const ipList = [];
+            
+            // 从ip_all获取IP地址
+            if (config.ip_all && Array.isArray(config.ip_all)) {
+                config.ip_all.forEach(ip => {
+                    if (ip.address) {
+                        ipList.push(ip.address);
+                    }
+                });
+            }
+            
+            // 从nic_all获取IP地址
+            if (config.nic_all && typeof config.nic_all === 'object') {
+                Object.values(config.nic_all).forEach(nic => {
+                    if (nic.ip4_addr && nic.ip4_addr !== '-') {
+                        ipList.push(nic.ip4_addr);
+                    }
+                    if (nic.ip6_addr && nic.ip6_addr !== '-') {
+                        ipList.push(nic.ip6_addr);
+                    }
+                });
+            }
+            
+            // 去重并添加到下拉框
+            const uniqueIPs = [...new Set(ipList)];
+            uniqueIPs.forEach((ip, index) => {
+                ipSelect.append(`<option value="${ip}" ${index === 0 ? 'selected' : ''}>${ip}</option>`);
+            });
+        }
+        
         document.getElementById('addNATModal').showModal();
     }
 
@@ -2221,12 +2304,12 @@
     }
 
     async function submitNATRule() {
+        const wanPortValue = $('#natExternalPort').val();
         const data = {
-            protocol: $('#natProtocol').val(),
-            external_port: parseInt($('#natExternalPort').val()),
-            internal_port: parseInt($('#natInternalPort').val()),
-            internal_ip: $('#natInternalIP').val() || '',
-            description: $('#natDescription').val() || ''
+            wan_port: wanPortValue ? parseInt(wanPortValue) : 0,  // 留空时传0，由后端自动分配
+            lan_port: parseInt($('#natInternalPort').val()),
+            lan_addr: $('#natInternalIP').val() || '',
+            nat_tips: $('#natDescription').val() || ''
         };
 
         const result = await apiRequest(`/api/client/natadd/${hostName}/${vmUuid}`, 'POST', data);
@@ -2253,52 +2336,57 @@
 
     // ==================== IP地址管理 ====================
     async function loadIPAddresses() {
-        const result = await apiRequest(`/api/client/ipaddr/detail/${hostName}/${vmUuid}`);
+        const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}/ip_addresses`);
         if (result && result.code === 200) {
             renderIPAddresses(result.data || []);
         } else {
-            $('#ipAddressList').html('<p class="text-center text-gray-500 py-8 text-sm">暂无IP地址配置</p>');
+            $('#ipAddressList').html('<p class="text-center text-gray-500 py-8 text-sm">暂无网卡配置</p>');
         }
     }
 
-    function renderIPAddresses(ips) {
-        if (!ips || ips.length === 0) {
-            $('#ipAddressList').html('<p class="text-center text-gray-500 py-8 text-sm">暂无IP地址配置</p>');
+    function renderIPAddresses(nics) {
+        if (!nics || nics.length === 0) {
+            $('#ipAddressList').html('<p class="text-center text-gray-500 py-8 text-sm">暂无网卡配置</p>');
             return;
         }
 
-        let html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">';
+        let html = '<div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200">';
+        html += '<thead class="bg-gray-50"><tr>';
+        html += '<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">网卡名称</th>';
+        html += '<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MAC地址</th>';
+        html += '<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IPv4地址</th>';
+        html += '<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IPv6地址</th>';
+        html += '<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">网关</th>';
+        html += '<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">掩码</th>';
+        html += '<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DNS</th>';
+        html += '<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>';
+        html += '</tr></thead><tbody class="bg-white divide-y divide-gray-200">';
 
-        ips.forEach((ip, idx) => {
-            const isIPv6 = ip.type === 'ipv6' || ip.address?.includes(':');
-            html += `
-                <div class="bg-white border border-gray-200 rounded-lg p-4 hover:border-purple-300 hover:shadow-md transition-all">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="px-2 py-0.5 text-xs font-medium ${isIPv6 ? 'text-purple-700 bg-purple-100' : 'text-blue-700 bg-blue-100'} rounded">
-                            ${isIPv6 ? 'IPv6' : 'IPv4'}
-                        </span>
-                        <button onclick="deleteIPAddress(${idx})" class="p-1 text-red-500 hover:bg-red-50 rounded">
-                            <span class="iconify" data-icon="mdi:delete" data-width="18"></span>
-                        </button>
-                    </div>
-                    <div class="bg-gray-50 rounded-lg p-3 mb-2">
-                        <code class="text-sm font-mono text-gray-800 break-all">${ip.address}</code>
-                        ${ip.netmask ? `<span class="text-gray-500">/${ip.netmask}</span>` : ''}
-                    </div>
-                    <div class="flex items-center justify-between text-xs text-gray-500">
-                        <span>网卡: ${ip.nic || '默认'}</span>
-                        <span>${ip.gateway ? '网关: ' + ip.gateway : ''}</span>
-                    </div>
-                    ${ip.description ? `<p class="text-xs text-gray-500 mt-2">${ip.description}</p>` : ''}
-                </div>
-            `;
+        nics.forEach((nic) => {
+            const dnsStr = Array.isArray(nic.dns_addr) ? nic.dns_addr.join(', ') : '';
+            html += '<tr class="hover:bg-gray-50">';
+            html += `<td class="px-4 py-3 text-sm font-medium text-gray-900">${nic.nic_name || '-'}</td>`;
+            html += `<td class="px-4 py-3 text-sm font-mono text-gray-600">${nic.mac_addr || '-'}</td>`;
+            html += `<td class="px-4 py-3 text-sm font-mono text-gray-600">${nic.ip4_addr || '-'}</td>`;
+            html += `<td class="px-4 py-3 text-sm font-mono text-gray-600">${nic.ip6_addr || '-'}</td>`;
+            html += `<td class="px-4 py-3 text-sm font-mono text-gray-600">${nic.nic_gate || '-'}</td>`;
+            html += `<td class="px-4 py-3 text-sm font-mono text-gray-600">${nic.nic_mask || '-'}</td>`;
+            html += `<td class="px-4 py-3 text-sm text-gray-600">${dnsStr || '-'}</td>`;
+            html += '<td class="px-4 py-3 text-sm">';
+            html += `<button onclick="showEditIPModal('${nic.nic_name}')" class="text-blue-600 hover:text-blue-800 mr-2" title="编辑">`;
+            html += '<span class="iconify" data-icon="mdi:pencil" data-width="18"></span></button>';
+            html += `<button onclick="deleteIPAddress('${nic.nic_name}')" class="text-red-600 hover:text-red-800" title="删除">`;
+            html += '<span class="iconify" data-icon="mdi:delete" data-width="18"></span></button>';
+            html += '</td></tr>';
         });
 
-        html += '</div>';
+        html += '</tbody></table></div>';
         $('#ipAddressList').html(html);
     }
 
     function showAddIPModal() {
+        $('#addIPForm')[0].reset();
+        $('#ipNetmask').val('255.255.255.0'); // 设置默认掩码
         document.getElementById('addIPModal').showModal();
     }
 
@@ -2309,33 +2397,184 @@
 
     async function submitIPAddress() {
         const data = {
-            type: $('#ipType').val(),
-            address: $('#ipAddress').val(),
-            netmask: $('#ipNetmask').val() || '',
-            gateway: $('#ipGateway').val() || '',
-            nic: $('#ipNic').val() || '',
-            description: $('#ipDescription').val() || ''
+            nic_type: $('#ipNicType').val(),
+            ip4_addr: $('#ipAddress').val() || '',
+            ip6_addr: $('#ipAddress6').val() || '',
+            nic_gate: $('#ipGateway').val() || '',
+            nic_mask: $('#ipNetmask').val() || '255.255.255.0'
         };
 
-        const result = await apiRequest(`/api/client/ipaddr/create/${hostName}/${vmUuid}`, 'POST', data);
+        // 先关闭模态框
+        closeIPModal();
+
+        // 显示加载动画
+        Swal.fire({
+            title: '正在添加网卡',
+            text: '请稍候...',
+            icon: 'info',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}/ip_addresses`, 'POST', data);
+        
         if (result && result.code === 200) {
-            showToast('IP地址添加成功', 'success');
-            closeIPModal();
-            loadIPAddresses();
+            // 添加成功
+            Swal.fire({
+                title: '添加成功',
+                text: '网卡已成功添加',
+                icon: 'success',
+                timer: 1500,
+                showConfirmButton: false
+            });
+            // 延迟刷新，确保数据库已保存
+            setTimeout(() => {
+                loadIPAddresses();
+                loadVMInfo(); // 刷新虚拟机信息
+            }, 500);
         } else {
-            showToast(result?.msg || '添加失败', 'error');
+            // 添加失败
+            Swal.fire({
+                title: '添加失败',
+                text: result?.msg || '添加网卡失败，请稍后重试',
+                icon: 'error',
+                confirmButtonText: '确定'
+            });
         }
     }
 
-    async function deleteIPAddress(index) {
-        if (!confirm('确定要删除此IP地址吗？')) return;
+    function showEditIPModal(nicName) {
+        // 从当前列表中找到对应的网卡信息
+        apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}/ip_addresses`).then(result => {
+            if (result && result.code === 200) {
+                const nic = result.data.find(n => n.nic_name === nicName);
+                if (nic) {
+                    // 填充编辑表单
+                    $('#editNicName').val(nic.nic_name);
+                    $('#editNicNameDisplay').val(nic.nic_name);
+                    $('#editIpAddress').val(nic.ip4_addr || '');
+                    $('#editIpAddress6').val(nic.ip6_addr || '');
+                    $('#editIpGateway').val(nic.nic_gate || '');
+                    $('#editIpNetmask').val(nic.nic_mask || '255.255.255.0');
+                    document.getElementById('editIPModal').showModal();
+                }
+            }
+        });
+    }
 
-        const result = await apiRequest(`/api/client/ipaddr/delete/${hostName}/${vmUuid}/${index}`, 'DELETE');
+    function closeEditIPModal() {
+        document.getElementById('editIPModal').close();
+        $('#editIPForm')[0].reset();
+    }
+
+    async function submitEditIPAddress() {
+        const nicName = $('#editNicName').val();
+        const data = {
+            ip4_addr: $('#editIpAddress').val() || '',
+            ip6_addr: $('#editIpAddress6').val() || '',
+            nic_gate: $('#editIpGateway').val() || '',
+            nic_mask: $('#editIpNetmask').val() || '255.255.255.0'
+        };
+
+        // 先关闭模态框
+        closeEditIPModal();
+
+        // 显示加载动画
+        Swal.fire({
+            title: '正在更新网卡配置',
+            text: '请稍候...',
+            icon: 'info',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}/ip_addresses/${nicName}`, 'PUT', data);
+        
         if (result && result.code === 200) {
-            showToast('IP地址已删除', 'success');
-            loadIPAddresses();
+            // 更新成功
+            Swal.fire({
+                title: '更新成功',
+                text: '网卡配置已成功更新',
+                icon: 'success',
+                timer: 1500,
+                showConfirmButton: false
+            });
+            // 延迟刷新，确保数据库已保存
+            setTimeout(() => {
+                loadIPAddresses();
+                loadVMInfo(); // 刷新虚拟机信息
+            }, 500);
         } else {
-            showToast(result?.msg || '删除失败', 'error');
+            // 更新失败
+            Swal.fire({
+                title: '更新失败',
+                text: result?.msg || '更新网卡配置失败，请稍后重试',
+                icon: 'error',
+                confirmButtonText: '确定'
+            });
+        }
+    }
+
+    async function deleteIPAddress(nicName) {
+        // 使用SweetAlert2确认对话框
+        const confirmResult = await Swal.fire({
+            title: '确认删除',
+            text: `确定要删除网卡 "${nicName}" 吗？`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: '确定删除',
+            cancelButtonText: '取消'
+        });
+
+        if (!confirmResult.isConfirmed) return;
+
+        // 显示加载动画
+        Swal.fire({
+            title: '正在删除网卡',
+            text: '请稍候...',
+            icon: 'info',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}/ip_addresses/${nicName}`, 'DELETE');
+        
+        if (result && result.code === 200) {
+            // 删除成功
+            Swal.fire({
+                title: '删除成功',
+                text: `网卡 "${nicName}" 已成功删除`,
+                icon: 'success',
+                timer: 1500,
+                showConfirmButton: false
+            });
+            // 延迟刷新，确保数据库已保存
+            setTimeout(() => {
+                loadIPAddresses();
+                loadVMInfo(); // 刷新虚拟机信息
+            }, 500);
+        } else {
+            // 删除失败
+            Swal.fire({
+                title: '删除失败',
+                text: result?.msg || '删除网卡失败，请稍后重试',
+                icon: 'error',
+                confirmButtonText: '确定'
+            });
         }
     }
 
@@ -2386,8 +2625,46 @@
         $('#proxyList').html(html);
     }
 
-    function showAddProxyModal() {
+    async function showAddProxyModal() {
+        // 加载虚拟机网卡地址列表
+        loadVMNetworkInterfaces();
         document.getElementById('addProxyModal').showModal();
+    }
+
+    // 加载虚拟机网卡地址列表
+    function loadVMNetworkInterfaces() {
+        const ipSelect = $('#proxyBackendIP');
+        ipSelect.html('<option value="">请选择网卡地址</option>');
+        
+        // 从vmData中获取IP地址列表
+        if (vmData && vmData.config) {
+            const config = vmData.config;
+            const ipList = [];
+            
+            // 从ip_all获取IP地址
+            if (config.ip_all && Array.isArray(config.ip_all)) {
+                config.ip_all.forEach(ip => {
+                    if (ip.address) {
+                        ipList.push(ip.address);
+                    }
+                });
+            }
+            
+            // 从nic_all获取IP地址
+            if (config.nic_all && typeof config.nic_all === 'object') {
+                Object.values(config.nic_all).forEach(nic => {
+                    if (nic.ip4_addr && nic.ip4_addr !== '-') {
+                        ipList.push(nic.ip4_addr);
+                    }
+                });
+            }
+            
+            // 去重并添加到下拉框
+            const uniqueIPs = [...new Set(ipList)];
+            uniqueIPs.forEach((ip, index) => {
+                ipSelect.append(`<option value="${ip}" ${index === 0 ? 'selected' : ''}>${ip}</option>`);
+            });
+        }
     }
 
     function closeProxyModal() {
@@ -2400,10 +2677,17 @@
     async function submitProxyConfig() {
         const sslEnabled = $('#proxySSLEnabled').is(':checked');
         const sslType = $('#proxySSLType').val();
+        const backendIP = $('#proxyBackendIP').val();
+
+        // 验证后端IP必须选择
+        if (!backendIP) {
+            showToast('请选择后端IP地址', 'error');
+            return;
+        }
 
         const data = {
             domain: $('#proxyDomain').val(),
-            backend_ip: $('#proxyBackendIP').val() || '',
+            backend_ip: backendIP,
             backend_port: parseInt($('#proxyBackendPort').val()),
             ssl_enabled: sslEnabled,
             ssl_type: sslEnabled ? sslType : '',

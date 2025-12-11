@@ -495,6 +495,35 @@ def api_delete_vm_ip_address(hs_name, vm_uuid, ip_index):
     return rest_manager.delete_vm_ip_address(hs_name, vm_uuid, ip_index)
 
 
+# RESTful风格的IP地址管理API ########################################################################
+@app.route('/api/hosts/<hs_name>/vms/<vm_uuid>/ip_addresses', methods=['GET'])
+@require_auth
+def api_get_vm_ip_addresses_rest(hs_name, vm_uuid):
+    """获取虚拟机网卡列表（RESTful风格）"""
+    return rest_manager.get_vm_ip_addresses(hs_name, vm_uuid)
+
+
+@app.route('/api/hosts/<hs_name>/vms/<vm_uuid>/ip_addresses', methods=['POST'])
+@require_auth
+def api_add_vm_ip_address_rest(hs_name, vm_uuid):
+    """添加虚拟机网卡（RESTful风格）"""
+    return rest_manager.add_vm_ip_address(hs_name, vm_uuid)
+
+
+@app.route('/api/hosts/<hs_name>/vms/<vm_uuid>/ip_addresses/<nic_name>', methods=['PUT'])
+@require_auth
+def api_update_vm_ip_address_rest(hs_name, vm_uuid, nic_name):
+    """修改虚拟机网卡配置（RESTful风格）"""
+    return rest_manager.update_vm_ip_address(hs_name, vm_uuid, nic_name)
+
+
+@app.route('/api/hosts/<hs_name>/vms/<vm_uuid>/ip_addresses/<nic_name>', methods=['DELETE'])
+@require_auth
+def api_delete_vm_ip_address_rest(hs_name, vm_uuid, nic_name):
+    """删除虚拟机网卡（RESTful风格）"""
+    return rest_manager.delete_vm_ip_address(hs_name, vm_uuid, nic_name)
+
+
 # ============================================================================
 # 虚拟机网络配置API - 反向代理管理
 # ============================================================================
@@ -590,5 +619,4 @@ if __name__ == '__main__':
     logger.info(f"访问地址: http://127.0.0.1:1880")
     logger.info(f"访问Token: {hs_manage.bearer}")
     logger.info(f"{'=' * 60}\n")
-
     app.run(host='0.0.0.0', port=1880, debug=True)

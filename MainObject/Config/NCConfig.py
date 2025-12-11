@@ -4,6 +4,8 @@ class NCConfig:
         self.nic_type: str = ""
         self.ip4_addr: str = ""
         self.ip6_addr: str = ""
+        self.nic_gate: str = ""  # 网关地址
+        self.nic_mask: str = "255.255.255.0"  # 子网掩码，默认值
         self.dns_addr: list[str] = []
         self.__load__(**kwargs)
 
@@ -13,6 +15,8 @@ class NCConfig:
             "nic_type": self.nic_type,
             "ip4_addr": self.ip4_addr,
             "ip6_addr": self.ip6_addr,
+            "nic_gate": self.nic_gate,
+            "nic_mask": self.nic_mask,
             "dns_addr": self.dns_addr,
         }
 

@@ -84,6 +84,11 @@ class IPConfig:
                         message=f"无法为网卡 {nic_name} 分配IPv4地址，类型: {nic_type}，所有IP已被占用或无可用IP段配置"
                     )
                 nic_config.ip4_addr = ipv4_result["ip"]
+                # 设置网关和掩码
+                if ipv4_result.get("gate"):
+                    nic_config.gateway = ipv4_result["gate"]
+                if ipv4_result.get("mask"):
+                    nic_config.netmask = ipv4_result["mask"]
                 if self.ipaddr_dnss:
                     nic_config.dns_addr = self.ipaddr_dnss
                     nic_config.send_mac()

@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS hs_config
     server_dnss TEXT      DEFAULT '[]', -- NS服务器列表
     limits_nums INTEGER   DEFAULT 0,    -- VMS虚拟数量
     ipaddr_maps TEXT      DEFAULT '{}', -- IP地址的字典
-    ipaddr_dnss TEXT      DEFAULT '["8.8.8.8", "8.8.4.4"]', -- DNS服务器列表
+    ipaddr_dnss TEXT      DEFAULT '["119.29.29.29", "223.5.5.5"]', -- DNS服务器列表
     created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -99,6 +99,19 @@ CREATE TABLE IF NOT EXISTS hs_logger
     log_level  TEXT      DEFAULT 'INFO',            -- 日志级别
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- 创建时间
     FOREIGN KEY (hs_name) REFERENCES hs_config (hs_name) ON DELETE SET NULL
+);
+
+-- 全局反向代理配置表 (web_proxy)
+CREATE TABLE IF NOT EXISTS web_proxy
+(
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,   -- 主键
+    lan_port   INTEGER NOT NULL,                    -- 内网端口
+    lan_addr   TEXT NOT NULL,                       -- 内网地址
+    web_addr   TEXT NOT NULL UNIQUE,                -- 域名地址
+    web_tips   TEXT DEFAULT '',                     -- 代理说明
+    is_https   INTEGER DEFAULT 1,                   -- 是否HTTPS (1=是, 0=否)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- 创建时间
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP  -- 更新时间
 );
 
 -- 创建索引以提高查询性能

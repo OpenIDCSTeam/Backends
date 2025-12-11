@@ -38,7 +38,7 @@ class HSConfig:
         #         "nums": 100,
         #     }
         # }
-        self.ipaddr_dnss: list = ["8.8.8.8", "8.8.4.4"]
+        self.ipaddr_dnss: list = ["119.29.29.29", "223.5.5.5"]
         # 加载传入的参数 =======================
         if config is not None:
             self.__read__(config)
