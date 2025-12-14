@@ -3,10 +3,13 @@ import secrets
 import traceback
 
 from loguru import logger
+
+from HostModule.HttpManage import HttpManage
 from HostServer.BaseServer import BaseServer
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Server.HSEngine import HEConfig
 from MainObject.Config.VMConfig import VMConfig
+from MainObject.Config.WebProxy import WebProxy
 from MainObject.Public.ZMessage import ZMessage
 from HostModule.DataManage import HostDatabase
 
@@ -16,8 +19,10 @@ class HostManage:
     def __init__(self):
         self.engine: dict[str, BaseServer] = {}
         self.logger: list[ZMessage] = []
-        self.bearer: str = "" # 先初始化saving变量
+        self.bearer: str = ""  # 先初始化saving变量
         self.saving = HostDatabase("./DataSaving/hostmanage.db")
+        self.proxys: HttpManage | None = None
+        self.web_all: list[WebProxy] = []  # 全局代理配置列表
         self.set_conf()
 
     # 字典化 #####################################################################
@@ -131,6 +136,28 @@ class HostManage:
             for log_data in global_logs:
                 self.logger.append(ZMessage(**log_data) if isinstance(log_data, dict) else log_data)
 
+            # 启动Http实例
+            self.proxys = HttpManage()
+            self.proxys.start_web()
+
+            # 加载全局代理配置
+            self.web_all = []
+            web_proxy_list = self.saving.get_web_proxy()
+            for proxy_data in web_proxy_list:
+                web_proxy = WebProxy()
+                web_proxy.lan_port = proxy_data.get('lan_port', 0)
+                web_proxy.lan_addr = proxy_data.get('lan_addr', '')
+                web_proxy.web_addr = proxy_data.get('web_addr', '')
+                web_proxy.web_tips = proxy_data.get('web_tips', '')
+                web_proxy.is_https = proxy_data.get('is_https', True)
+                self.web_all.append(web_proxy)
+                # 添加到HttpManage
+                self.proxys.proxy_add(
+                    (web_proxy.lan_port, web_proxy.lan_addr),
+                    web_proxy.web_addr,
+                    web_proxy.is_https
+                )
+
             # 加载所有主机配置
             host_configs = self.saving.all_hs_config()
             for host_config in host_configs:
@@ -150,7 +177,7 @@ class HostManage:
                 hs_conf_data["ipaddr_maps"] = json.loads(host_config["ipaddr_maps"]) if host_config.get(
                     "ipaddr_maps") else {}
                 hs_conf_data["ipaddr_dnss"] = json.loads(host_config["ipaddr_dnss"]) if host_config.get(
-                    "ipaddr_dnss") else ["8.8.8.8", "8.8.4.4"]
+                    "ipaddr_dnss") else ["119.29.29.29", "223.5.5.5"]
 
                 # 移除数据库字段，只保留配置字段
                 for field in ["id", "hs_name", "created_at", "updated_at"]:
@@ -170,6 +197,11 @@ class HostManage:
                         vm_saving_converted[vm_uuid] = VMConfig(**vm_config)
                     else:
                         vm_saving_converted[vm_uuid] = vm_config
+                    for web_data in vm_saving_converted[vm_uuid].web_all:
+                        self.proxys.proxy_add(
+                            (web_data.lan_port, web_data.lan_addr),
+                            web_data.web_addr, is_https=web_data.is_https
+                        )
 
                 # 创建BaseServer实例（状态数据由DataManage立即保存）=================
                 if hs_conf.server_type in HEConfig:
@@ -181,6 +213,7 @@ class HostManage:
                     )
                     self.engine[hs_name].HSLoader()
                     self.engine[hs_name].VCLoader()
+
         except Exception as e:
             logger.error(f"加载数据时出错: {e}")
             traceback.print_exc()
@@ -197,7 +230,9 @@ class HostManage:
             # 保存每个主机的配置数据（状态数据由DataManage立即保存）=================
             for hs_name, server in self.engine.items():
                 success &= server.data_set()
-
+            # 关闭web服务器
+            if self.proxys is not None:
+                self.proxys.close_web()
             return success
         except Exception as e:
             logger.error(f"保存数据时出错: {e}")
@@ -298,6 +333,107 @@ class HostManage:
 
         except Exception as e:
             return ZMessage(success=False, message=f"扫描虚拟机时出错: {str(e)}")
+
+    # 添加全局代理 ###################################################################
+    def add_proxy(self, proxy_data: dict) -> ZMessage:
+        """
+        添加全局代理配置
+        :param proxy_data: 代理配置数据字典
+        :return: 操作结果
+        """
+        try:
+            # 创建WebProxy对象
+            web_proxy = WebProxy()
+            web_proxy.lan_port = proxy_data.get('lan_port', 0)
+            web_proxy.lan_addr = proxy_data.get('lan_addr', '')
+            web_proxy.web_addr = proxy_data.get('web_addr', '')
+            web_proxy.web_tips = proxy_data.get('web_tips', '')
+            web_proxy.is_https = proxy_data.get('is_https', True)
+
+            # 检查代理是否已存在
+            for proxy in self.web_all:
+                if proxy.web_addr == web_proxy.web_addr:
+                    return ZMessage(success=False, message=f"代理域名 {web_proxy.web_addr} 已存在")
+
+            # 调用HttpManage添加代理
+            if self.proxys:
+                result = self.proxys.proxy_add(
+                    (web_proxy.lan_port, web_proxy.lan_addr),
+                    web_proxy.web_addr,
+                    web_proxy.is_https
+                )
+                if not result:
+                    return ZMessage(success=False, message="添加代理到HttpManage失败")
+            else:
+                return ZMessage(success=False, message="HttpManage未初始化")
+
+            # 添加到web_all列表
+            self.web_all.append(web_proxy)
+
+            # 保存到数据库
+            success = self.saving.add_web_proxy(proxy_data)
+            if not success:
+                # 如果保存失败，回滚操作
+                self.web_all.remove(web_proxy)
+                if self.proxys:
+                    self.proxys.proxy_del(web_proxy.web_addr)
+                return ZMessage(success=False, message="保存代理配置到数据库失败")
+
+            return ZMessage(success=True, message=f"代理 {web_proxy.web_addr} 添加成功")
+
+        except Exception as e:
+            logger.error(f"添加全局代理失败: {e}")
+            traceback.print_exc()
+            return ZMessage(success=False, message=f"添加代理失败: {str(e)}")
+
+    # 删除全局代理 ###################################################################
+    def del_proxy(self, web_addr: str) -> ZMessage:
+        """
+        删除全局代理配置
+        :param web_addr: 代理域名
+        :return: 操作结果
+        """
+        try:
+            # 查找代理
+            web_proxy = None
+            for proxy in self.web_all:
+                if proxy.web_addr == web_addr:
+                    web_proxy = proxy
+                    break
+
+            if not web_proxy:
+                return ZMessage(success=False, message=f"代理域名 {web_addr} 不存在")
+
+            # 调用HttpManage删除代理
+            if self.proxys:
+                result = self.proxys.proxy_del(web_addr)
+                if not result:
+                    return ZMessage(success=False, message="从HttpManage删除代理失败")
+            else:
+                return ZMessage(success=False, message="HttpManage未初始化")
+
+            # 从web_all列表移除
+            self.web_all.remove(web_proxy)
+
+            # 从数据库删除
+            success = self.saving.del_web_proxy(web_addr)
+            if not success:
+                # 如果删除失败，回滚操作
+                self.web_all.append(web_proxy)
+                if self.proxys:
+                    self.proxys.proxy_add(
+                        (web_proxy.lan_port, web_proxy.lan_addr),
+                        web_proxy.web_addr,
+                        web_proxy.is_https
+                    )
+                return ZMessage(success=False, message="从数据库删除代理配置失败")
+
+            return ZMessage(success=True, message=f"代理 {web_addr} 删除成功")
+
+        except Exception as e:
+            logger.error(f"删除全局代理失败: {e}")
+            traceback.print_exc()
+            return ZMessage(success=False, message=f"删除代理失败: {str(e)}")
 
     # 定时任务 ###################################################################
     def exe_cron(self):

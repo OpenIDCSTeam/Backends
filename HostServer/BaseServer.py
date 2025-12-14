@@ -2,9 +2,16 @@ import os
 import random
 import shutil
 import string
+from random import randint
+
 from loguru import logger
+from pyexpat.errors import messages
+
+from HostModule.HttpManage import HttpManage
 from MainObject.Config.HSConfig import HSConfig
+from MainObject.Config.PortData import PortData
 from MainObject.Config.VMPowers import VMPowers
+from MainObject.Config.WebProxy import WebProxy
 from MainObject.Public.HWStatus import HWStatus
 from MainObject.Public.ZMessage import ZMessage
 from MainObject.Config.VMConfig import VMConfig
@@ -195,7 +202,7 @@ class BaseServer:
                 return False
         return False
 
-    # 获取虚拟机配置 ########################################################################
+    # 获取虚拟机配置 ################################################################
     def VMSelect(self, select: str) -> VMConfig | None:
         if select in self.vm_saving:
             return self.vm_saving[select]
@@ -279,11 +286,11 @@ class BaseServer:
             self.hs_config.i_kuai_pass)
         nc_server.login()
         if flag:
-            nc_server.add_dhcp(ip, mac, comment=uuid, dns1=dns1, dns2=dns2)
-            nc_server.add_arp(ip, mac)
+            nc_server.add_dhcp(ip, mac, comment=uuid, lan_dns1=dns1, lan_dns2=dns2)
+            nc_server.add_arps(ip, mac)
         else:
             nc_server.del_dhcp(ip)
-            nc_server.del_arp(ip)
+            nc_server.del_arps(ip)
         return ZMessage(success=True, action="NCStatic")
 
     # 网络动态绑定 ##################################################################
@@ -307,6 +314,7 @@ class BaseServer:
             except Exception as e:
                 logger.error(f"[API] 静态IP绑定异常: {str(e)}")
                 return ZMessage(success=False, action="NCStatic", message=str(e))
+        return ZMessage(success=False, action="NCStatic", message="No IP address found")
 
     # 配置虚拟机 ########################################################################
     # :params vm_conf: 虚拟机配置对象
@@ -331,23 +339,68 @@ class BaseServer:
         return ZMessage(success=True, action="VMUpdate")
 
     # 端口映射 ########################################################################
-    # :params ip: 内网IP地址
-    # :params in_pt: 内网端口
-    # :params ex_pt: 外网端口
-    # :params flag: True为添加，False为删除
+    # :params map_info: 端口映射信息
     # ###############################################################################
-    def PortsMap(self, ip, in_pt, ex_pt=None,
-                 flag=True) -> ZMessage:
+    def PortsMap(self, map_info: PortData, flag=True) -> ZMessage:
+
         nc_server = NetsManage(
             self.hs_config.i_kuai_addr,
             self.hs_config.i_kuai_user,
             self.hs_config.i_kuai_pass)
         nc_server.login()
-        if flag:
-            nc_server.add_port(ex_pt, ip, in_pt)
+        port_result = nc_server.get_port()
+        # 处理get_port返回值，提取端口列表
+        wan_list = []
+        if port_result and isinstance(port_result, dict):
+            data = port_result.get('Data', {})
+            if isinstance(data, dict):
+                now_list = data.get('data', [])
+                if isinstance(now_list, list):
+                    wan_list = [int(i.get("wan_port", 0)) for i in now_list if isinstance(i, dict)]
+
+        # 如果wan_port为0，自动分配一个未使用的端口
+        if map_info.wan_port == 0:
+            wan_port = randint(self.hs_config.ports_start, self.hs_config.ports_close)
+            while wan_port in wan_list:
+                wan_port = randint(self.hs_config.ports_start, self.hs_config.ports_close)
+            map_info.wan_port = wan_port
         else:
-            nc_server.del_port(ex_pt, ip)
-        return ZMessage(success=True, action="PortsMap")
+            if map_info.wan_port in wan_list:
+                return ZMessage(
+                    success=False, action="PortsMap", message="端口已被占用")
+        if flag:
+            result = nc_server.add_port(map_info.wan_port, map_info.lan_port,
+                                        map_info.lan_addr, map_info.nat_tips)
+        else:
+            result = nc_server.del_port(map_info.lan_port, map_info.lan_addr)
+        hs_result = ZMessage(
+            success=result, action="ProxyMap",
+            messages=str(map_info.wan_port) + "端口%s操作%s" % (
+                "添加" if flag else "删除",
+                "成功" if result else "失败"))
+        self.data_set()
+        return hs_result
+
+    # 反向代理 ########################################################################
+    # :params ip: 内网IP地址
+    # :params in_pt: 内网端口
+    # :params ex_pt: 外网端口
+    # :params flag: True为添加，False为删除
+    # ###############################################################################
+    def ProxyMap(self, web_info: WebProxy, proxys: HttpManage, flag=True) -> ZMessage:
+
+        if flag:
+            result = proxys.proxy_add((web_info.lan_port, web_info.lan_addr),
+                                      web_info.web_addr, web_info.is_https)
+        else:
+            result = proxys.proxy_del(web_info.web_addr)
+        self.data_set()
+        hs_result = ZMessage(success=result, action="ProxyMap",
+                             messages=web_info.web_addr + "%s操作%s" % (
+                                 "添加" if flag else "删除",
+                                 "成功" if result else "失败"))
+        self.logs_set(hs_result)
+        return hs_result
 
     # ###############################################################################
     # 需实现方法
@@ -453,7 +506,9 @@ class BaseServer:
             del self.vm_saving[vm_name]
         # 保存到数据库 =========================================================
         self.data_set()
-        self.logs_set(ZMessage(success=True, action="VMDelete"))
+        hs_result = ZMessage(success=True, action="VMDelete")
+        self.logs_set(hs_result)
+        return hs_result
 
     # 虚拟机电源 ########################################################################
     # :params select: 虚拟机UUID

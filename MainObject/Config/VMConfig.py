@@ -2,7 +2,9 @@ import json
 import random
 
 from MainObject.Config.NCConfig import NCConfig
+from MainObject.Config.PortData import PortData
 from MainObject.Config.SDConfig import SDConfig
+from MainObject.Config.WebProxy import WebProxy
 
 
 class VMConfig:
@@ -35,6 +37,8 @@ class VMConfig:
         # 网卡配置 ===========================
         self.nic_all: dict[str, NCConfig] = {}
         self.hdd_all: dict[str, SDConfig] = {}
+        self.nat_all: list[PortData] = []
+        self.web_all: list[WebProxy] = []
         # 加载数据 ===========================
         self.__load__(**kwargs)
 
@@ -43,15 +47,19 @@ class VMConfig:
         for key, value in kwargs.items():
             if hasattr(self, key):
                 setattr(self, key, value)
-        
+
         # 如果VNC端口为空，则重新生成随机端口
         if not self.vc_port:
             self.vc_port = self.generate_random_vnc_port()
-            
+
         nic_list = self.nic_all
         hdd_list = self.hdd_all
+        nat_list = self.nat_all
+        web_list = self.web_all
         self.nic_all = {}
         self.hdd_all = {}
+        self.nat_all = []
+        self.web_all = []
         for nic in nic_list:
             nic_data = nic_list[nic]
             if type(nic_data) is dict:
@@ -64,13 +72,26 @@ class VMConfig:
                 self.hdd_all[hdd] = SDConfig(**hdd_data)
             else:
                 self.hdd_all[hdd] = hdd_data
+        for nat in nat_list:
+            if type(nat) is dict:
+                nat_obj = PortData()
+                nat_obj.__load__(**nat)
+                self.nat_all.append(nat_obj)
+            else:
+                self.nat_all.append(nat)
+        for web in web_list:
+            if type(web) is dict:
+                web_obj = WebProxy()
+                web_obj.__load__(**web)
+                self.web_all.append(web_obj)
+            else:
+                self.web_all.append(web)
 
     # 读取数据 ===============================
     def __read__(self, data: dict):
         for key, value in data.items():
             if key in self.__dict__:
                 setattr(self, key, value)
-
 
     # 转换为字典 =============================
     def __dict__(self):
@@ -99,6 +120,8 @@ class VMConfig:
                         in self.nic_all.items()},
             "hdd_all": {k: v.__dict__() if hasattr(v, '__dict__') and callable(getattr(v, '__dict__')) else v for k, v
                         in self.hdd_all.items()},
+            "nat_all": [n.__save__() if hasattr(n, '__save__') and callable(getattr(n, '__save__')) else n for n in self.nat_all],
+            "web_all": [w.__save__() if hasattr(w, '__save__') and callable(getattr(w, '__save__')) else w for w in self.web_all],
         }
 
     # 转换为字符串 ===========================

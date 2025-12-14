@@ -167,7 +167,7 @@ class HostDatabase:
                 json.dumps(hs_config.server_dnss) if hs_config.server_dnss else "[]",
                 hs_config.limits_nums,
                 json.dumps(hs_config.ipaddr_maps) if hs_config.ipaddr_maps else "{}",
-                json.dumps(hs_config.ipaddr_dnss) if hs_config.ipaddr_dnss else '["8.8.8.8", "8.8.4.4"]'
+                json.dumps(hs_config.ipaddr_dnss) if hs_config.ipaddr_dnss else '["119.29.29.29", "223.5.5.5"]'
             )
             conn.execute(sql, params)
             conn.commit()
@@ -436,6 +436,104 @@ class HostDatabase:
             for row in cursor.fetchall():
                 results.append(json.loads(row["task_data"]))
             return results
+        finally:
+            conn.close()
+
+    # ==================== 全局代理配置操作 ====================
+    def set_web_proxy(self, web_proxies: list) -> bool:
+        """保存全局代理配置"""
+        conn = self.get_db_sqlite()
+        try:
+            # 清除旧配置
+            conn.execute("DELETE FROM web_proxy")
+
+            # 插入新配置
+            sql = """
+            INSERT INTO web_proxy (lan_port, lan_addr, web_addr, web_tips, is_https)
+            VALUES (?, ?, ?, ?, ?)
+            """
+            for proxy in web_proxies:
+                if hasattr(proxy, '__save__'):
+                    proxy_data = proxy.__save__()
+                elif hasattr(proxy, '__dict__'):
+                    proxy_data = proxy.__dict__()
+                else:
+                    proxy_data = proxy
+
+                conn.execute(sql, (
+                    proxy_data.get('lan_port', 0),
+                    proxy_data.get('lan_addr', ''),
+                    proxy_data.get('web_addr', ''),
+                    proxy_data.get('web_tips', ''),
+                    1 if proxy_data.get('is_https', False) else 0
+                ))
+
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"保存全局代理配置错误: {e}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+
+    def get_web_proxy(self) -> list:
+        """获取全局代理配置"""
+        conn = self.get_db_sqlite()
+        try:
+            cursor = conn.execute("""
+                SELECT lan_port, lan_addr, web_addr, web_tips, is_https
+                FROM web_proxy
+                ORDER BY id
+            """)
+            results = []
+            for row in cursor.fetchall():
+                results.append({
+                    'lan_port': row['lan_port'],
+                    'lan_addr': row['lan_addr'],
+                    'web_addr': row['web_addr'],
+                    'web_tips': row['web_tips'],
+                    'is_https': bool(row['is_https'])
+                })
+            return results
+        finally:
+            conn.close()
+
+    def add_web_proxy(self, proxy_data: dict) -> bool:
+        """添加单个全局代理配置"""
+        conn = self.get_db_sqlite()
+        try:
+            sql = """
+            INSERT INTO web_proxy (lan_port, lan_addr, web_addr, web_tips, is_https)
+            VALUES (?, ?, ?, ?, ?)
+            """
+            conn.execute(sql, (
+                proxy_data.get('lan_port', 0),
+                proxy_data.get('lan_addr', ''),
+                proxy_data.get('web_addr', ''),
+                proxy_data.get('web_tips', ''),
+                1 if proxy_data.get('is_https', False) else 0
+            ))
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"添加全局代理配置错误: {e}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+
+    def del_web_proxy(self, web_addr: str) -> bool:
+        """删除全局代理配置"""
+        conn = self.get_db_sqlite()
+        try:
+            conn.execute("DELETE FROM web_proxy WHERE web_addr = ?", (web_addr,))
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"删除全局代理配置错误: {e}")
+            conn.rollback()
+            return False
         finally:
             conn.close()
 

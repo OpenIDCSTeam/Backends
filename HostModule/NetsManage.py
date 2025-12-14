@@ -17,12 +17,6 @@ class NetsManage:
 
     # 登录WEB调用方法 ########################################################################
     def login(self) -> bool:
-        """
-        登录爱快路由器，设置cookie
-        
-        Returns:
-            bool: 登录是否成功
-        """
         try:
             # 构造登录数据
             passwd_md5 = hashlib.md5(self.password.encode()).hexdigest()
@@ -35,14 +29,12 @@ class NetsManage:
                 "pass": pass_str,
                 "remember_password": ""
             }
-
             # 发送登录请求
             response = self.session.post(
                 f"{self.base_url}/Action/login",
                 json=login_data,
                 headers={'Content-Type': 'application/json'}
             )
-
             if response.status_code == 200:
                 # 解析响应JSON
                 try:
@@ -125,25 +117,13 @@ class NetsManage:
             return None
 
     # 获取静态IP4列表 ########################################################################
-    def get_dhcp(self, limit: str = "0,20", order_by: str = "", order: str = "") -> Optional[Dict]:
-        """
-        获取静态IP列表
-        
-        Args:
-            limit: 分页限制，格式为"offset,count"
-            order_by: 排序字段
-            order: 排序方式
-            
-        Returns:
-            Optional[Dict]: 静态IP列表数据
-        """
+    def get_dhcp(self) -> Optional[Dict]:
         param = {
             "TYPE": "static_total,static_data",
-            "limit": limit,
-            "ORDER_BY": order_by,
-            "ORDER": order
+            "ORDER_BY": "",
+            "ORDER": ""
         }
-        
+
         result = self.posts("dhcp_static", "show", param)
         if result and result.get("ErrMsg") == "Success":
             logger.info(f"✅ 获取静态IP列表成功，共{result['Data'].get('static_total', 0)}条")
@@ -152,40 +132,55 @@ class NetsManage:
             logger.error("❌ 获取静态IP列表失败")
             return None
 
+    # 获取端口映射列表 #######################################################################
+    def get_port(self) -> Optional[Dict]:
+        param = {
+            "TYPE": "total,data",
+            "ORDER_BY": "",
+            "ORDER": ""
+        }
+
+        result = self.posts("dnat", "show", param)
+        if result and result.get("ErrMsg") == "Success":
+            logger.info(f"✅ 获取端口映射列表成功，共{result['Data'].get('total', 0)}条")
+            return result
+        else:
+            logger.error("❌ 获取端口映射列表失败")
+            return None
+
+    # 获取ARP列表 ############################################################################
+    def get_arps(self) -> Optional[Dict]:
+        param = {
+            "TYPE": "total,data",
+            "ORDER_BY": "ip_addr_int",
+            "orderType": "IP",
+            "ORDER": "asc",
+        }
+
+        result = self.posts("arp", "show", param)
+        if result and result.get("ErrMsg") == "Success":
+            logger.info(f"✅ 获取ARP列表成功，共{result['Data'].get('total', 0)}条")
+            return result
+        else:
+            logger.error("❌ 获取ARP列表失败")
+            return None
+
     # 静态IP4设置方法 ########################################################################
-    def add_dhcp(self, ip_addr: str, mac: str, hostname: str = "",
-                 gateway: str = "auto", interface: str = "auto",
-                 dns1: str = "119.29.29.29", dns2: str = "223.5.5.5",
-                 comment: str = "") -> bool:
-        """
-        添加静态IP设置
-        
-        Args:
-            ip_addr: IP地址
-            mac: MAC地址
-            hostname: 主机名
-            gateway: 网关
-            interface: 接口
-            dns1: 主DNS
-            dns2: 备用DNS
-            comment: 备注
-            
-        Returns:
-            bool: 操作是否成功
-        """
+    def add_dhcp(self, lan_addr: str, mac_addr: str, comment: str = "",
+                 lan_dns1: str = "119.29.29.29", lan_dns2: str = "223.5.5.5") -> bool:
         param = {
             "newRow": True,
-            "hostname": hostname,
-            "ip_addr": ip_addr,
-            "mac": mac,
-            "gateway": gateway,
-            "interface": interface,
-            "dns1": dns1,
-            "dns2": dns2,
+            "hostname": "",
+            "ip_addr": lan_addr,
+            "mac": mac_addr,
+            "gateway": "auto",
+            "interface": "auto",
+            "dns1": lan_dns1,
+            "dns2": lan_dns2,
             "comment": comment,
             "enabled": "yes"
         }
-        
+
         logger.info(f"🔍 准备添加DHCP - 提交参数: {json.dumps(param, ensure_ascii=False)}")
 
         result = self.posts("dhcp_static", "add", param)
@@ -193,52 +188,40 @@ class NetsManage:
         if result['ErrMsg'] == "Success":
             success = True
         if success:
-            logger.info(f"✅ 静态IP添加成功: {ip_addr} -> {mac}")
+            logger.info(f"✅ 静态IP添加成功: {lan_addr} -> {mac_addr}")
         else:
-            logger.error(f"❌ 静态IP添加失败: {ip_addr} -> {mac}")
+            logger.error(f"❌ 静态IP添加失败: {lan_addr} -> {mac_addr}")
             logger.error(result)
 
         return success
 
     # 静态IP4删除方法 ########################################################################
-    def del_dhcp(self, ip_addr: str = None, mac: str = None,
-                 entry_id: int = None) -> bool:
-        """
-        删除静态IP设置
-        
-        Args:
-            ip_addr: IP地址（可选）
-            mac: MAC地址（可选）
-            entry_id: 条目ID（可选）
-            
-        Returns:
-            bool: 操作是否成功
-        """
-        # 如果没有提供entry_id，则通过get_dhcp查找
+    def del_dhcp(self, lan_addr: str, mac: str = None) -> bool:
+        # 通过get_dhcp查找entry_id
+        if not lan_addr and not mac:
+            logger.warning("必须提供ip_addr或mac中的一个")
+            return False
+
+        # 获取DHCP列表
+        dhcp_list = self.get_dhcp()
+        if not dhcp_list or 'Data' not in dhcp_list:
+            logger.error("无法获取DHCP列表")
+            return False
+
+        # 查找匹配的条目
+        entry_id = None
+        for item in dhcp_list['Data'].get('static_data', []):
+            if (lan_addr and item.get('ip_addr') == lan_addr) or \
+                    (mac and item.get('mac') == mac):
+                entry_id = item.get('id')
+                logger.info(f"找到匹配的DHCP条目: ID={entry_id}, IP={item.get('ip_addr')}, MAC={item.get('mac')}")
+                break
+
         if not entry_id:
-            if not ip_addr and not mac:
-                logger.warning("必须提供entry_id、ip_addr或mac中的一个")
-                return False
-            
-            # 获取DHCP列表
-            dhcp_list = self.get_dhcp(limit="0,100")
-            if not dhcp_list or 'Data' not in dhcp_list:
-                logger.error("无法获取DHCP列表")
-                return False
-            
-            # 查找匹配的条目
-            for item in dhcp_list['Data'].get('static_data', []):
-                if (ip_addr and item.get('ip_addr') == ip_addr) or \
-                   (mac and item.get('mac') == mac):
-                    entry_id = item.get('id')
-                    logger.info(f"找到匹配的DHCP条目: ID={entry_id}, IP={item.get('ip_addr')}, MAC={item.get('mac')}")
-                    break
-            
-            if not entry_id:
-                identifier = ip_addr or mac
-                logger.error(f"未找到匹配的DHCP条目: {identifier}")
-                return False
-        
+            identifier = lan_addr or mac
+            logger.error(f"未找到匹配的DHCP条目: {identifier}")
+            return False
+
         param = {"id": entry_id}
         logger.info(f"🔍 准备删除DHCP - 提交参数: {json.dumps(param, ensure_ascii=False)}")
 
@@ -248,42 +231,25 @@ class NetsManage:
         if result and result.get('ErrMsg') == "Success":
             success = True
         if success:
-            identifier = entry_id or ip_addr or mac
+            identifier = entry_id or lan_addr or mac
             logger.info(f"✅ 静态IP删除成功: {identifier}")
         else:
-            identifier = entry_id or ip_addr or mac
+            identifier = entry_id or lan_addr or mac
             logger.error(f"❌ 静态IP删除失败: {identifier}")
 
         return success
 
     # TCP/UDP转发设置 ########################################################################
-    def add_port(self, wan_port: str, lan_addr: str, lan_port: str,
-                 interface: str = "wan1", protocol: str = "tcp+udp",
-                 src_addr: str = "", comment: str = "") -> bool:
-        """
-        添加端口转发设置
-        
-        Args:
-            wan_port: 外部端口
-            lan_addr: 内部IP地址
-            lan_port: 内部端口
-            interface: 接口
-            protocol: 协议类型
-            src_addr: 源地址
-            comment: 备注
-            
-        Returns:
-            bool: 操作是否成功
-        """
+    def add_port(self, wan_port: int, lan_port: int, lan_addr: str, comment: str = "") -> bool:
         param = {
             "enabled": "yes",
             "comment": comment,
-            "interface": interface,
+            "interface": "wan1",
             "lan_addr": lan_addr,
-            "protocol": protocol,
+            "protocol": "tcp+udp",
             "wan_port": wan_port,
             "lan_port": lan_port,
-            "src_addr": src_addr
+            "src_addr": ""
         }
 
         result = self.posts("dnat", "add", param)
@@ -297,90 +263,59 @@ class NetsManage:
         return success
 
     # TCP/UDP转发删除 ########################################################################
-    def del_port(self, wan_port: str = None, lan_addr: str = None,
-                 entry_id: int = None) -> bool:
-        """
-        删除端口转发设置
-        
-        Args:
-            wan_port: 外部端口（可选）
-            lan_addr: 内部IP地址（可选）
-            entry_id: 条目ID（可选）
-            
-        Returns:
-            bool: 操作是否成功
-        """
-        if entry_id:
-            param = {"id": entry_id}
-        elif wan_port and lan_addr:
-            param = {"wan_port": wan_port, "lan_addr": lan_addr}
-        else:
-            logger.warning("必须提供entry_id或wan_port+lan_addr")
+    def del_port(self, lan_port: int, lan_addr: str = None) -> bool:
+
+        # 通过get_port查找entry_id
+        if not lan_port and not lan_addr:
+            logger.warning("必须提供lan_port或lan_addr中的一个")
             return False
+
+        # 获取端口映射列表
+        port_list = self.get_port()
+        if not port_list or 'Data' not in port_list:
+            logger.error("无法获取端口映射列表")
+            return False
+
+        # 查找匹配的条目
+        entry_id = None
+        for item in port_list['Data'].get('data', []):
+            if (lan_port and lan_addr and
+                item.get('lan_port') == lan_port and
+                item.get('lan_addr') == lan_addr) or \
+                    (lan_port and not lan_addr and item.get('lan_port') == lan_port) or \
+                    (lan_addr and not lan_port and item.get('lan_addr') == lan_addr):
+                entry_id = item.get('id')
+                logger.info(
+                    f"找到匹配的端口映射条目: ID={entry_id}, WAN端口={item.get('wan_port')}, LAN地址={item.get('lan_addr')}:{item.get('lan_port')}")
+                break
+
+        if not entry_id:
+            identifier = f"{lan_addr or ''}:{lan_port or ''}"
+            logger.error(f"未找到匹配的端口映射条目: {identifier}")
+            return False
+
+        param = {"id": entry_id}
+        logger.info(f"🔍 准备删除端口映射 - 提交参数: {json.dumps(param, ensure_ascii=False)}")
 
         result = self.posts("dnat", "del", param)
         success = result is not None and result.get("success", False)
-        if result['ErrMsg'] == "Success":
+        if result and result.get('ErrMsg') == "Success":
             success = True
         if success:
-            identifier = entry_id or f"{wan_port}->{lan_addr}"
+            identifier = f"{lan_addr}:{lan_port}"
             logger.info(f"✅ 端口转发删除成功: {identifier}")
         else:
-            identifier = entry_id or f"{wan_port}->{lan_addr}"
+            identifier = f"{lan_addr}:{lan_port}"
             logger.error(f"❌ 端口转发删除失败: {identifier}")
         return success
 
-    # 获取ARP列表 ############################################################################
-    def get_arp(self, limit: str = "0,20", order_by: str = "ip_addr_int", 
-                order_type: str = "IP", order: str = "asc") -> Optional[Dict]:
-        """
-        获取ARP列表
-        
-        Args:
-            limit: 分页限制，格式为"offset,count"
-            order_by: 排序字段
-            order_type: 排序类型
-            order: 排序方式
-            
-        Returns:
-            Optional[Dict]: ARP列表数据
-        """
-        param = {
-            "TYPE": "total,data",
-            "ORDER_BY": order_by,
-            "orderType": order_type,
-            "ORDER": order,
-            "limit": limit
-        }
-        
-        result = self.posts("arp", "show", param)
-        if result and result.get("ErrMsg") == "Success":
-            logger.info(f"✅ 获取ARP列表成功，共{result['Data'].get('total', 0)}条")
-            return result
-        else:
-            logger.error("❌ 获取ARP列表失败")
-            return None
-
     # ARP绑定方法 ############################################################################
-    def add_arp(self, ip_addr: str, mac: str, interface: str = "lan1",
-                comment: str = "") -> bool:
-        """
-        添加ARP绑定
-        
-        Args:
-            ip_addr: IP地址
-            mac: MAC地址
-            interface: 接口
-            comment: 备注
-            
-        Returns:
-            bool: 操作是否成功
-        """
+    def add_arps(self, lan_addr: str, mac_addr: str, comment: str = "") -> bool:
         param = {
             "bind_type": 0,
-            "interface": interface,
-            "ip_addr": ip_addr,
-            "mac": mac,
+            "interface": "lan1",
+            "ip_addr": lan_addr,
+            "mac": mac_addr,
             "comment": comment,
             "old_ip_addr": ""
         }
@@ -390,54 +325,40 @@ class NetsManage:
         if result['ErrMsg'] == "Success" or result['Result'] == 3000:
             success = True
         if success:
-            logger.info(f"✅ ARP绑定添加成功: {ip_addr} -> {mac}")
+            logger.info(f"✅ ARP绑定添加成功: {lan_addr} -> {mac_addr}")
         else:
-            logger.error(f"❌ ARP绑定添加失败: {ip_addr} -> {mac}")
+            logger.error(f"❌ ARP绑定添加失败: {lan_addr} -> {mac_addr}")
         return success
 
-    def del_arp(self, ip_addr: str = None, mac: str = None,
-                entry_id: int = None) -> bool:
-        """
-        删除ARP绑定
-        
-        Args:
-            ip_addr: IP地址（可选）
-            mac: MAC地址（可选）
-            entry_id: 条目ID（可选）
-            
-        Returns:
-            bool: 操作是否成功
-        """
-        # 如果没有提供entry_id或ip_addr，则通过get_arp查找
-        target_ip = ip_addr
-        target_id = entry_id
-        
+    # ARP解绑方法 ############################################################################
+    def del_arps(self, lan_addr: str, mac_addr: str = None) -> bool:
+        # 通过get_arp查找entry_id和ip_addr
+        if not lan_addr and not mac_addr:
+            logger.warning("必须提供ip_addr或mac中的一个")
+            return False
+
+        # 获取ARP列表
+        arp_list = self.get_arps()
+        if not arp_list or 'Data' not in arp_list:
+            logger.error("无法获取ARP列表")
+            return False
+
+        # 查找匹配的条目
+        target_id = None
+        target_ip = None
+        for item in arp_list['Data'].get('data', []):
+            if (lan_addr and item.get('ip_addr') == lan_addr) or \
+                    (mac_addr and item.get('mac') == mac_addr):
+                target_id = item.get('id')
+                target_ip = item.get('ip_addr')
+                logger.info(f"找到匹配的ARP条目: ID={target_id}, IP={target_ip}, MAC={item.get('mac')}")
+                break
+
         if not target_id or not target_ip:
-            if not ip_addr and not mac and not entry_id:
-                logger.warning("必须提供entry_id、ip_addr或mac中的一个")
-                return False
-            
-            # 获取ARP列表
-            arp_list = self.get_arp(limit="0,100")
-            if not arp_list or 'Data' not in arp_list:
-                logger.error("无法获取ARP列表")
-                return False
-            
-            # 查找匹配的条目
-            for item in arp_list['Data'].get('data', []):
-                if (entry_id and item.get('id') == entry_id) or \
-                   (ip_addr and item.get('ip_addr') == ip_addr) or \
-                   (mac and item.get('mac') == mac):
-                    target_id = item.get('id')
-                    target_ip = item.get('ip_addr')
-                    logger.info(f"找到匹配的ARP条目: ID={target_id}, IP={target_ip}, MAC={item.get('mac')}")
-                    break
-            
-            if not target_id or not target_ip:
-                identifier = entry_id or ip_addr or mac
-                logger.error(f"未找到匹配的ARP条目: {identifier}")
-                return False
-        
+            identifier = lan_addr or mac_addr
+            logger.error(f"未找到匹配的ARP条目: {identifier}")
+            return False
+
         param = {
             "id": target_id,
             "ip_addr": target_ip
@@ -459,15 +380,45 @@ class NetsManage:
 # 使用示例
 if __name__ == "__main__":
     # 创建管理对象
-    nets = NetsManage("http://192.168.4.251", "admin", "IM807581")
+    nets = NetsManage("http://10.1.9.1", "admin", "IM807581")
     # 登录
     if nets.login():
         logger.info("登录成功")
-        # 添加静态IP
-        if nets.add_dhcp("10.1.9.101", "00:22:33:44:55:66", comment="测试设备"):
-            logger.info("静态IP添加成功")
-        # 添加端口转发
-        if nets.add_port("1081", "10.1.9.101", "1081", comment="测试转发"):
-            logger.info("端口转发添加成功")
+        # # 添加静态IP
+        # if nets.add_dhcp("10.1.9.102", "00:22:33:44:55:66", comment="测试设备"):
+        #     logger.info("静态IP添加成功")
+        #
+        # # 获取静态IP
+        # ip_list = nets.get_dhcp()
+        # logger.info("获取静态IP列表", ip_list)
+
+        # # 删除静态IP
+        # if nets.del_dhcp("10.1.9.102"):
+        #     logger.info("静态IP删除成功")
+
+        # # 添加静态ARP
+        # if nets.add_arps("10.1.9.102", "00:22:33:44:55:66", comment="测试设备"):
+        #     logger.info("静态ARP绑定添加成功")
+        #
+        # # 获取静态ARP
+        # arp_list = nets.get_arps()
+        # logger.info("获取静态ARP绑定列表", arp_list)
+
+        # # 删除静态ARP
+        # if nets.del_arps("10.1.9.102"):
+        #     logger.info("静态ARP绑定删除成功")
+
+        # # 添加端口转发
+        # if nets.add_port("11081", "10.1.9.101", "1081", comment="测试转发"):
+        #     logger.info("端口转发添加成功")
+        #
+        # # 获取端口转发
+        # port_list = nets.get_port()
+        # logger.info("获取端口转发列表", port_list)
+
+        # # 删除端口转发
+        # if nets.del_port("11081", "10.1.9.101"):
+        #     logger.info("端口转发删除成功")
+
     else:
         logger.error("登录失败")

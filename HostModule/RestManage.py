@@ -9,12 +9,15 @@ import traceback
 from functools import wraps
 from flask import request, jsonify, session, redirect, url_for
 from loguru import logger
+import psutil
 
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Server.HSEngine import HEConfig
 from MainObject.Config.VMConfig import VMConfig
 from MainObject.Config.VMPowers import VMPowers
 from MainObject.Config.NCConfig import NCConfig
+from MainObject.Config.PortData import PortData
+from MainObject.Config.WebProxy import WebProxy
 from MainObject.Public.HWStatus import HWStatus
 
 
@@ -844,17 +847,17 @@ class RestManager:
         nat_rules = []
         if hasattr(vm_config, 'nat_all') and vm_config.nat_all:
             for idx, rule in enumerate(vm_config.nat_all):
-                if hasattr(rule, '__dict__') and callable(rule.__dict__):
-                    nat_rules.append(rule.__dict__())
+                if hasattr(rule, '__save__') and callable(rule.__save__):
+                    nat_rules.append(rule.__save__())
                 elif isinstance(rule, dict):
                     nat_rules.append(rule)
                 else:
+                    # 兼容旧格式
                     nat_rules.append({
-                        'protocol': getattr(rule, 'protocol', 'tcp'),
-                        'external_port': getattr(rule, 'external_port', 0),
-                        'internal_port': getattr(rule, 'internal_port', 0),
-                        'internal_ip': getattr(rule, 'internal_ip', ''),
-                        'description': getattr(rule, 'description', '')
+                        'lan_port': getattr(rule, 'lan_port', 0),
+                        'wan_port': getattr(rule, 'wan_port', 0),
+                        'lan_addr': getattr(rule, 'lan_addr', ''),
+                        'nat_tips': getattr(rule, 'nat_tips', '')
                     })
 
         return self.api_response(200, 'success', nat_rules)
@@ -876,19 +879,30 @@ class RestManager:
 
         data = request.get_json() or {}
 
-        # 创建NAT规则
-        nat_rule = {
-            'protocol': data.get('protocol', 'tcp'),
-            'external_port': data.get('external_port', 0),
-            'internal_port': data.get('internal_port', 0),
-            'internal_ip': data.get('internal_ip', ''),
-            'description': data.get('description', '')
-        }
+        # 创建PortData对象
+        port_data = PortData()
+        port_data.lan_port = data.get('lan_port', 0)
+        port_data.wan_port = data.get('wan_port', 0)
+        port_data.lan_addr = data.get('lan_addr', '')
+        port_data.nat_tips = data.get('nat_tips', '')
 
         # 添加到vm_config
         if not hasattr(vm_config, 'nat_all') or vm_config.nat_all is None:
             vm_config.nat_all = []
-        vm_config.nat_all.append(nat_rule)
+        vm_config.nat_all.append(port_data)
+
+        # 调用PortsMap创建端口映射
+        try:
+            result = server.PortsMap(map_info=port_data, flag=True)
+            if not result.success:
+                # 如果创建失败，从列表中移除
+                vm_config.nat_all.pop()
+                return self.api_response(500, f'端口映射创建失败: {result.message}')
+        except Exception as e:
+            # 如果创建失败，从列表中移除
+            vm_config.nat_all.pop()
+            logger.error(f"创建端口映射失败: {e}")
+            return self.api_response(500, f'端口映射创建失败: {str(e)}')
 
         self.hs_manage.all_save()
         return self.api_response(200, 'NAT规则添加成功')
@@ -915,6 +929,19 @@ class RestManager:
         if rule_index < 0 or rule_index >= len(vm_config.nat_all):
             return self.api_response(404, 'NAT规则索引无效')
 
+        # 获取要删除的端口映射信息
+        port_data = vm_config.nat_all[rule_index]
+        
+        # 调用PortsMap删除端口映射
+        try:
+            if hasattr(port_data, 'lan_addr') and hasattr(port_data, 'lan_port') and hasattr(port_data, 'wan_port'):
+                result = server.PortsMap(map_info=port_data, flag=False)
+                if not result.success:
+                    logger.warning(f'端口映射删除失败: {result.message}')
+        except Exception as e:
+            logger.error(f"删除端口映射失败: {e}")
+
+        # 从列表中移除
         vm_config.nat_all.pop(rule_index)
         self.hs_manage.all_save()
         return self.api_response(200, 'NAT规则已删除')
@@ -929,7 +956,7 @@ class RestManager:
     # :return: 包含IP地址列表的API响应
     # ####################################################################################
     def get_vm_ip_addresses(self, hs_name, vm_uuid):
-        """获取虚拟机IP地址列表"""
+        """获取虚拟机网卡列表（IP地址管理）"""
         server = self.hs_manage.get_host(hs_name)
         if not server:
             return self.api_response(404, '主机不存在')
@@ -938,25 +965,23 @@ class RestManager:
         if not vm_config:
             return self.api_response(404, '虚拟机不存在')
 
-        # 从vm_config中获取IP地址列表
-        ip_list = []
-        if hasattr(vm_config, 'ip_all') and vm_config.ip_all:
-            for ip in vm_config.ip_all:
-                if hasattr(ip, '__dict__') and callable(ip.__dict__):
-                    ip_list.append(ip.__dict__())
-                elif isinstance(ip, dict):
-                    ip_list.append(ip)
-                else:
-                    ip_list.append({
-                        'type': getattr(ip, 'type', 'ipv4'),
-                        'address': getattr(ip, 'address', ''),
-                        'netmask': getattr(ip, 'netmask', ''),
-                        'gateway': getattr(ip, 'gateway', ''),
-                        'nic': getattr(ip, 'nic', ''),
-                        'description': getattr(ip, 'description', '')
-                    })
+        # 从vm_config.nic_all中获取网卡列表
+        nic_list = []
+        if hasattr(vm_config, 'nic_all') and vm_config.nic_all:
+            for nic_name, nic_config in vm_config.nic_all.items():
+                nic_info = {
+                    'nic_name': nic_name,
+                    'mac_addr': nic_config.mac_addr if hasattr(nic_config, 'mac_addr') else '',
+                    'ip4_addr': nic_config.ip4_addr if hasattr(nic_config, 'ip4_addr') else '',
+                    'ip6_addr': nic_config.ip6_addr if hasattr(nic_config, 'ip6_addr') else '',
+                    'nic_gate': nic_config.nic_gate if hasattr(nic_config, 'nic_gate') else '',
+                    'nic_mask': nic_config.nic_mask if hasattr(nic_config, 'nic_mask') else '255.255.255.0',
+                    'nic_type': nic_config.nic_type if hasattr(nic_config, 'nic_type') else '',
+                    'dns_addr': nic_config.dns_addr if hasattr(nic_config, 'dns_addr') else []
+                }
+                nic_list.append(nic_info)
 
-        return self.api_response(200, 'success', ip_list)
+        return self.api_response(200, 'success', nic_list)
 
     # 添加虚拟机IP地址 ########################################################################
     # :param hs_name: 主机名称
@@ -964,7 +989,7 @@ class RestManager:
     # :return: IP地址添加结果的API响应
     # ####################################################################################
     def add_vm_ip_address(self, hs_name, vm_uuid):
-        """添加虚拟机IP地址"""
+        """添加虚拟机网卡（新增网卡）"""
         server = self.hs_manage.get_host(hs_name)
         if not server:
             return self.api_response(404, '主机不存在')
@@ -975,23 +1000,58 @@ class RestManager:
 
         data = request.get_json() or {}
 
-        # 创建IP地址配置
-        ip_config = {
-            'type': data.get('type', 'ipv4'),
-            'address': data.get('address', ''),
-            'netmask': data.get('netmask', ''),
-            'gateway': data.get('gateway', ''),
-            'nic': data.get('nic', ''),
-            'description': data.get('description', '')
-        }
+        # 从数据库读取vm_conf
+        server.data_get()
+        vm_config = server.vm_saving.get(vm_uuid)
+        if not vm_config:
+            return self.api_response(404, '虚拟机不存在')
 
-        # 添加到vm_config
-        if not hasattr(vm_config, 'ip_all') or vm_config.ip_all is None:
-            vm_config.ip_all = []
-        vm_config.ip_all.append(ip_config)
+        # 拷贝并修改vm_conf
+        vm_config_dict = vm_config.__dict__()
+        old_vm_config = VMConfig(**vm_config_dict)
 
-        self.hs_manage.all_save()
-        return self.api_response(200, 'IP地址添加成功')
+        # 生成新的网卡名称
+        nic_index = len(vm_config.nic_all)
+        nic_name = f"nic{nic_index}"
+        while nic_name in vm_config.nic_all:
+            nic_index += 1
+            nic_name = f"nic{nic_index}"
+
+        # 创建网卡配置
+        nic_config = NCConfig(
+            nic_type=data.get('nic_type', 'nat'),
+            ip4_addr=data.get('ip4_addr', ''),
+            ip6_addr=data.get('ip6_addr', ''),
+            nic_gate=data.get('nic_gate', ''),
+            nic_mask=data.get('nic_mask', '255.255.255.0'),
+            dns_addr=data.get('dns_addr', server.hs_config.ipaddr_dnss if hasattr(server.hs_config, 'ipaddr_dnss') else [])
+        )
+
+        # 如果没有填写IP地址，则自动分配
+        if not nic_config.ip4_addr or nic_config.ip4_addr.strip() == '':
+            # 调用NetCheck自动分配IP
+            vm_config.nic_all[nic_name] = nic_config
+            vm_config, net_result = server.NetCheck(vm_config)
+            if not net_result.success:
+                return self.api_response(400, f'自动分配IP失败: {net_result.message}')
+        else:
+            # 手动指定IP，生成MAC地址
+            vm_config.nic_all[nic_name] = nic_config
+            nic_config.mac_addr = nic_config.send_mac()
+
+        # 执行NCCreate绑定静态IP
+        nc_result = server.NCCreate(vm_config, True)
+        if not nc_result.success:
+            return self.api_response(400, f'绑定静态IP失败: {nc_result.message}')
+
+        # 调用VMUpdate更新
+        result = server.VMUpdate(vm_config, old_vm_config)
+        
+        if result and result.success:
+            self.hs_manage.all_save()
+            return self.api_response(200, f'网卡 {nic_name} 添加成功')
+        
+        return self.api_response(400, result.message if result else '添加网卡失败')
 
     # 删除虚拟机IP地址 ########################################################################
     # :param hs_name: 主机名称
@@ -999,8 +1059,8 @@ class RestManager:
     # :param ip_index: IP地址索引
     # :return: IP地址删除结果的API响应
     # ####################################################################################
-    def delete_vm_ip_address(self, hs_name, vm_uuid, ip_index):
-        """删除虚拟机IP地址"""
+    def delete_vm_ip_address(self, hs_name, vm_uuid, nic_name):
+        """删除虚拟机网卡"""
         server = self.hs_manage.get_host(hs_name)
         if not server:
             return self.api_response(404, '主机不存在')
@@ -1009,15 +1069,100 @@ class RestManager:
         if not vm_config:
             return self.api_response(404, '虚拟机不存在')
 
-        if not hasattr(vm_config, 'ip_all') or not vm_config.ip_all:
-            return self.api_response(404, 'IP地址不存在')
+        if not hasattr(vm_config, 'nic_all') or not vm_config.nic_all:
+            return self.api_response(404, '网卡列表为空')
 
-        if ip_index < 0 or ip_index >= len(vm_config.ip_all):
-            return self.api_response(404, 'IP地址索引无效')
+        if nic_name not in vm_config.nic_all:
+            return self.api_response(404, f'网卡 {nic_name} 不存在')
 
-        vm_config.ip_all.pop(ip_index)
-        self.hs_manage.all_save()
-        return self.api_response(200, 'IP地址已删除')
+        # 从数据库读取vm_conf
+        server.data_get()
+        vm_config = server.vm_saving.get(vm_uuid)
+        if not vm_config:
+            return self.api_response(404, '虚拟机不存在')
+
+        # 拷贝并修改vm_conf
+        vm_config_dict = vm_config.__dict__()
+        old_vm_config = VMConfig(**vm_config_dict)
+        
+        # 删除网卡
+        del vm_config.nic_all[nic_name]
+        
+        # 调用VMUpdate更新
+        result = server.VMUpdate(vm_config, old_vm_config)
+        
+        if result and result.success:
+            # 确保数据保存成功
+            save_success = self.hs_manage.all_save()
+            if not save_success:
+                logger.warning(f"删除网卡 {nic_name} 后保存数据失败")
+            return self.api_response(200, f'网卡 {nic_name} 已删除')
+        
+        return self.api_response(400, result.message if result else '删除网卡失败')
+
+    # 修改虚拟机网卡配置 ########################################################################
+    # :param hs_name: 主机名称
+    # :param vm_uuid: 虚拟机UUID
+    # :param nic_name: 网卡名称
+    # :return: 网卡修改结果的API响应
+    # ####################################################################################
+    def update_vm_ip_address(self, hs_name, vm_uuid, nic_name):
+        """修改虚拟机网卡配置"""
+        server = self.hs_manage.get_host(hs_name)
+        if not server:
+            return self.api_response(404, '主机不存在')
+
+        vm_config = server.vm_saving.get(vm_uuid)
+        if not vm_config:
+            return self.api_response(404, '虚拟机不存在')
+
+        if not hasattr(vm_config, 'nic_all') or not vm_config.nic_all:
+            return self.api_response(404, '网卡列表为空')
+
+        if nic_name not in vm_config.nic_all:
+            return self.api_response(404, f'网卡 {nic_name} 不存在')
+
+        data = request.get_json() or {}
+
+        # 从数据库读取vm_conf
+        server.data_get()
+        vm_config = server.vm_saving.get(vm_uuid)
+        if not vm_config:
+            return self.api_response(404, '虚拟机不存在')
+
+        # 拷贝并修改vm_conf
+        vm_config_dict = vm_config.__dict__()
+        old_vm_config = VMConfig(**vm_config_dict)
+
+        # 获取要修改的网卡
+        nic_config = vm_config.nic_all[nic_name]
+
+        # 更新网卡配置
+        if 'ip4_addr' in data:
+            nic_config.ip4_addr = data['ip4_addr']
+        if 'ip6_addr' in data:
+            nic_config.ip6_addr = data['ip6_addr']
+        if 'nic_gate' in data:
+            nic_config.nic_gate = data['nic_gate']
+        if 'nic_mask' in data:
+            nic_config.nic_mask = data['nic_mask']
+        if 'nic_type' in data:
+            nic_config.nic_type = data['nic_type']
+        if 'dns_addr' in data:
+            nic_config.dns_addr = data['dns_addr']
+
+        # 如果修改了IP地址，需要重新生成MAC地址
+        if 'ip4_addr' in data or 'ip6_addr' in data:
+            nic_config.mac_addr = nic_config.send_mac()
+
+        # 调用VMUpdate更新
+        result = server.VMUpdate(vm_config, old_vm_config)
+        
+        if result and result.success:
+            self.hs_manage.all_save()
+            return self.api_response(200, f'网卡 {nic_name} 配置已更新')
+        
+        return self.api_response(400, result.message if result else '修改网卡失败')
 
     # ========================================================================
     # 虚拟机网络配置API - 反向代理管理
@@ -1038,23 +1183,19 @@ class RestManager:
         if not vm_config:
             return self.api_response(404, '虚拟机不存在')
 
-        # 从vm_config中获取代理配置列表
+        # 从vm_config.web_all中获取代理配置列表
         proxy_list = []
-        if hasattr(vm_config, 'proxy_all') and vm_config.proxy_all:
-            for proxy in vm_config.proxy_all:
-                if hasattr(proxy, '__dict__') and callable(proxy.__dict__):
-                    proxy_list.append(proxy.__dict__())
-                elif isinstance(proxy, dict):
-                    proxy_list.append(proxy)
-                else:
-                    proxy_list.append({
-                        'domain': getattr(proxy, 'domain', ''),
-                        'backend_ip': getattr(proxy, 'backend_ip', ''),
-                        'backend_port': getattr(proxy, 'backend_port', 80),
-                        'ssl_enabled': getattr(proxy, 'ssl_enabled', False),
-                        'ssl_type': getattr(proxy, 'ssl_type', ''),
-                        'description': getattr(proxy, 'description', '')
-                    })
+        if hasattr(vm_config, 'web_all') and vm_config.web_all:
+            for proxy in vm_config.web_all:
+                # 将WebProxy对象的字段映射为前端期望的格式
+                proxy_dict = {
+                    'domain': getattr(proxy, 'web_addr', ''),
+                    'backend_ip': getattr(proxy, 'lan_addr', ''),
+                    'backend_port': getattr(proxy, 'lan_port', 80),
+                    'ssl_enabled': getattr(proxy, 'is_https', False),
+                    'description': getattr(proxy, 'web_tips', '')
+                }
+                proxy_list.append(proxy_dict)
 
         return self.api_response(200, 'success', proxy_list)
 
@@ -1075,23 +1216,33 @@ class RestManager:
 
         data = request.get_json() or {}
 
-        # 创建代理配置
-        proxy_config = {
-            'domain': data.get('domain', ''),
-            'backend_ip': data.get('backend_ip', ''),
-            'backend_port': data.get('backend_port', 80),
-            'ssl_enabled': data.get('ssl_enabled', False),
-            'ssl_type': data.get('ssl_type', ''),
-            'ssl_cert': data.get('ssl_cert', ''),
-            'ssl_key': data.get('ssl_key', ''),
-            'description': data.get('description', '')
-        }
+        # 创建WebProxy对象
+        proxy_config = WebProxy()
+        proxy_config.web_addr = data.get('domain', '')
+        proxy_config.lan_addr = data.get('backend_ip', '')
+        proxy_config.lan_port = int(data.get('backend_port', 80))
+        proxy_config.is_https = data.get('ssl_enabled', False)
+        proxy_config.web_tips = data.get('description', '')
 
-        # 添加到vm_config
-        if not hasattr(vm_config, 'proxy_all') or vm_config.proxy_all is None:
-            vm_config.proxy_all = []
-        vm_config.proxy_all.append(proxy_config)
+        # 初始化web_all列表
+        if not hasattr(vm_config, 'web_all') or vm_config.web_all is None:
+            vm_config.web_all = []
 
+        # 检查域名是否已存在
+        for proxy in vm_config.web_all:
+            if proxy.web_addr == proxy_config.web_addr:
+                return self.api_response(400, f'域名 {proxy_config.web_addr} 已存在')
+
+        # 调用ProxyMap添加代理
+        result = server.ProxyMap(proxy_config, self.hs_manage.proxys, flag=True)
+
+        if not result.success:
+            return self.api_response(500, f'添加代理失败: {result.messages}')
+
+        # 添加到vm_config.web_all
+        vm_config.web_all.append(proxy_config)
+
+        # 保存配置
         self.hs_manage.all_save()
         return self.api_response(200, '代理配置添加成功')
 
@@ -1111,12 +1262,113 @@ class RestManager:
         if not vm_config:
             return self.api_response(404, '虚拟机不存在')
 
-        if not hasattr(vm_config, 'proxy_all') or not vm_config.proxy_all:
+        if not hasattr(vm_config, 'web_all') or not vm_config.web_all:
             return self.api_response(404, '代理配置不存在')
 
-        if proxy_index < 0 or proxy_index >= len(vm_config.proxy_all):
+        if proxy_index < 0 or proxy_index >= len(vm_config.web_all):
             return self.api_response(404, '代理配置索引无效')
 
-        vm_config.proxy_all.pop(proxy_index)
+        # 获取要删除的代理配置
+        proxy_config = vm_config.web_all[proxy_index]
+
+        # 调用ProxyMap删除代理
+        result = server.ProxyMap(proxy_config, self.hs_manage.proxys, flag=False)
+        if not result.success:
+            return self.api_response(500, f'删除代理失败: {result.message}')
+
+        # 从web_all中删除
+        vm_config.web_all.pop(proxy_index)
+
+        # 保存配置
         self.hs_manage.all_save()
         return self.api_response(200, '代理配置已删除')
+
+    # 获取全局反向代理配置列表 ########################################################################
+    # :return: 包含全局反向代理配置列表的API响应
+    # ####################################################################################
+    def get_global_proxy_configs(self):
+        """获取全局反向代理配置列表"""
+        try:
+            proxy_list = []
+            for proxy in self.hs_manage.web_all:
+                if hasattr(proxy, '__save__'):
+                    proxy_list.append(proxy.__save__())
+                elif hasattr(proxy, '__dict__') and callable(proxy.__dict__):
+                    proxy_list.append(proxy.__dict__())
+                else:
+                    proxy_list.append({
+                        'lan_port': getattr(proxy, 'lan_port', 0),
+                        'lan_addr': getattr(proxy, 'lan_addr', ''),
+                        'web_addr': getattr(proxy, 'web_addr', ''),
+                        'web_tips': getattr(proxy, 'web_tips', ''),
+                        'is_https': getattr(proxy, 'is_https', False)
+                    })
+
+            return self.api_response(200, 'success', proxy_list)
+        except Exception as e:
+            logger.error(f"获取全局代理配置失败: {e}")
+            return self.api_response(500, f'获取全局代理配置失败: {str(e)}')
+
+    # 添加全局反向代理配置 ########################################################################
+    # :return: 全局反向代理配置添加结果的API响应
+    # ####################################################################################
+    def add_global_proxy_config(self):
+        """添加全局反向代理配置"""
+        try:
+            data = request.get_json() or {}
+
+            # 验证必填字段
+            if not data.get('web_addr'):
+                return self.api_response(400, '域名地址不能为空')
+            if not data.get('lan_addr'):
+                return self.api_response(400, '内网地址不能为空')
+            if not data.get('lan_port'):
+                return self.api_response(400, '内网端口不能为空')
+
+            # 创建代理配置
+            proxy_data = {
+                'lan_port': int(data.get('lan_port', 0)),
+                'lan_addr': data.get('lan_addr', ''),
+                'web_addr': data.get('web_addr', ''),
+                'web_tips': data.get('web_tips', ''),
+                'is_https': bool(data.get('is_https', True))
+            }
+
+            # 调用HostManage添加代理
+            result = self.hs_manage.add_proxy(proxy_data)
+            if result.success:
+                return self.api_response(200, result.message)
+            else:
+                return self.api_response(400, result.message)
+
+        except Exception as e:
+            logger.error(f"添加全局代理配置失败: {e}")
+            traceback.print_exc()
+            return self.api_response(500, f'添加全局代理配置失败: {str(e)}')
+
+    # 删除全局反向代理配置 ########################################################################
+    # :param web_addr: 代理域名地址
+    # :return: 全局反向代理配置删除结果的API响应
+    # ####################################################################################
+    def delete_global_proxy_config(self, web_addr):
+        """删除全局反向代理配置"""
+        try:
+            if not web_addr:
+                return self.api_response(400, '域名地址不能为空')
+
+            # 调用HostManage删除代理
+            result = self.hs_manage.del_proxy(web_addr)
+            if result.success:
+                return self.api_response(200, result.message)
+            else:
+                return self.api_response(404, result.message)
+
+        except Exception as e:
+            logger.error(f"删除全局代理配置失败: {e}")
+            traceback.print_exc()
+            return self.api_response(500, f'删除全局代理配置失败: {str(e)}')
+
+    # 获取系统网卡IPv4地址列表 ########################################################################
+    # :return: 包含网卡IPv4地址列表的API响应
+    # ####################################################################################
+
