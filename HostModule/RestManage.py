@@ -686,6 +686,8 @@ class RestManager:
         if not server:
             return self.api_response(404, '主机不存在')
         try:
+            if server.vm_remote is None:
+                server.VCLoader()
             console_url = server.VCRemote(vm_uuid)
             logger.info(f"[VNC控制台地址] {console_url}")
             if console_url:
