@@ -13,6 +13,10 @@
         .input-transition:focus {
             transform: translateY(-1px);
         }
+        .tab-active {
+            background: linear-gradient(to right, #2563eb, #4f46e5);
+            color: white;
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen flex items-center justify-center">
@@ -29,18 +33,45 @@
                 虚拟化管理平台
             </p>
         </div>
-        <form id="loginForm" class="space-y-5">
+
+        <!-- 登录方式切换 -->
+        <div class="flex gap-2 mb-6 bg-gray-100 p-1 rounded-lg">
+            <button onclick="switchTab('user')" id="userTab" class="flex-1 py-2 px-4 rounded-md transition-all duration-300 tab-active">
+                <span class="iconify" data-icon="mdi:account" data-width="18"></span>
+                用户登录
+            </button>
+            <button onclick="switchTab('token')" id="tokenTab" class="flex-1 py-2 px-4 rounded-md transition-all duration-300">
+                <span class="iconify" data-icon="mdi:key" data-width="18"></span>
+                Token登录
+            </button>
+        </div>
+
+        <!-- 用户名密码登录表单 -->
+        <form id="userLoginForm" class="space-y-5">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    <span class="iconify text-blue-500" data-icon="mdi:key" data-width="18"></span>
-                    访问Token
+                    <span class="iconify text-blue-500" data-icon="mdi:account" data-width="18"></span>
+                    用户名
+                </label>
+                <input 
+                    type="text" 
+                    name="username" 
+                    required
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent input-transition shadow-sm"
+                    placeholder="请输入用户名"
+                >
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    <span class="iconify text-blue-500" data-icon="mdi:lock" data-width="18"></span>
+                    密码
                 </label>
                 <input 
                     type="password" 
-                    name="token" 
+                    name="password" 
                     required
                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent input-transition shadow-sm"
-                    placeholder="请输入访问Token"
+                    placeholder="请输入密码"
                 >
             </div>
             <div id="errorMsg" class="hidden bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
@@ -54,19 +85,74 @@
                 <span class="iconify" data-icon="mdi:login" data-width="20"></span>
                 登 录
             </button>
+            <div class="text-center">
+                <a href="/register" class="text-sm text-blue-600 hover:text-blue-700">还没有账号？立即注册</a>
+            </div>
         </form>
-        <div class="mt-6 text-center text-sm text-gray-500">
-            <p class="flex items-center justify-center gap-1 bg-blue-50 px-4 py-3 rounded-lg border border-blue-100">
-                <span class="iconify text-blue-500" data-icon="mdi:information" data-width="16"></span>
-                启动服务时会在控制台显示访问Token
-            </p>
-        </div>
+
+        <!-- Token登录表单 -->
+        <form id="tokenLoginForm" class="space-y-5 hidden">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    <span class="iconify text-blue-500" data-icon="mdi:key" data-width="18"></span>
+                    访问Token
+                </label>
+                <input 
+                    type="password" 
+                    name="token" 
+                    required
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent input-transition shadow-sm"
+                    placeholder="请输入访问Token"
+                >
+            </div>
+            <div id="tokenErrorMsg" class="hidden bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
+                <span class="iconify" data-icon="mdi:alert-circle" data-width="18"></span>
+                <span id="tokenErrorText"></span>
+            </div>
+            <button 
+                type="submit"
+                class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+            >
+                <span class="iconify" data-icon="mdi:login" data-width="20"></span>
+                登 录
+            </button>
+            <div class="mt-6 text-center text-sm text-gray-500">
+                <p class="flex items-center justify-center gap-1 bg-blue-50 px-4 py-3 rounded-lg border border-blue-100">
+                    <span class="iconify text-blue-500" data-icon="mdi:information" data-width="16"></span>
+                    启动服务时会在控制台显示访问Token
+                </p>
+            </div>
+        </form>
     </div>
     <script>
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        let currentTab = 'user';
+
+        function switchTab(tab) {
+            currentTab = tab;
+            const userTab = document.getElementById('userTab');
+            const tokenTab = document.getElementById('tokenTab');
+            const userForm = document.getElementById('userLoginForm');
+            const tokenForm = document.getElementById('tokenLoginForm');
+
+            if (tab === 'user') {
+                userTab.classList.add('tab-active');
+                tokenTab.classList.remove('tab-active');
+                userForm.classList.remove('hidden');
+                tokenForm.classList.add('hidden');
+            } else {
+                tokenTab.classList.add('tab-active');
+                userTab.classList.remove('tab-active');
+                tokenForm.classList.remove('hidden');
+                userForm.classList.add('hidden');
+            }
+        }
+
+        // 用户名密码登录
+        document.getElementById('userLoginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData);
+            data.login_type = 'user';
             
             try {
                 const response = await fetch('/login', {
@@ -81,16 +167,43 @@
                 if (result.code === 200) {
                     window.location.href = result.data.redirect;
                 } else {
-                    showError(result.msg);
+                    showError(result.msg, 'user');
                 }
             } catch (error) {
-                showError('登录失败，请重试');
+                showError('登录失败，请重试', 'user');
+            }
+        });
+
+        // Token登录
+        document.getElementById('tokenLoginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            data.login_type = 'token';
+            
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data),
+                });
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    window.location.href = result.data.redirect;
+                } else {
+                    showError(result.msg, 'token');
+                }
+            } catch (error) {
+                showError('登录失败，请重试', 'token');
             }
         });
         
-        function showError(msg) {
-            const errorDiv = document.getElementById('errorMsg');
-            const errorText = document.getElementById('errorText');
+        function showError(msg, type) {
+            const errorDiv = type === 'user' ? document.getElementById('errorMsg') : document.getElementById('tokenErrorMsg');
+            const errorText = type === 'user' ? document.getElementById('errorText') : document.getElementById('tokenErrorText');
             errorText.textContent = msg;
             errorDiv.classList.remove('hidden');
             setTimeout(() => {

@@ -3848,6 +3848,8 @@
     async function executeUnmountISO() {
         if (!currentUnmountIsoName) return;
 
+        // 保存ISO名称，避免在关闭模态框时被清空
+        const isoNameToUnmount = currentUnmountIsoName;
         closeUnmountISOConfirmModal();
 
         // 显示进度提示
@@ -3860,7 +3862,7 @@
             }
         });
 
-        const result = await apiRequest(`/api/client/iso/unmount/${hostName}/${vmUuid}/${currentUnmountIsoName}`, 'DELETE');
+        const result = await apiRequest(`/api/client/iso/unmount/${hostName}/${vmUuid}/${isoNameToUnmount}`, 'DELETE');
         
         if (result && result.code === 200) {
             Swal.fire({

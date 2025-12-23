@@ -57,6 +57,10 @@ class HostDatabase:
 
                 conn.commit()
                 logger.info(f"[HostDatabase] 数据库初始化完成: {self.db_path}")
+                
+                # 创建默认管理员用户（如果不存在）
+                # self._create_default_admin()
+                
             except Exception as e:
                 logger.error(f"数据库初始化错误: {e}")
                 conn.rollback()
@@ -66,6 +70,46 @@ class HostDatabase:
             logger.warning(f"[HostDatabase] 警告: SQL文件不存在: {sql_file_path}")
             logger.warning(f"[HostDatabase] 当前工作目录: {os.getcwd()}")
             logger.warning(f"[HostDatabase] 项目根目录: {project_root}")
+
+    def _create_default_admin(self):
+        """创建默认管理员用户（如果不存在）"""
+        try:
+            # 检查是否已有管理员用户
+            conn = self.get_db_sqlite()
+            cursor = conn.execute("SELECT COUNT(*) FROM web_users WHERE is_admin = 1")
+            admin_count = cursor.fetchone()[0]
+            
+            if admin_count == 0:
+                # 创建默认管理员
+                from MainObject.Public.ZMessage import ZMessage
+                default_password = "admin123"  # 默认密码
+                hashed_password = ZMessage.z_hash(default_password)
+                
+                user_id = self.create_user(
+                    username="admin",
+                    password=hashed_password,
+                    email="admin@localhost"
+                )
+                
+                if user_id:
+                    # 设置为管理员和启用状态
+                    conn.execute("""
+                        UPDATE web_users 
+                        SET is_admin = 1, is_active = 1, 
+                            can_create_vm = 1, can_modify_vm = 1, can_delete_vm = 1,
+                            quota_cpu = 32, quota_ram = 64, quota_ssd = 1000
+                        WHERE id = ?
+                    """, (user_id,))
+                    conn.commit()
+                    logger.info("[HostDatabase] 已创建默认管理员用户: admin/admin123")
+                else:
+                    logger.error("[HostDatabase] 创建默认管理员用户失败")
+            else:
+                logger.info("[HostDatabase] 已存在管理员用户，跳过默认用户创建")
+                
+            conn.close()
+        except Exception as e:
+            logger.error(f"[HostDatabase] 创建默认管理员用户时出错: {e}")
 
     # ==================== 全局配置操作 ====================
 
@@ -694,3 +738,214 @@ class HostDatabase:
             "vm_tasker": self.get_vm_tasker(hs_name),
             "save_logs": self.get_hs_logger(hs_name)
         }
+
+    # ==================== 用户管理操作 ====================
+    def create_user(self, username: str, password: str, email: str) -> Optional[int]:
+        """
+        创建新用户
+        :param username: 用户名
+        :param password: 密码（已加密）
+        :param email: 邮箱
+        :return: 用户ID，失败返回None
+        """
+        conn = self.get_db_sqlite()
+        try:
+            sql = """
+            INSERT INTO web_users (username, password, email)
+            VALUES (?, ?, ?)
+            """
+            cursor = conn.execute(sql, (username, password, email))
+            conn.commit()
+            return cursor.lastrowid
+        except sqlite3.IntegrityError as e:
+            logger.error(f"创建用户失败（用户名或邮箱已存在）: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"创建用户错误: {e}")
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    def get_user_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
+        """根据ID获取用户"""
+        conn = self.get_db_sqlite()
+        try:
+            cursor = conn.execute("SELECT * FROM web_users WHERE id = ?", (user_id,))
+            row = cursor.fetchone()
+            if row:
+                return dict(row)
+            return None
+        finally:
+            conn.close()
+
+    def get_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
+        """根据用户名获取用户"""
+        conn = self.get_db_sqlite()
+        try:
+            cursor = conn.execute("SELECT * FROM web_users WHERE username = ?", (username,))
+            row = cursor.fetchone()
+            if row:
+                return dict(row)
+            return None
+        finally:
+            conn.close()
+
+    def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """根据邮箱获取用户"""
+        conn = self.get_db_sqlite()
+        try:
+            cursor = conn.execute("SELECT * FROM web_users WHERE email = ?", (email,))
+            row = cursor.fetchone()
+            if row:
+                return dict(row)
+            return None
+        finally:
+            conn.close()
+
+    def get_all_users(self) -> List[Dict[str, Any]]:
+        """获取所有用户"""
+        conn = self.get_db_sqlite()
+        try:
+            cursor = conn.execute("SELECT * FROM web_users ORDER BY created_at DESC")
+            return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def update_user(self, user_id: int, **kwargs) -> bool:
+        """
+        更新用户信息
+        :param user_id: 用户ID
+        :param kwargs: 要更新的字段
+        :return: 是否成功
+        """
+        if not kwargs:
+            return False
+
+        conn = self.get_db_sqlite()
+        try:
+            # 构建更新SQL
+            fields = []
+            values = []
+            for key, value in kwargs.items():
+                if key in ['assigned_hosts'] and isinstance(value, list):
+                    value = json.dumps(value)
+                fields.append(f"{key} = ?")
+                values.append(value)
+
+            # 添加更新时间
+            fields.append("updated_at = CURRENT_TIMESTAMP")
+            values.append(user_id)
+
+            sql = f"UPDATE web_users SET {', '.join(fields)} WHERE id = ?"
+            conn.execute(sql, values)
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"更新用户错误: {e}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+
+    def delete_user(self, user_id: int) -> bool:
+        """删除用户"""
+        conn = self.get_db_sqlite()
+        try:
+            conn.execute("DELETE FROM web_users WHERE id = ?", (user_id,))
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"删除用户错误: {e}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+
+    def update_user_last_login(self, user_id: int) -> bool:
+        """更新用户最后登录时间"""
+        conn = self.get_db_sqlite()
+        try:
+            conn.execute(
+                "UPDATE web_users SET last_login = CURRENT_TIMESTAMP WHERE id = ?",
+                (user_id,)
+            )
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"更新用户登录时间错误: {e}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+
+    def verify_user_email(self, user_id: int) -> bool:
+        """验证用户邮箱"""
+        return self.update_user(user_id, email_verified=1, verify_token='')
+
+    def set_user_verify_token(self, user_id: int, token: str) -> bool:
+        """设置用户邮箱验证token"""
+        return self.update_user(user_id, verify_token=token)
+
+    def get_user_by_verify_token(self, token: str) -> Optional[Dict[str, Any]]:
+        """根据验证token获取用户"""
+        conn = self.get_db_sqlite()
+        try:
+            cursor = conn.execute(
+                "SELECT * FROM web_users WHERE verify_token = ? AND verify_token != ''",
+                (token,)
+            )
+            row = cursor.fetchone()
+            if row:
+                return dict(row)
+            return None
+        finally:
+            conn.close()
+
+    def update_user_resources(self, user_id: int, **resources) -> bool:
+        """
+        更新用户已使用资源
+        :param user_id: 用户ID
+        :param resources: 资源字段（used_cpu, used_ram等）
+        :return: 是否成功
+        """
+        return self.update_user(user_id, **resources)
+
+    def get_system_settings(self) -> Dict[str, Any]:
+        """获取系统设置（注册开关、邮件配置等）"""
+        conn = self.get_db_sqlite()
+        try:
+            cursor = conn.execute("SELECT id, data FROM hs_global WHERE id LIKE 'system_%'")
+            settings = {}
+            for row in cursor.fetchall():
+                key = row["id"].replace("system_", "")
+                settings[key] = row["data"]
+            
+            # 设置默认值
+            settings.setdefault("registration_enabled", "0")
+            settings.setdefault("email_verification_enabled", "0")
+            settings.setdefault("resend_email", "")
+            settings.setdefault("resend_user", "")
+            settings.setdefault("resend_apikey", "")
+            
+            return settings
+        finally:
+            conn.close()
+
+    def update_system_settings(self, **settings) -> bool:
+        """更新系统设置"""
+        conn = self.get_db_sqlite()
+        try:
+            for key, value in settings.items():
+                conn.execute(
+                    "INSERT OR REPLACE INTO hs_global (id, data) VALUES (?, ?)",
+                    (f"system_{key}", str(value))
+                )
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"更新系统设置错误: {e}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()

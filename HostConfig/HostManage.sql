@@ -115,6 +115,51 @@ CREATE TABLE IF NOT EXISTS web_proxy
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP  -- 更新时间
 );
 
+-- 用户表 (web_users)
+CREATE TABLE IF NOT EXISTS web_users
+(
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,   -- 主键
+    username          TEXT NOT NULL UNIQUE,                -- 用户名
+    password          TEXT NOT NULL,                       -- 密码（加密存储）
+    email             TEXT NOT NULL UNIQUE,                -- 邮箱
+    is_admin          INTEGER   DEFAULT 0,                 -- 是否管理员 (1=是, 0=否)
+    is_active         INTEGER   DEFAULT 1,                 -- 是否启用 (1=启用, 0=禁用)
+    email_verified    INTEGER   DEFAULT 0,                 -- 邮箱是否验证 (1=已验证, 0=未验证)
+    verify_token      TEXT      DEFAULT '',                -- 邮箱验证token
+    
+    -- 权限设置
+    can_create_vm     INTEGER   DEFAULT 0,                 -- 允许创建虚拟机 (1=允许, 0=不允许)
+    can_delete_vm     INTEGER   DEFAULT 0,                 -- 允许删除虚拟机 (1=允许, 0=不允许)
+    can_modify_vm     INTEGER   DEFAULT 0,                 -- 允许修改虚拟机 (1=允许, 0=不允许)
+    
+    -- 资源配额
+    quota_cpu         INTEGER   DEFAULT 0,                 -- CPU核心数配额
+    quota_ram         INTEGER   DEFAULT 0,                 -- RAM内存配额(GB)
+    quota_ssd         INTEGER   DEFAULT 0,                 -- SSD磁盘配额(GB)
+    quota_gpu         INTEGER   DEFAULT 0,                 -- GPU显存配额(GB)
+    quota_nat_ports   INTEGER   DEFAULT 0,                 -- NAT端口数配额
+    quota_web_proxy   INTEGER   DEFAULT 0,                 -- WEB代理数量配额
+    quota_bandwidth_up   INTEGER DEFAULT 0,                -- 最大上行带宽(Mbps)
+    quota_bandwidth_down INTEGER DEFAULT 0,                -- 最大下行带宽(Mbps)
+    quota_traffic     INTEGER   DEFAULT 0,                 -- 每月最大流量(GB)
+    
+    -- 已使用资源（实时统计）
+    used_cpu          INTEGER   DEFAULT 0,                 -- 已使用CPU核心数
+    used_ram          INTEGER   DEFAULT 0,                 -- 已使用RAM(GB)
+    used_ssd          INTEGER   DEFAULT 0,                 -- 已使用SSD(GB)
+    used_gpu          INTEGER   DEFAULT 0,                 -- 已使用GPU显存(GB)
+    used_nat_ports    INTEGER   DEFAULT 0,                 -- 已使用NAT端口数
+    used_web_proxy    INTEGER   DEFAULT 0,                 -- 已使用WEB代理数
+    used_traffic      INTEGER   DEFAULT 0,                 -- 本月已使用流量(GB)
+    
+    -- 分配的服务器列表（JSON数组，存储hs_name列表）
+    assigned_hosts    TEXT      DEFAULT '[]',              -- 分配的主机列表
+    
+    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- 创建时间
+    updated_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- 更新时间
+    last_login        TIMESTAMP DEFAULT NULL                -- 最后登录时间
+);
+
 -- 创建索引以提高查询性能
 CREATE INDEX IF NOT EXISTS idx_hs_config_name ON hs_config (hs_name);
 CREATE INDEX IF NOT EXISTS idx_hs_status_name ON hs_status (hs_name);
@@ -125,3 +170,5 @@ CREATE INDEX IF NOT EXISTS idx_vm_status_uuid ON vm_status (vm_uuid);
 CREATE INDEX IF NOT EXISTS idx_vm_tasker_name ON vm_tasker (hs_name);
 CREATE INDEX IF NOT EXISTS idx_hs_logger_name ON hs_logger (hs_name);
 CREATE INDEX IF NOT EXISTS idx_hs_logger_time ON hs_logger (created_at);
+CREATE INDEX IF NOT EXISTS idx_web_users_username ON web_users (username);
+CREATE INDEX IF NOT EXISTS idx_web_users_email ON web_users (email);

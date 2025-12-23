@@ -130,15 +130,19 @@ class RestManager:
         return self.api_response(500, '保存失败')
 
     # 加载系统配置 ########################################################################
-    # :return: 加载结果的API响应
+    # :return: 加载结果的API响应或布尔值
     # ####################################################################################
-    def load_system(self):
+    def load_system(self, return_api_response=True):
         """加载系统配置"""
         try:
             self.hs_manage.all_load()
-            return self.api_response(200, '配置已加载')
+            if return_api_response:
+                return self.api_response(200, '配置已加载')
+            return True
         except Exception as e:
-            return self.api_response(500, f'加载失败: {str(e)}')
+            if return_api_response:
+                return self.api_response(500, f'加载失败: {str(e)}')
+            return False
 
     # 获取系统统计 ########################################################################
     # :return: 包含系统统计信息的API响应
@@ -150,7 +154,18 @@ class RestManager:
 
         for server in self.hs_manage.engine.values():
             total_vms += len(server.vm_saving)
-            # 统计运行中的虚拟机数量（根据实际状态判断）
+            
+            # 获取所有虚拟机状态
+            all_vm_status = server.save_data.get_vm_status(server.hs_config.server_name)
+            
+            # 统计运行中的虚拟机数量
+            for vm_uuid in server.vm_saving.keys():
+                vm_status_list = all_vm_status.get(vm_uuid, [])
+                if vm_status_list:
+                    # 获取最新的状态
+                    latest_status = vm_status_list[-1]
+                    if latest_status.get('ac_status') == 1:  # VMPowers.STARTED = 0x1 = 1
+                        running_vms += 1
 
         return self.api_response(200, 'success', {
             'host_count': len(self.hs_manage.engine),

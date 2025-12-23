@@ -214,7 +214,15 @@ class HostManage:
                         vm_saving=vm_saving_converted
                     )
                     self.engine[hs_name].HSLoader()
-                    self.engine[hs_name].VCLoader()
+                    try:
+                        self.engine[hs_name].VCLoader()
+                    except Exception as vc_error:
+                        # 如果是多进程相关错误，记录警告但不阻止其他服务器加载
+                        if "multiprocessing" in str(vc_error) or "process" in str(vc_error).lower():
+                            logger.warning(f"服务器 {hs_name} 的VNC控制台启动失败 (多进程相关): {vc_error}")
+                            logger.info(f"服务器 {hs_name} 的VNC控制台将在首次访问时启动")
+                        else:
+                            raise vc_error
 
         except Exception as e:
             logger.error(f"加载数据时出错: {e}")

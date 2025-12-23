@@ -3,6 +3,7 @@ import psutil
 import GPUtil
 import cpuinfo
 import platform
+from shutil import disk_usage
 from loguru import logger
 from MainObject.Public.HWStatus import HWStatus
 from MainObject.Config.VMPowers import VMPowers
@@ -26,25 +27,25 @@ class HSStatus:
         # 获取CPU信息 =======================================================
         try:
             self.hw_status.cpu_model = cpuinfo.get_cpu_info()['brand_raw']
+            self.hw_status.cpu_total = psutil.cpu_count(logical=True)
+            self.hw_status.cpu_usage = int(psutil.cpu_percent(interval=1))
         except Exception as e:
             self.hw_status.cpu_model = "Unknown"
-        self.hw_status.cpu_total = psutil.cpu_count(logical=True)
-        self.hw_status.cpu_usage = int(psutil.cpu_percent(interval=1))
         # 获取内存信息 ======================================================
         mem = psutil.virtual_memory()
         self.hw_status.mem_total = int(mem.total / (1024 * 1024))  # 转换为MB
         self.hw_status.mem_usage = int(mem.used / (1024 * 1024))  # 内存已用量（MB）
         # 获取系统磁盘信息 ==================================================
-        disk_usage = psutil.disk_usage('/')
-        self.hw_status.hdd_total = int(disk_usage.total / (1024 * 1024))
-        self.hw_status.hdd_usage = int(disk_usage.used / (1024 * 1024))
+        disk_total, disk_used, disk_free = disk_usage('/')
+        self.hw_status.hdd_total = int(disk_total / (1024 * 1024))
+        self.hw_status.hdd_usage = int(disk_used / (1024 * 1024))
         # 获取其他磁盘信息 ==================================================
         for disk in psutil.disk_partitions():
             if disk.mountpoint != '/':
-                usage = psutil.disk_usage(disk.mountpoint)
+                total, used, free = disk_usage(disk.mountpoint)
                 self.hw_status.ext_usage[disk.mountpoint] = [
-                    int(usage.total / (1024 * 1024)),  # 总空间MB
-                    int(usage.used / (1024 * 1024))  # 已用空间MB
+                    int(total / (1024 * 1024)),  # 总空间MB
+                    int(used / (1024 * 1024))  # 已用空间MB
                 ]
         # 获取GPU信息 =======================================================
         gpus = GPUtil.getGPUs()

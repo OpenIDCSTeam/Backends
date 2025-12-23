@@ -5,12 +5,15 @@ OpenIDCS Flask Server
 import secrets
 import threading
 import traceback
+import json
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 
 from loguru import logger
 from HostModule.HostManage import HostManage
 from HostModule.RestManage import RestManager
+from HostModule.UserAuth import UserAuth, require_login, require_admin, check_host_access, check_vm_permission, check_resource_quota, EmailService
+from HostModule.DataManage import HostDatabase
 
 app = Flask(__name__, template_folder='WebDesigns', static_folder='static')
 app.secret_key = secrets.token_hex(32)
@@ -20,7 +23,9 @@ hs_manage = HostManage()
 
 # 全局REST管理器实例
 rest_manager = RestManager(hs_manage)
-# rest_manager.load_system()
+
+# 数据库实例
+db = HostDatabase()
 
 # ============================================================================
 # 认证装饰器（保持向后兼容）
@@ -70,14 +75,51 @@ def login():
 
     # POST登录处理
     data = request.get_json() or request.form
-    token = data.get('token', '')
-
-    if token and token == hs_manage.bearer:
-        session['logged_in'] = True
-        session['username'] = 'admin'
+    login_type = data.get('login_type', 'token')
+    
+    if login_type == 'user':
+        # 用户名密码登录
+        username = data.get('username', '')
+        password = data.get('password', '')
+        
+        if not username or not password:
+            return api_response_wrapper(400, '用户名和密码不能为空')
+        
+        # 查询用户
+        user_data = db.get_user_by_username(username)
+        if not user_data:
+            return api_response_wrapper(401, '用户名或密码错误')
+        
+        # 验证密码
+        if not UserAuth.verify_password(password, user_data['password']):
+            return api_response_wrapper(401, '用户名或密码错误')
+        
+        # 检查用户是否启用
+        if not user_data['is_active']:
+            return api_response_wrapper(403, '用户已被禁用')
+        
+        # 设置session
+        UserAuth.set_user_session(user_data, is_token_login=False)
+        
+        # 更新最后登录时间
+        db.update_user_last_login(user_data['id'])
+        
         return api_response_wrapper(200, '登录成功', {'redirect': '/admin'})
-
-    return api_response_wrapper(401, 'Token错误')
+    
+    else:
+        # Token登录
+        token = data.get('token', '')
+        if token and token == hs_manage.bearer:
+            # 创建一个虚拟的管理员用户数据
+            admin_user_data = {
+                'id': 1,
+                'username': 'admin',
+                'is_admin': 1
+            }
+            UserAuth.set_user_session(admin_user_data, is_token_login=True)
+            return api_response_wrapper(200, '登录成功', {'redirect': '/admin'})
+        
+        return api_response_wrapper(401, 'Token错误')
 
 
 @app.route('/exitd')
@@ -152,6 +194,97 @@ def settings_page():
     """设置页面"""
     return render_template('settings.html',
                            title='OpenIDCS - 系统设置',
+                           username=session.get('username', 'admin'))
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    """用户注册"""
+    if request.method == 'GET':
+        # 检查是否开放注册
+        settings = db.get_system_settings()
+        if settings.get('registration_enabled') != '1':
+            return redirect(url_for('login'))
+        return render_template('register.html')
+    
+    # POST注册处理
+    data = request.get_json() or request.form
+    username = data.get('username', '').strip()
+    email = data.get('email', '').strip()
+    password = data.get('password', '')
+    
+    # 验证输入
+    if not username or not email or not password:
+        return api_response_wrapper(400, '用户名、邮箱和密码不能为空')
+    
+    if len(username) < 3 or len(username) > 20:
+        return api_response_wrapper(400, '用户名长度必须在3-20个字符之间')
+    
+    if len(password) < 6:
+        return api_response_wrapper(400, '密码长度至少6个字符')
+    
+    # 检查用户名是否已存在
+    if db.get_user_by_username(username):
+        return api_response_wrapper(400, '用户名已存在')
+    
+    # 检查邮箱是否已存在
+    if db.get_user_by_email(email):
+        return api_response_wrapper(400, '邮箱已被注册')
+    
+    # 加密密码
+    hashed_password = UserAuth.hash_password(password)
+    
+    # 创建用户
+    user_id = db.create_user(username, hashed_password, email)
+    if not user_id:
+        return api_response_wrapper(500, '注册失败，请重试')
+    
+    # 检查是否需要邮箱验证
+    settings = db.get_system_settings()
+    if settings.get('email_verification_enabled') == '1':
+        # 生成验证token
+        verify_token = UserAuth.generate_token()
+        db.set_user_verify_token(user_id, verify_token)
+        
+        # 发送验证邮件
+        email_service = EmailService(
+            api_key=settings.get('resend_apikey', ''),
+            from_email=settings.get('resend_email', '')
+        )
+        verify_url = f"{request.host_url}verify_email?token={verify_token}"
+        email_service.send_verification_email(email, username, verify_url)
+        
+        return api_response_wrapper(200, '注册成功！请查收验证邮件')
+    else:
+        # 直接验证邮箱
+        db.verify_user_email(user_id)
+        return api_response_wrapper(200, '注册成功！请登录')
+
+
+@app.route('/verify_email')
+def verify_email():
+    """验证邮箱"""
+    token = request.args.get('token', '')
+    if not token:
+        return '无效的验证链接'
+    
+    user_data = db.get_user_by_verify_token(token)
+    if not user_data:
+        return '验证链接无效或已过期'
+    
+    # 验证邮箱
+    if db.verify_user_email(user_data['id']):
+        return redirect(url_for('login') + '?verified=1')
+    else:
+        return '验证失败，请重试'
+
+
+@app.route('/users')
+@require_admin
+def users_page():
+    """用户管理页面（仅管理员）"""
+    return render_template('users.html',
+                           title='OpenIDCS - 用户管理',
                            username=session.get('username', 'admin'))
 
 
@@ -633,6 +766,204 @@ def api_scan_backups(hs_name):
 
 
 # ============================================================================
+# 用户管理API - /api/users
+# ============================================================================
+
+@app.route('/api/users', methods=['GET'])
+@require_admin
+def api_get_users():
+    """获取所有用户列表"""
+    try:
+        users = db.get_all_users()
+        # 移除敏感信息
+        for user in users:
+            user.pop('password', None)
+            user.pop('verify_token', None)
+            # 解析JSON字段
+            if isinstance(user.get('assigned_hosts'), str):
+                try:
+                    user['assigned_hosts'] = json.loads(user['assigned_hosts'])
+                except:
+                    user['assigned_hosts'] = []
+        return api_response_wrapper(200, '获取成功', users)
+    except Exception as e:
+        logger.error(f"获取用户列表失败: {e}")
+        return api_response_wrapper(500, f'获取失败: {str(e)}')
+
+
+@app.route('/api/users', methods=['POST'])
+@require_admin
+def api_create_user():
+    """创建新用户"""
+    try:
+        data = request.get_json()
+        if not data:
+            return api_response_wrapper(400, '无效的请求数据')
+        
+        # 获取必需字段
+        username = data.get('username', '').strip()
+        email = data.get('email', '').strip()
+        password = data.get('password', '')
+        
+        # 验证必需字段
+        if not username or not email or not password:
+            return api_response_wrapper(400, '用户名、邮箱和密码不能为空')
+        
+        if len(username) < 3 or len(username) > 20:
+            return api_response_wrapper(400, '用户名长度必须在3-20个字符之间')
+        
+        if len(password) < 6:
+            return api_response_wrapper(400, '密码长度至少6个字符')
+        
+        # 检查用户名是否已存在
+        if db.get_user_by_username(username):
+            return api_response_wrapper(400, '用户名已存在')
+        
+        # 检查邮箱是否已存在
+        if db.get_user_by_email(email):
+            return api_response_wrapper(400, '邮箱已被注册')
+        
+        # 加密密码
+        hashed_password = UserAuth.hash_password(password)
+        
+        # 创建用户（只传入基本字段）
+        user_id = db.create_user(username, hashed_password, email)
+        if not user_id:
+            return api_response_wrapper(500, '创建用户失败，请重试')
+        
+        # 准备要更新的其他字段
+        update_data = {
+            'is_admin': data.get('is_admin', 0),
+            'is_active': data.get('is_active', 1),
+            'can_create_vm': data.get('can_create_vm', 0),
+            'can_modify_vm': data.get('can_modify_vm', 0),
+            'can_delete_vm': data.get('can_delete_vm', 0),
+            'quota_cpu': data.get('quota_cpu', 0),
+            'quota_ram': data.get('quota_ram', 0),
+            'quota_ssd': data.get('quota_ssd', 0),
+            'quota_gpu': data.get('quota_gpu', 0),
+            'quota_nat_ports': data.get('quota_nat_ports', 0),
+            'quota_web_proxy': data.get('quota_web_proxy', 0),
+            'quota_bandwidth_up': data.get('quota_bandwidth_up', 0),
+            'quota_bandwidth_down': data.get('quota_bandwidth_down', 0),
+            'quota_traffic': data.get('quota_traffic', 0),
+            'assigned_hosts': data.get('assigned_hosts', [])
+        }
+        
+        # 更新用户的权限和配额信息
+        success = db.update_user(user_id, **update_data)
+        if not success:
+            # 如果更新失败，删除已创建的用户
+            db.delete_user(user_id)
+            return api_response_wrapper(500, '更新用户权限和配额失败')
+        
+        # 直接验证邮箱（管理员创建的用户不需要邮箱验证）
+        db.verify_user_email(user_id)
+        
+        return api_response_wrapper(200, '用户创建成功', {'user_id': user_id})
+        
+    except Exception as e:
+        logger.error(f"创建用户失败: {e}")
+        return api_response_wrapper(500, f'创建失败: {str(e)}')
+
+
+@app.route('/api/users/<int:user_id>', methods=['GET'])
+@require_admin
+def api_get_user(user_id):
+    """获取单个用户信息"""
+    try:
+        user = db.get_user_by_id(user_id)
+        if not user:
+            return api_response_wrapper(404, '用户不存在')
+        
+        # 移除敏感信息
+        user.pop('password', None)
+        user.pop('verify_token', None)
+        
+        # 解析JSON字段
+        if isinstance(user.get('assigned_hosts'), str):
+            try:
+                user['assigned_hosts'] = json.loads(user['assigned_hosts'])
+            except:
+                user['assigned_hosts'] = []
+        
+        return api_response_wrapper(200, '获取成功', user)
+    except Exception as e:
+        logger.error(f"获取用户信息失败: {e}")
+        return api_response_wrapper(500, f'获取失败: {str(e)}')
+
+
+@app.route('/api/users/<int:user_id>', methods=['PUT'])
+@require_admin
+def api_update_user(user_id):
+    """更新用户信息"""
+    try:
+        data = request.get_json()
+        if not data:
+            return api_response_wrapper(400, '无效的请求数据')
+        
+        # 更新用户
+        success = db.update_user(user_id, **data)
+        if success:
+            return api_response_wrapper(200, '更新成功')
+        else:
+            return api_response_wrapper(500, '更新失败')
+    except Exception as e:
+        logger.error(f"更新用户失败: {e}")
+        return api_response_wrapper(500, f'更新失败: {str(e)}')
+
+
+@app.route('/api/users/<int:user_id>', methods=['DELETE'])
+@require_admin
+def api_delete_user(user_id):
+    """删除用户"""
+    try:
+        success = db.delete_user(user_id)
+        if success:
+            return api_response_wrapper(200, '删除成功')
+        else:
+            return api_response_wrapper(500, '删除失败')
+    except Exception as e:
+        logger.error(f"删除用户失败: {e}")
+        return api_response_wrapper(500, f'删除失败: {str(e)}')
+
+
+# ============================================================================
+# 系统设置API
+# ============================================================================
+
+@app.route('/api/system/settings', methods=['GET'])
+@require_admin
+def api_get_system_settings():
+    """获取系统设置"""
+    try:
+        settings = db.get_system_settings()
+        return api_response_wrapper(200, '获取成功', settings)
+    except Exception as e:
+        logger.error(f"获取系统设置失败: {e}")
+        return api_response_wrapper(500, f'获取失败: {str(e)}')
+
+
+@app.route('/api/system/settings', methods=['POST'])
+@require_admin
+def api_update_system_settings():
+    """更新系统设置"""
+    try:
+        data = request.get_json()
+        if not data:
+            return api_response_wrapper(400, '无效的请求数据')
+        
+        success = db.update_system_settings(**data)
+        if success:
+            return api_response_wrapper(200, '更新成功')
+        else:
+            return api_response_wrapper(500, '更新失败')
+    except Exception as e:
+        logger.error(f"更新系统设置失败: {e}")
+        return api_response_wrapper(500, f'更新失败: {str(e)}')
+
+
+# ============================================================================
 # 定时任务
 # ============================================================================
 def cron_scheduler():
@@ -679,9 +1010,14 @@ def init_app():
     """初始化应用"""
     # 加载已保存的配置
     try:
+        logger.info("正在加载系统配置...")
         hs_manage.all_load()
+        logger.info("系统配置加载完成")
     except Exception as e:
         logger.error(f"加载配置失败: {e}")
+        # 如果是多进程相关错误，记录详细信息但不阻止启动
+        if "multiprocessing" in str(e) or "process" in str(e).lower():
+            logger.warning("检测到多进程相关错误，将在用户访问时重试加载")
 
     # 如果没有Token，生成一个
     if not hs_manage.bearer:
@@ -689,14 +1025,22 @@ def init_app():
         logger.info(f"已生成访问Token: {hs_manage.bearer}")
 
     # 启动定时任务调度器
-    start_cron_scheduler()
+    try:
+        start_cron_scheduler()
+        logger.info("定时任务调度器启动成功")
+    except Exception as e:
+        logger.error(f"启动定时任务调度器失败: {e}")
 
 
 if __name__ == '__main__':
+    # 在Windows系统上支持多进程
+    import multiprocessing
+    multiprocessing.freeze_support()
+    
     init_app()
     logger.info(f"\n{'=' * 60}")
     logger.info(f"OpenIDCS Server 启动中...")
-    logger.info(f"访问地址: http://127.0.0.1:1880")
+    logger.info(f"访问地址: http://127.0.0.1:1888")
     logger.info(f"访问Token: {hs_manage.bearer}")
     logger.info(f"{'=' * 60}\n")
-    app.run(host='0.0.0.0', port=1880, debug=True)
+    app.run(host='0.0.0.0', port=1888, debug=True)

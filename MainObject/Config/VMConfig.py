@@ -1,6 +1,7 @@
 import json
 import random
 
+from MainObject.Config.IMConfig import IMConfig
 from MainObject.Config.NCConfig import NCConfig
 from MainObject.Config.PortData import PortData
 from MainObject.Config.SDConfig import SDConfig
@@ -84,7 +85,7 @@ class VMConfig:
         for iso in iso_list:
             iso_data = iso_list[iso]
             if type(iso_data) is dict:
-                self.iso_all[iso] = SDConfig(
+                self.iso_all[iso] = IMConfig(
                     **iso_data)
             else:
                 self.iso_all[iso] = iso_data
@@ -175,13 +176,13 @@ class VMConfig:
                 else w for w in
                 self.web_all],
             # 镜像配置 =======================
-            "iso_all": [
-                i.__save__()
-                if hasattr(i, '__save__')
+            "iso_all": {
+                k: v.__save__()
+                if hasattr(v, '__save__')
                    and callable(
-                    getattr(i, '__save__'))
-                else i for i
-                in self.iso_all],
+                    getattr(v, '__save__'))
+                else v for k, v
+                in self.iso_all.items()},
             # 备份配置 =======================
             "backups": [
                 b.__save__()

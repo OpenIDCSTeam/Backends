@@ -1,0 +1,501 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- 页面标题 -->
+<div class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-800 flex items-center gap-3">
+        <span class="iconify text-gray-600" data-icon="mdi:account-group" data-width="36"></span>
+        用户管理
+    </h1>
+    <p class="text-gray-600 mt-1">管理系统用户、权限和资源配额</p>
+</div>
+
+<!-- 用户列表 -->
+<div class="bg-white rounded-lg border border-gray-200">
+    <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+        <h2 class="text-base font-semibold text-gray-800">用户列表</h2>
+        <button onclick="showAddUserModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2">
+            <span class="iconify" data-icon="mdi:account-plus" data-width="18"></span>
+            添加用户
+        </button>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">用户名</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">邮箱</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">角色</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">资源配额</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
+                </tr>
+            </thead>
+            <tbody id="userTableBody" class="divide-y divide-gray-200">
+                <!-- 用户列表将通过JavaScript动态加载 -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 添加用户模态框 -->
+<div id="addUserModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xl font-bold text-gray-800">添加用户</h3>
+            <button onclick="closeAddUserModal()" class="text-gray-500 hover:text-gray-700">
+                <span class="iconify" data-icon="mdi:close" data-width="24"></span>
+            </button>
+        </div>
+        
+        <form id="addUserForm" class="space-y-4">
+            <!-- 基本信息 -->
+            <div class="border-b pb-4">
+                <h4 class="font-semibold text-gray-700 mb-3">基本信息</h4>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">用户名 <span class="text-red-500">*</span></label>
+                        <input type="text" id="addUsername" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">邮箱 <span class="text-red-500">*</span></label>
+                        <input type="email" id="addEmail" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">密码 <span class="text-red-500">*</span></label>
+                        <input type="password" id="addPassword" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 角色和状态 -->
+            <div class="border-b pb-4">
+                <h4 class="font-semibold text-gray-700 mb-3">角色和状态</h4>
+                <div class="space-y-3">
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" id="addIsAdmin" class="rounded">
+                        <span class="text-sm">管理员</span>
+                    </label>
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" id="addIsActive" checked class="rounded">
+                        <span class="text-sm">启用用户</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- 虚拟机权限 -->
+            <div class="border-b pb-4">
+                <h4 class="font-semibold text-gray-700 mb-3">虚拟机权限</h4>
+                <div class="space-y-3">
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" id="addCanCreate" checked class="rounded">
+                        <span class="text-sm">允许创建虚拟机</span>
+                    </label>
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" id="addCanModify" checked class="rounded">
+                        <span class="text-sm">允许修改虚拟机</span>
+                    </label>
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" id="addCanDelete" checked class="rounded">
+                        <span class="text-sm">允许删除虚拟机</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- 资源配额 -->
+            <div class="border-b pb-4">
+                <h4 class="font-semibold text-gray-700 mb-3">资源配额</h4>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">CPU核心数</label>
+                        <input type="number" id="addQuotaCpu" min="0" value="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">内存(GB)</label>
+                        <input type="number" id="addQuotaRam" min="0" value="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">磁盘(GB)</label>
+                        <input type="number" id="addQuotaSsd" min="0" value="50" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">GPU显存(GB)</label>
+                        <input type="number" id="addQuotaGpu" min="0" value="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">NAT端口数</label>
+                        <input type="number" id="addQuotaNatPorts" min="0" value="5" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">WEB代理数</label>
+                        <input type="number" id="addQuotaWebProxy" min="0" value="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">上行带宽(Mbps)</label>
+                        <input type="number" id="addQuotaBandwidthUp" min="0" value="100" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">下行带宽(Mbps)</label>
+                        <input type="number" id="addQuotaBandwidthDown" min="0" value="100" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">每月流量(GB)</label>
+                        <input type="number" id="addQuotaTraffic" min="0" value="500" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 分配主机 -->
+            <div>
+                <h4 class="font-semibold text-gray-700 mb-3">分配主机</h4>
+                <div id="addAssignedHostsContainer" class="space-y-2">
+                    <!-- 主机列表将通过JavaScript动态加载 -->
+                </div>
+            </div>
+            
+            <div class="flex gap-2 pt-4">
+                <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
+                    添加用户
+                </button>
+                <button type="button" onclick="closeAddUserModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    取消
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 编辑用户模态框 -->
+<div id="editUserModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xl font-bold text-gray-800">编辑用户</h3>
+            <button onclick="closeEditUserModal()" class="text-gray-500 hover:text-gray-700">
+                <span class="iconify" data-icon="mdi:close" data-width="24"></span>
+            </button>
+        </div>
+        
+        <form id="editUserForm" class="space-y-4">
+            <input type="hidden" id="editUserId">
+            
+            <!-- 基本信息 -->
+            <div class="border-b pb-4">
+                <h4 class="font-semibold text-gray-700 mb-3">基本信息</h4>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                        <input type="text" id="editUsername" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
+                        <input type="email" id="editEmail" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 角色和状态 -->
+            <div class="border-b pb-4">
+                <h4 class="font-semibold text-gray-700 mb-3">角色和状态</h4>
+                <div class="space-y-3">
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" id="editIsAdmin" class="rounded">
+                        <span class="text-sm">管理员</span>
+                    </label>
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" id="editIsActive" class="rounded">
+                        <span class="text-sm">启用用户</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- 虚拟机权限 -->
+            <div class="border-b pb-4">
+                <h4 class="font-semibold text-gray-700 mb-3">虚拟机权限</h4>
+                <div class="space-y-3">
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" id="editCanCreate" class="rounded">
+                        <span class="text-sm">允许创建虚拟机</span>
+                    </label>
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" id="editCanModify" class="rounded">
+                        <span class="text-sm">允许修改虚拟机</span>
+                    </label>
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" id="editCanDelete" class="rounded">
+                        <span class="text-sm">允许删除虚拟机</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- 资源配额 -->
+            <div class="border-b pb-4">
+                <h4 class="font-semibold text-gray-700 mb-3">资源配额</h4>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">CPU核心数</label>
+                        <input type="number" id="editQuotaCpu" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">内存(GB)</label>
+                        <input type="number" id="editQuotaRam" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">磁盘(GB)</label>
+                        <input type="number" id="editQuotaSsd" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">GPU显存(GB)</label>
+                        <input type="number" id="editQuotaGpu" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">NAT端口数</label>
+                        <input type="number" id="editQuotaNatPorts" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">WEB代理数</label>
+                        <input type="number" id="editQuotaWebProxy" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">上行带宽(Mbps)</label>
+                        <input type="number" id="editQuotaBandwidthUp" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">下行带宽(Mbps)</label>
+                        <input type="number" id="editQuotaBandwidthDown" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">每月流量(GB)</label>
+                        <input type="number" id="editQuotaTraffic" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 分配主机 -->
+            <div>
+                <h4 class="font-semibold text-gray-700 mb-3">分配主机</h4>
+                <div id="assignedHostsContainer" class="space-y-2">
+                    <!-- 主机列表将通过JavaScript动态加载 -->
+                </div>
+            </div>
+            
+            <div class="flex gap-2 pt-4">
+                <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
+                    保存
+                </button>
+                <button type="button" onclick="closeEditUserModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    取消
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let allHosts = [];
+    
+    $(document).ready(function() {
+        loadUsers();
+        loadHosts();
+    });
+    
+    async function loadUsers() {
+        const result = await apiRequest('/api/users');
+        if (result && result.code === 200) {
+            renderUserTable(result.data);
+        }
+    }
+    
+    async function loadHosts() {
+        const result = await apiRequest('/api/server/detail');
+        if (result && result.code === 200) {
+            allHosts = Array.isArray(result.data) ? result.data : [];
+        } else {
+            allHosts = [];
+        }
+    }
+    
+    function renderUserTable(users) {
+        const tbody = document.getElementById('userTableBody');
+        tbody.innerHTML = users.map(user => `
+            <tr>
+                <td class="px-4 py-3 text-sm">${user.username}</td>
+                <td class="px-4 py-3 text-sm">${user.email}</td>
+                <td class="px-4 py-3 text-sm">
+                    ${user.is_admin ? '<span class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">管理员</span>' : '<span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">普通用户</span>'}
+                </td>
+                <td class="px-4 py-3 text-sm">
+                    ${user.is_active ? '<span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">启用</span>' : '<span class="px-2 py-1 bg-red-100 text-red-700 rounded text-xs">禁用</span>'}
+                </td>
+                <td class="px-4 py-3 text-sm">
+                    CPU:${user.quota_cpu} RAM:${user.quota_ram}GB SSD:${user.quota_ssd}GB
+                </td>
+                <td class="px-4 py-3 text-sm">
+                    <button onclick="editUser(${user.id})" class="text-blue-600 hover:text-blue-700 mr-2">编辑</button>
+                    <button onclick="deleteUser(${user.id})" class="text-red-600 hover:text-red-700">删除</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+    
+    async function editUser(userId) {
+        const result = await apiRequest(`/api/users/${userId}`);
+        if (result && result.code === 200) {
+            const user = result.data;
+            document.getElementById('editUserId').value = user.id;
+            document.getElementById('editUsername').value = user.username;
+            document.getElementById('editEmail').value = user.email;
+            document.getElementById('editIsAdmin').checked = user.is_admin;
+            document.getElementById('editIsActive').checked = user.is_active;
+            document.getElementById('editCanCreate').checked = user.can_create_vm;
+            document.getElementById('editCanModify').checked = user.can_modify_vm;
+            document.getElementById('editCanDelete').checked = user.can_delete_vm;
+            document.getElementById('editQuotaCpu').value = user.quota_cpu;
+            document.getElementById('editQuotaRam').value = user.quota_ram;
+            document.getElementById('editQuotaSsd').value = user.quota_ssd;
+            document.getElementById('editQuotaGpu').value = user.quota_gpu;
+            document.getElementById('editQuotaNatPorts').value = user.quota_nat_ports;
+            document.getElementById('editQuotaWebProxy').value = user.quota_web_proxy;
+            document.getElementById('editQuotaBandwidthUp').value = user.quota_bandwidth_up;
+            document.getElementById('editQuotaBandwidthDown').value = user.quota_bandwidth_down;
+            document.getElementById('editQuotaTraffic').value = user.quota_traffic;
+            
+            // 渲染主机列表
+            const assignedHosts = JSON.parse(user.assigned_hosts || '[]');
+            const container = document.getElementById('assignedHostsContainer');
+            if (Array.isArray(allHosts)) {
+                container.innerHTML = allHosts.map(host => `
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" class="rounded assigned-host-checkbox" value="${host.hs_name}" ${assignedHosts.includes(host.hs_name) ? 'checked' : ''}>
+                        <span class="text-sm">${host.hs_name}</span>
+                    </label>
+                `).join('');
+            } else {
+                container.innerHTML = '<p class="text-gray-500 text-sm">暂无可用主机</p>';
+            }
+            
+            document.getElementById('editUserModal').classList.remove('hidden');
+        }
+    }
+    
+    function closeEditUserModal() {
+        document.getElementById('editUserModal').classList.add('hidden');
+    }
+    
+    document.getElementById('editUserForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const assignedHosts = Array.from(document.querySelectorAll('.assigned-host-checkbox:checked')).map(cb => cb.value);
+        
+        const data = {
+            is_admin: document.getElementById('editIsAdmin').checked ? 1 : 0,
+            is_active: document.getElementById('editIsActive').checked ? 1 : 0,
+            can_create_vm: document.getElementById('editCanCreate').checked ? 1 : 0,
+            can_modify_vm: document.getElementById('editCanModify').checked ? 1 : 0,
+            can_delete_vm: document.getElementById('editCanDelete').checked ? 1 : 0,
+            quota_cpu: parseInt(document.getElementById('editQuotaCpu').value),
+            quota_ram: parseInt(document.getElementById('editQuotaRam').value),
+            quota_ssd: parseInt(document.getElementById('editQuotaSsd').value),
+            quota_gpu: parseInt(document.getElementById('editQuotaGpu').value),
+            quota_nat_ports: parseInt(document.getElementById('editQuotaNatPorts').value),
+            quota_web_proxy: parseInt(document.getElementById('editQuotaWebProxy').value),
+            quota_bandwidth_up: parseInt(document.getElementById('editQuotaBandwidthUp').value),
+            quota_bandwidth_down: parseInt(document.getElementById('editQuotaBandwidthDown').value),
+            quota_traffic: parseInt(document.getElementById('editQuotaTraffic').value),
+            assigned_hosts: assignedHosts
+        };
+        
+        const userId = document.getElementById('editUserId').value;
+        const result = await apiRequest(`/api/users/${userId}`, 'PUT', data);
+        
+        if (result && result.code === 200) {
+            showToast('用户信息已更新', 'success');
+            closeEditUserModal();
+            loadUsers();
+        } else {
+            showToast(result?.msg || '更新失败', 'error');
+        }
+    });
+    
+    function showAddUserModal() {
+        // 重置表单
+        document.getElementById('addUserForm').reset();
+        
+        // 设置默认值
+        document.getElementById('addIsActive').checked = true;
+        document.getElementById('addCanCreate').checked = true;
+        document.getElementById('addCanModify').checked = true;
+        document.getElementById('addCanDelete').checked = true;
+        
+        // 渲染主机列表
+        const container = document.getElementById('addAssignedHostsContainer');
+        if (Array.isArray(allHosts)) {
+            container.innerHTML = allHosts.map(host => `
+                <label class="flex items-center gap-2">
+                    <input type="checkbox" class="rounded add-assigned-host-checkbox" value="${host.hs_name}">
+                    <span class="text-sm">${host.hs_name}</span>
+                </label>
+            `).join('');
+        } else {
+            container.innerHTML = '<p class="text-gray-500 text-sm">暂无可用主机</p>';
+        }
+        
+        document.getElementById('addUserModal').classList.remove('hidden');
+    }
+    
+    function closeAddUserModal() {
+        document.getElementById('addUserModal').classList.add('hidden');
+    }
+    
+    async function deleteUser(userId) {
+        if (!confirm('确定要删除此用户吗？')) return;
+        
+        const result = await apiRequest(`/api/users/${userId}`, 'DELETE');
+        if (result && result.code === 200) {
+            showToast('用户已删除', 'success');
+            loadUsers();
+        } else {
+            showToast(result?.msg || '删除失败', 'error');
+        }
+    }
+    
+    // 添加用户表单提交处理
+    document.getElementById('addUserForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const assignedHosts = Array.from(document.querySelectorAll('.add-assigned-host-checkbox:checked')).map(cb => cb.value);
+        
+        const data = {
+            username: document.getElementById('addUsername').value,
+            email: document.getElementById('addEmail').value,
+            password: document.getElementById('addPassword').value,
+            is_admin: document.getElementById('addIsAdmin').checked ? 1 : 0,
+            is_active: document.getElementById('addIsActive').checked ? 1 : 0,
+            can_create_vm: document.getElementById('addCanCreate').checked ? 1 : 0,
+            can_modify_vm: document.getElementById('addCanModify').checked ? 1 : 0,
+            can_delete_vm: document.getElementById('addCanDelete').checked ? 1 : 0,
+            quota_cpu: parseInt(document.getElementById('addQuotaCpu').value) || 0,
+            quota_ram: parseInt(document.getElementById('addQuotaRam').value) || 0,
+            quota_ssd: parseInt(document.getElementById('addQuotaSsd').value) || 0,
+            quota_gpu: parseInt(document.getElementById('addQuotaGpu').value) || 0,
+            quota_nat_ports: parseInt(document.getElementById('addQuotaNatPorts').value) || 0,
+            quota_web_proxy: parseInt(document.getElementById('addQuotaWebProxy').value) || 0,
+            quota_bandwidth_up: parseInt(document.getElementById('addQuotaBandwidthUp').value) || 0,
+            quota_bandwidth_down: parseInt(document.getElementById('addQuotaBandwidthDown').value) || 0,
+            quota_traffic: parseInt(document.getElementById('addQuotaTraffic').value) || 0,
+            assigned_hosts: assignedHosts
+        };
+        
+        const result = await apiRequest('/api/users', 'POST', data);
+        
+        if (result && result.code === 200) {
+            showToast('用户添加成功', 'success');
+            closeAddUserModal();
+            loadUsers();
+        } else {
+            showToast(result?.msg || '添加失败', 'error');
+        }
+    });
+</script>
+{% endblock %}

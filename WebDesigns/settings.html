@@ -175,6 +175,90 @@
             </div>
         </div>
     </div>
+
+    <!-- 用户注册设置 -->
+    <div class="bg-white rounded-lg border border-gray-200 card-hover">
+        <div class="p-4 border-b border-gray-200">
+            <h2 class="text-base font-semibold text-gray-800 flex items-center gap-2">
+                <span class="iconify text-indigo-600" data-icon="mdi:account-plus" data-width="20"></span>
+                用户注册设置
+            </h2>
+        </div>
+        <div class="p-4 space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-800">开放注册</p>
+                    <p class="text-xs text-gray-600">允许新用户注册账号</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="registrationEnabled" class="sr-only peer">
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+            
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-800">邮箱验证</p>
+                    <p class="text-xs text-gray-600">注册时需要验证邮箱</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="emailVerificationEnabled" class="sr-only peer">
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+
+            <button onclick="saveRegistrationSettings()" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-2">
+                <span class="iconify" data-icon="mdi:content-save" data-width="18"></span>
+                保存设置
+            </button>
+        </div>
+    </div>
+
+    <!-- 邮件服务配置 -->
+    <div class="bg-white rounded-lg border border-gray-200 card-hover">
+        <div class="p-4 border-b border-gray-200">
+            <h2 class="text-base font-semibold text-gray-800 flex items-center gap-2">
+                <span class="iconify text-red-600" data-icon="mdi:email" data-width="20"></span>
+                邮件服务配置 (Resend)
+            </h2>
+        </div>
+        <div class="p-4 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">发件邮箱</label>
+                <input 
+                    type="email" 
+                    id="resendEmail"
+                    placeholder="noreply@yourdomain.com"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">API Key</label>
+                <input 
+                    type="password" 
+                    id="resendApikey"
+                    placeholder="re_xxxxxxxxxxxxxxxx"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+            </div>
+
+            <button onclick="saveEmailSettings()" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-2">
+                <span class="iconify" data-icon="mdi:content-save" data-width="18"></span>
+                保存配置
+            </button>
+
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div class="flex items-start gap-2">
+                    <span class="iconify text-blue-600 mt-0.5" data-icon="mdi:information" data-width="18"></span>
+                    <div class="text-xs text-blue-800">
+                        <p class="font-medium">Resend 邮件服务</p>
+                        <p class="mt-1">访问 <a href="https://resend.com" target="_blank" class="underline">resend.com</a> 获取API Key</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -186,6 +270,7 @@
     $(document).ready(function() {
         loadCurrentToken();
         loadSystemInfo();
+        loadSystemSettings();
     });
 
     async function loadCurrentToken() {
@@ -201,6 +286,45 @@
         if (result && result.code === 200) {
             document.getElementById('infoHostCount').textContent = result.data.host_count || 0;
             document.getElementById('infoVmCount').textContent = result.data.vm_count || 0;
+        }
+    }
+
+    async function loadSystemSettings() {
+        const result = await apiRequest('/api/system/settings');
+        if (result && result.code === 200) {
+            const settings = result.data;
+            document.getElementById('registrationEnabled').checked = settings.registration_enabled === '1';
+            document.getElementById('emailVerificationEnabled').checked = settings.email_verification_enabled === '1';
+            document.getElementById('resendEmail').value = settings.resend_email || '';
+            document.getElementById('resendApikey').value = settings.resend_apikey || '';
+        }
+    }
+
+    async function saveRegistrationSettings() {
+        const data = {
+            registration_enabled: document.getElementById('registrationEnabled').checked ? '1' : '0',
+            email_verification_enabled: document.getElementById('emailVerificationEnabled').checked ? '1' : '0'
+        };
+        
+        const result = await apiRequest('/api/system/settings', 'POST', data);
+        if (result && result.code === 200) {
+            showToast('注册设置已保存', 'success');
+        } else {
+            showToast(result?.msg || '保存失败', 'error');
+        }
+    }
+
+    async function saveEmailSettings() {
+        const data = {
+            resend_email: document.getElementById('resendEmail').value,
+            resend_apikey: document.getElementById('resendApikey').value
+        };
+        
+        const result = await apiRequest('/api/system/settings', 'POST', data);
+        if (result && result.code === 200) {
+            showToast('邮件配置已保存', 'success');
+        } else {
+            showToast(result?.msg || '保存失败', 'error');
         }
     }
 
