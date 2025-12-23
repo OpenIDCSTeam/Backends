@@ -9,3 +9,4 @@ flask
 requests
 websockify
 py7zr
+loguru

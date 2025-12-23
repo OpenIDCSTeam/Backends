@@ -56,7 +56,7 @@ class VNCStart:
         # 构建websockify命令，使用token认证
         cmd = [
             sys.executable,  # 使用当前Python解释器
-            "-m", "websockify",  # 以模块方式运行websockify
+            "./Websockify/websocketproxy.py",  # 以模块方式运行websockify
             "--token-plugin", "TokenFile",  # 使用TokenFile插件
             "--token-source", abs_vnc_save,  # 指定token配置文件
             str(self.web_port),  # Web端口
