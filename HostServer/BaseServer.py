@@ -1,15 +1,21 @@
 import os
+import sys
+import platform
+import subprocess
+import datetime
 import random
 import shutil
 import string
+from copy import deepcopy
 from random import randint
-
 from loguru import logger
-from pyexpat.errors import messages
 
 from HostModule.HttpManage import HttpManage
 from MainObject.Config.HSConfig import HSConfig
+from MainObject.Config.IMConfig import IMConfig
 from MainObject.Config.PortData import PortData
+from MainObject.Config.SDConfig import SDConfig
+from MainObject.Config.VMBackup import VMBackup
 from MainObject.Config.VMPowers import VMPowers
 from MainObject.Config.WebProxy import WebProxy
 from MainObject.Public.HWStatus import HWStatus
@@ -42,7 +48,7 @@ class BaseServer:
     # 转换字典 ######################################################################
     # :return: 字典
     # ###############################################################################
-    def __dict__(self):
+    def __save__(self):
         return {
             "hs_config": self.__save__(self.hs_config),
             "vm_saving": {
@@ -63,9 +69,9 @@ class BaseServer:
         # 处理列表类型，递归转换每个元素
         if isinstance(obj, list):
             return [BaseServer.__save__(item) for item in obj]
-        if hasattr(obj, '__dict__'):
-            if callable(getattr(obj, '__dict__')):
-                return obj.__dict__()
+        if hasattr(obj, '__save__'):
+            if callable(getattr(obj, '__save__')):
+                return obj.__save__()
         return obj
 
     # 加载数据 ######################################################################
@@ -249,9 +255,9 @@ class BaseServer:
                f"/vnc.html?autoconnect=true&path=websockify?" \
                f"token={rand_pass}"
 
-    # 获取当前主机所有虚拟机已分配的IP地址 ###########################################
+    # 获取当前主机所有虚拟机已分配的IP地址 ##########################################
     # :returns: IP地址列表
-    # ################################################################################
+    # ###############################################################################
     def IPGrants(self) -> set:
         allocated = set()
         for vm_uuid, vm_config in self.vm_saving.items():
@@ -316,7 +322,7 @@ class BaseServer:
                 return ZMessage(success=False, action="NCStatic", message=str(e))
         return ZMessage(success=False, action="NCStatic", message="No IP address found")
 
-    # 配置虚拟机 ########################################################################
+    # 配置虚拟机 ####################################################################
     # :params vm_conf: 虚拟机配置对象
     # ###############################################################################
     def NCUpdate(self, vm_conf: VMConfig, vm_last: VMConfig) -> ZMessage:
@@ -338,7 +344,7 @@ class BaseServer:
             )
         return ZMessage(success=True, action="VMUpdate")
 
-    # 端口映射 ########################################################################
+    # 端口映射 ######################################################################
     # :params map_info: 端口映射信息
     # ###############################################################################
     def PortsMap(self, map_info: PortData, flag=True) -> ZMessage:
@@ -381,7 +387,7 @@ class BaseServer:
         self.data_set()
         return hs_result
 
-    # 反向代理 ########################################################################
+    # 反向代理 ######################################################################
     # :params ip: 内网IP地址
     # :params in_pt: 内网端口
     # :params ex_pt: 外网端口
@@ -426,25 +432,28 @@ class BaseServer:
         hs_status = HSStatus()
         return hs_status.status()
 
-    # 初始宿主机 ########################################################################
+    # 初始宿主机 ####################################################################
     def HSCreate(self) -> ZMessage:
         hs_result = ZMessage(success=True, action="HSCreate")
         self.logs_set(hs_result)
         return hs_result
 
-    # 还原宿主机 ########################################################################
+    # 还原宿主机 ####################################################################
     def HSDelete(self) -> ZMessage:
         hs_result = ZMessage(success=True, action="HSDelete")
         self.logs_set(hs_result)
         return hs_result
 
-    # 读取宿主机 ########################################################################
+    # 读取宿主机 ####################################################################
     def HSLoader(self) -> ZMessage:
-        hs_result = ZMessage(success=True, action="HSLoader", message="宿主机加载成功")
+        hs_result = ZMessage(
+            success=True,
+            action="HSLoader",
+            message="宿主机加载成功")
         self.logs_set(hs_result)
         return hs_result
 
-    # 卸载宿主机 ########################################################################
+    # 卸载宿主机 ####################################################################
     def HSUnload(self) -> ZMessage:
         hs_result = ZMessage(
             success=True,
@@ -454,7 +463,11 @@ class BaseServer:
         self.logs_set(hs_result)
         return hs_result
 
-    # 创建虚拟机 ########################################################################
+    # 虚拟机扫描 ####################################################################
+    def VScanner(self) -> ZMessage:
+        pass
+
+    # 创建虚拟机 ####################################################################
     # :params vm_conf: 虚拟机配置对象
     # ###############################################################################
     def VMCreate(self, vm_conf: VMConfig) -> ZMessage:
@@ -468,7 +481,7 @@ class BaseServer:
         self.logs_set(hs_result)
         return hs_result
 
-    # 配置虚拟机 ########################################################################
+    # 配置虚拟机 ####################################################################
     # :params vm_conf: 虚拟机配置对象
     # ###############################################################################
     def VMUpdate(self, vm_conf: VMConfig, vm_last: VMConfig) -> ZMessage:
@@ -481,7 +494,7 @@ class BaseServer:
         self.logs_set(hs_result)
         return hs_result
 
-    # 虚拟机状态 ########################################################################
+    # 虚拟机状态 ####################################################################
     # :params select: 虚拟机UUID，为空则返回所有虚拟机状态
     # ###############################################################################
     def VMStatus(self, vm_name: str = "") -> dict[str, list[HWStatus]]:
@@ -492,25 +505,24 @@ class BaseServer:
             return all_status
         return {}
 
-    # 删除虚拟机 ########################################################################
+    # 删除虚拟机 ####################################################################
     # :params select: 虚拟机UUID
     # ###############################################################################
     def VMDelete(self, vm_name: str) -> ZMessage:
-        """删除指定虚拟机"""
         vm_saving = os.path.join(self.hs_config.system_path, vm_name)
-        # 删除虚拟文件 =========================================================
+        # 删除虚拟文件 ==============================================================
         if os.path.exists(vm_saving):
             shutil.rmtree(vm_saving)
-        # 删除存储信息 =========================================================
+        # 删除存储信息 ==============================================================
         if vm_name in self.vm_saving:
             del self.vm_saving[vm_name]
-        # 保存到数据库 =========================================================
+        # 保存到数据库 ==============================================================
         self.data_set()
         hs_result = ZMessage(success=True, action="VMDelete")
         self.logs_set(hs_result)
         return hs_result
 
-    # 虚拟机电源 ########################################################################
+    # 虚拟机电源 ####################################################################
     # :params select: 虚拟机UUID
     # :params p: 电源操作类型
     # ###############################################################################
@@ -519,13 +531,13 @@ class BaseServer:
             success=False, action="VMPowers",
             message="操作成功完成")
 
-    # 安装虚拟机 ########################################################################
+    # 安装虚拟机 ####################################################################
     # :params select: 虚拟机UUID
     # ###############################################################################
     def VInstall(self, vm_conf: VMConfig) -> ZMessage:
         pass
 
-    # 设置虚拟机密码 ########################################################################
+    # 设置虚拟机密码 ################################################################
     # :params select: 虚拟机UUID
     # :params os_pass: 密码
     # ###############################################################################
@@ -535,8 +547,318 @@ class BaseServer:
             return ZMessage(
                 success=False, action="Password",
                 message="虚拟机不存在")
-        # 使用__dict__()方法创建新配置，避免copy.deepcopy的问题
-        ap_config_dict = vm_config.__dict__()
+        # 使用__save__()方法创建新配置，避免copy.deepcopy的问题
+        ap_config_dict = vm_config.__save__()
         ap_config = VMConfig(**ap_config_dict)
         ap_config.os_pass = os_pass
         return self.VMUpdate(ap_config, vm_config)
+
+    # 获取7z可执行文件路径 ##########################################################
+    # :return: 7z可执行文件的完整路径
+    # ###############################################################################
+    def get_7z_path(self) -> str:
+        """根据操作系统返回对应的7z可执行文件路径"""
+        system = platform.system().lower()
+        if system == "windows":
+            return os.path.join("HostConfig", "7zipwinx64", "7z.exe")
+        elif system == "linux":
+            return os.path.join("HostConfig", "7ziplinx64", "7zz")
+        elif system == "darwin":  # macOS
+            return os.path.join("HostConfig", "7zipmacu2b", "7zz")
+        else:
+            raise OSError(f"不支持的操作系统: {system}")
+
+    # 备份虚拟机 ####################################################################
+    # :params vm_name: 虚拟机UUID
+    # :params vm_tips: 备份的说明
+    # ###############################################################################
+    def VMBackup(self, vm_name: str, vm_tips: str) -> ZMessage:
+        bak_time = datetime.datetime.now()
+        bak_name = vm_name + "-" + bak_time.strftime("%Y%m%d%H%M%S") + ".7z"
+        org_path = os.path.join(self.hs_config.system_path, vm_name)
+        zip_path = os.path.join(self.hs_config.backup_path, bak_name)
+        try:
+            self.VMPowers(vm_name, VMPowers.H_CLOSE)
+
+            # 获取7z可执行文件路径
+            seven_zip = self.get_7z_path()
+            if not os.path.exists(seven_zip):
+                raise FileNotFoundError(f"7z可执行文件不存在: {seven_zip}")
+
+            # 使用subprocess调用7z进行压缩
+            # 命令格式: 7z a -t7z <压缩包路径> <源目录>
+            cmd = [seven_zip, "a", "-t7z", zip_path, org_path]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+
+            if result.returncode != 0:
+                raise Exception(f"7z压缩失败: {result.stderr}")
+
+            self.VMPowers(vm_name, VMPowers.S_START)
+            self.vm_saving[vm_name].backups.append(
+                VMBackup(
+                    backup_name=bak_name,
+                    backup_time=bak_time,
+                    backup_tips=vm_tips
+                )
+            )
+            self.data_set()
+            return ZMessage(success=True, action="VMBackup")
+        except Exception as e:
+            self.VMPowers(vm_name, VMPowers.S_START)
+            return ZMessage(success=False, action="VMBackup", message=str(e))
+
+    # 恢复虚拟机 ####################################################################
+    # :params vm_name: 虚拟机UUID
+    # :params vm_back: 备份文件名
+    # ###############################################################################
+    def Restores(self, vm_name: str, vm_back: str) -> ZMessage:
+        org_path = os.path.join(self.hs_config.system_path, vm_name)
+        zip_path = os.path.join(self.hs_config.backup_path, vm_back)
+        try:
+            self.VMPowers(vm_name, VMPowers.H_CLOSE)
+            shutil.rmtree(org_path)
+            os.makedirs(org_path)
+
+            # 获取7z可执行文件路径
+            seven_zip = self.get_7z_path()
+            if not os.path.exists(seven_zip):
+                raise FileNotFoundError(f"7z可执行文件不存在: {seven_zip}")
+
+            # 使用subprocess调用7z进行解压
+            # 命令格式: 7z x <压缩包路径> -o<输出目录> -y
+            cmd = [seven_zip, "x", zip_path, f"-o{self.hs_config.system_path}", "-y"]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+
+            if result.returncode != 0:
+                raise Exception(f"7z解压失败: {result.stderr}")
+
+            self.VMPowers(vm_name, VMPowers.S_START)
+            return ZMessage(success=True, action="Restores")
+        except Exception as e:
+            self.VMPowers(vm_name, VMPowers.S_START)
+            return ZMessage(success=False, action="Restores", message=str(e))
+
+    # VM镜像挂载 ####################################################################
+    # :params vm_name: 虚拟机UUID
+    # :params vm_imgs: 镜像的配置
+    # :params in_flag: 挂载或卸载
+    # ###############################################################################
+    def HDDMount(self, vm_name: str, vm_imgs: SDConfig, in_flag=True) -> ZMessage:
+        if vm_name not in self.vm_saving:
+            return ZMessage(
+                success=False, action="HDDMount", message="虚拟机不存在")
+        old_conf = deepcopy(self.vm_saving[vm_name])
+        # 关闭虚拟机 ===============================================================
+        self.VMPowers(vm_name, VMPowers.H_CLOSE)
+        if in_flag:  # 挂载磁盘 ====================================================
+            vm_imgs.hdd_flag = 1
+            self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name] = vm_imgs
+        else:  # 卸载磁盘 ==========================================================
+            if vm_imgs.hdd_name not in self.vm_saving[vm_name].hdd_all:
+                self.VMPowers(vm_name, VMPowers.S_START)
+                return ZMessage(
+                    success=False, action="HDDMount", message="磁盘不存在")
+            self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name].hdd_flag = 0
+        # 保存配置 =================================================================
+        self.VMUpdate(self.vm_saving[vm_name], old_conf)
+        self.data_set()
+        action_text = "挂载" if in_flag else "卸载"
+        return ZMessage(
+            success=True,
+            action="HDDMount",
+            message=f"磁盘{action_text}成功")
+
+    # ISO镜像挂载 ###################################################################
+    # :params vm_name: 虚拟机UUID
+    # :params vm_imgs: 镜像的配置
+    # :params in_flag: 挂载或卸载
+    # ###############################################################################
+    def ISOMount(self, vm_name: str, vm_imgs: IMConfig, in_flag=True) -> ZMessage:
+        if vm_name not in self.vm_saving:
+            return ZMessage(
+                success=False, action="ISOMount", message="虚拟机不存在")
+
+        old_conf = deepcopy(self.vm_saving[vm_name])
+        # 关闭虚拟机
+        logger.info(f"[{self.hs_config.server_name}] 准备{'挂载' if in_flag else '卸载'}ISO: {vm_imgs.iso_name}")
+        self.VMPowers(vm_name, VMPowers.H_CLOSE)
+
+        if in_flag:  # 挂载ISO =================================================
+            # 使用iso_file作为文件名检查
+            iso_full = os.path.join(self.hs_config.images_path, vm_imgs.iso_file)
+            if not os.path.exists(iso_full):
+                self.VMPowers(vm_name, VMPowers.S_START)
+                logger.error(f"[{self.hs_config.server_name}] ISO文件不存在: {iso_full}")
+                return ZMessage(
+                    success=False, action="ISOMount", message="ISO镜像文件不存在")
+
+            # 检查挂载名称是否已存在
+            if vm_imgs.iso_name in self.vm_saving[vm_name].iso_all:
+                self.VMPowers(vm_name, VMPowers.S_START)
+                return ZMessage(
+                    success=False, action="ISOMount", message="挂载名称已存在")
+
+            # 使用iso_name作为key存储
+            self.vm_saving[vm_name].iso_all[vm_imgs.iso_name] = vm_imgs
+            logger.info(f"[{self.hs_config.server_name}] ISO挂载成功: {vm_imgs.iso_name} -> {vm_imgs.iso_file}")
+        else:
+            # 卸载ISO ==========================================================
+            if vm_imgs.iso_name not in self.vm_saving[vm_name].iso_all:
+                self.VMPowers(vm_name, VMPowers.S_START)
+                return ZMessage(
+                    success=False, action="ISOMount", message="ISO镜像不存在")
+
+            # 从字典中移除
+            del self.vm_saving[vm_name].iso_all[vm_imgs.iso_name]
+            logger.info(f"[{self.hs_config.server_name}] ISO卸载成功: {vm_imgs.iso_name}")
+
+        # 保存配置 =============================================================
+        self.VMUpdate(self.vm_saving[vm_name], old_conf)
+        self.data_set()
+
+        # 启动虚拟机
+        self.VMPowers(vm_name, VMPowers.S_START)
+
+        action_text = "挂载" if in_flag else "卸载"
+        return ZMessage(
+            success=True,
+            action="ISOMount",
+            message=f"ISO镜像{action_text}成功")
+
+
+    # 移交所有权 ####################################################################
+    # :params vm_name: 虚拟机UUID
+    # :params vm_imgs: 镜像的配置
+    # :params ex_name: 新虚拟机名
+    # ###############################################################################
+    def HDDTrans(self, vm_name: str, vm_imgs: SDConfig, ex_name: str) -> ZMessage:
+        # 检查源虚拟机是否存在
+        if vm_name not in self.vm_saving:
+            return ZMessage(
+                success=False, action="HDDTrans", message="源虚拟机不存在")
+
+        # 检查目标虚拟机是否存在
+        if ex_name not in self.vm_saving:
+            return ZMessage(
+                success=False, action="HDDTrans", message="目标虚拟机不存在")
+
+        # 检查磁盘是否存在
+        if vm_imgs.hdd_name not in self.vm_saving[vm_name].hdd_all:
+            return ZMessage(
+                success=False, action="HDDTrans", message="磁盘不存在")
+
+        # 检查磁盘是否已挂载
+        hdd_config = self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name]
+        hdd_flag = getattr(hdd_config, 'hdd_flag', 0)
+        if hdd_flag == 1:
+            return ZMessage(
+                success=False, action="HDDTrans",
+                message="磁盘已挂载，无法移交。请先卸载磁盘后再进行移交操作")
+
+        # 执行移交操作
+        old_path = os.path.join(self.hs_config.system_path, vm_name)
+        new_path = os.path.join(self.hs_config.system_path, ex_name)
+        old_file = os.path.join(old_path, vm_name + "-" + vm_imgs.hdd_name + ".vmdk")
+        new_file = os.path.join(new_path, ex_name + "-" + vm_imgs.hdd_name + ".vmdk")
+
+        try:
+            # 从源虚拟机移除磁盘配置
+            self.vm_saving[vm_name].hdd_all.pop(vm_imgs.hdd_name)
+
+            # 移动物理文件
+            if os.path.exists(old_file):
+                shutil.move(old_file, new_file)
+                logger.info(f"[{self.hs_config.server_name}] 磁盘文件已从 {old_file} 移动到 {new_file}")
+            else:
+                logger.warning(f"[{self.hs_config.server_name}] 源磁盘文件 {old_file} 不存在")
+
+            # 添加到目标虚拟机（保持未挂载状态）
+            vm_imgs.hdd_flag = 0
+            self.vm_saving[ex_name].hdd_all[vm_imgs.hdd_name] = vm_imgs
+
+            # 保存配置
+            self.data_set()
+
+            logger.info(f"[{self.hs_config.server_name}] 磁盘 {vm_imgs.hdd_name} 已从虚拟机 {vm_name} 移交到 {ex_name}")
+            return ZMessage(success=True, action="HDDTrans", message="磁盘移交成功")
+        except Exception as e:
+            logger.error(f"[{self.hs_config.server_name}] 磁盘移交失败: {str(e)}")
+            return ZMessage(success=False, action="HDDTrans", message=str(e))
+
+
+    # 移除备份 ######################################################################
+    def RMBackup(self, vm_back: str) -> ZMessage:
+        bak_path = os.path.join(self.hs_config.backup_path, vm_back)
+        if not os.path.exists(bak_path):
+            return ZMessage(
+                success=False, action="RMBackup",
+                message="备份文件不存在")
+        os.remove(bak_path)
+        return ZMessage(
+            success=True, action="RMBackup",
+            message="备份文件已删除")
+
+
+    # 加载备份 ######################################################################
+    def LDBackup(self, vm_back: str = "") -> ZMessage:
+        for vm_name in self.vm_saving:
+            self.vm_saving[vm_name].backups = []
+        bal_nums = 0
+        for bak_name in os.listdir(self.hs_config.backup_path):
+            # 只处理.7z备份文件
+            if not bak_name.endswith(".7z"):
+                continue
+            bal_nums += 1
+            # 去掉.7z后缀再解析
+            name_without_ext = bak_name[:-3]  # 移除.7z
+            parts = name_without_ext.split("-")
+            if len(parts) < 2:
+                logger.warning(f"备份文件名格式不正确: {bak_name}")
+                continue
+            vm_name = parts[0]
+            vm_time = parts[1]
+            if vm_name in self.vm_saving:
+                try:
+                    self.vm_saving[vm_name].backups.append(
+                        VMBackup(
+                            backup_name=bak_name,
+                            backup_time=datetime.datetime.strptime(
+                                vm_time, "%Y%m%d%H%M%S")
+                        )
+                    )
+                except ValueError as e:
+                    logger.error(f"解析备份时间失败 {bak_name}: {e}")
+                    continue
+        self.data_set()
+        return ZMessage(
+            success=True,
+            action="LDBackup",
+            message=f"{bal_nums}个备份文件已加载")
+
+
+    # 移除磁盘 ######################################################################
+    def RMMounts(self, vm_name: str, vm_imgs: str) -> ZMessage:
+        if vm_name not in self.vm_saving:
+            return ZMessage(
+                success=False, action="RMMounts", message="虚拟机不存在")
+        if vm_imgs not in self.vm_saving[vm_name].hdd_all:
+            return ZMessage(
+                success=False, action="RMMounts", message="虚拟盘不存在")
+        # 获取虚拟磁盘数据 ===============================================
+        hd_data = self.vm_saving[vm_name].hdd_all[vm_imgs]
+        hd_path = os.path.join(
+            self.hs_config.system_path, vm_name,
+            vm_name + "-" + hd_data.hdd_name + ".vmdk")
+        # 卸载虚拟磁盘 ===================================================
+        if hd_data.hdd_flag == 1:
+            self.HDDMount(vm_name, hd_data, False)
+        # 从配置中移除 ===================================================
+        self.vm_saving[vm_name].hdd_all.pop(vm_imgs)
+        self.data_set()
+        # 删除物理文件 ===================================================
+        if os.path.exists(hd_path):
+            os.remove(hd_path)
+        # 返回结果 =======================================================
+        return ZMessage(
+            success=True, action="RMMounts",
+            message="磁盘删除成功")

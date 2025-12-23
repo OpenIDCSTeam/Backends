@@ -89,6 +89,18 @@
         <span class="iconify mr-1" data-icon="mdi:web" data-width="18"></span>
         反向代理
     </a>
+    <a role="tab" class="tab" onclick="switchTab('hdd')">
+        <span class="iconify mr-1" data-icon="mdi:harddisk" data-width="18"></span>
+        数据盘
+    </a>
+    <a role="tab" class="tab" onclick="switchTab('iso')">
+        <span class="iconify mr-1" data-icon="mdi:disc" data-width="18"></span>
+        ISO挂载
+    </a>
+    <a role="tab" class="tab" onclick="switchTab('backup')">
+        <span class="iconify mr-1" data-icon="mdi:backup-restore" data-width="18"></span>
+        备份管理
+    </a>
 </div>
 
 <!-- Tab内容 -->
@@ -465,6 +477,66 @@
             </div>
         </div>
     </div>
+
+    <!-- 数据盘Tab -->
+    <div id="hddTab" class="tab-pane" style="display: none;">
+        <div class="bg-white rounded-lg border border-gray-200 p-4">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-base font-semibold text-gray-800 flex items-center gap-2">
+                    <span class="iconify text-gray-500" data-icon="mdi:harddisk" data-width="20"></span>
+                    数据盘管理
+                </h2>
+                <button onclick="showAddHDDModal()"
+                        class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                    <span class="iconify" data-icon="mdi:plus" data-width="18"></span>
+                    挂载数据盘
+                </button>
+            </div>
+            <div id="hddList">
+                <p class="text-center text-gray-500 py-8 text-sm">加载中...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ISO挂载Tab -->
+    <div id="isoTab" class="tab-pane" style="display: none;">
+        <div class="bg-white rounded-lg border border-gray-200 p-4">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-base font-semibold text-gray-800 flex items-center gap-2">
+                    <span class="iconify text-gray-500" data-icon="mdi:disc" data-width="20"></span>
+                    ISO镜像管理
+                </h2>
+                <button onclick="showAddISOModal()"
+                        class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                    <span class="iconify" data-icon="mdi:plus" data-width="18"></span>
+                    挂载ISO
+                </button>
+            </div>
+            <div id="isoList">
+                <p class="text-center text-gray-500 py-8 text-sm">加载中...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 备份管理Tab -->
+    <div id="backupTab" class="tab-pane" style="display: none;">
+        <div class="bg-white rounded-lg border border-gray-200 p-4">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-base font-semibold text-gray-800 flex items-center gap-2">
+                    <span class="iconify text-gray-500" data-icon="mdi:backup-restore" data-width="20"></span>
+                    备份管理
+                </h2>
+                <button onclick="showCreateBackupModal()"
+                        class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                    <span class="iconify" data-icon="mdi:plus" data-width="18"></span>
+                    创建备份
+                </button>
+            </div>
+            <div id="backupList">
+                <p class="text-center text-gray-500 py-8 text-sm">加载中...</p>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- 添加NAT规则模态框 -->
@@ -725,6 +797,388 @@
     </form>
 </dialog>
 
+<!-- 添加数据盘模态框 -->
+<dialog id="addHDDModal" class="modal">
+    <div class="modal-box max-w-lg">
+        <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+            <span class="iconify text-purple-600" data-icon="mdi:harddisk" data-width="24"></span>
+            挂载数据盘
+        </h3>
+        <form id="addHDDForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">磁盘名称 *</label>
+                <input type="text" id="hddName" required
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                       placeholder="例如: data_disk_01"
+                       oninput="validateHDDName(this)">
+                <p id="hddNameError" class="text-xs text-red-600 mt-1" style="display: none;"></p>
+                <p class="text-xs text-gray-500 mt-1">只能包含数字和字母，不能包含特殊符号和中文</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">磁盘大小 (MB) *</label>
+                <input type="number" id="hddSize" required min="1024"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                       placeholder="例如: 10240">
+                <p class="text-xs text-gray-500 mt-1">最小1024MB (1GB)</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">磁盘类型</label>
+                <select id="hddType"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                    <option value="0">普通磁盘</option>
+                </select>
+            </div>
+            <div class="modal-action">
+                <button type="button" onclick="closeHDDModal()"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                    取消
+                </button>
+                <button type="submit"
+                        class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                    <span class="iconify" data-icon="mdi:check" data-width="18"></span>
+                    挂载
+                </button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>关闭</button>
+    </form>
+</dialog>
+
+<!-- 移交数据盘所有权模态框 -->
+<!-- 移交数据盘确认模态框 -->
+<dialog id="transferHDDConfirmModal" class="modal">
+    <div class="modal-box max-w-md">
+        <h3 class="font-bold text-lg flex items-center gap-2 text-blue-600">
+            <span class="iconify" data-icon="mdi:swap-horizontal" data-width="24"></span>
+            移交数据盘
+        </h3>
+        <p class="py-4">确定要移交数据盘 "<span id="transferHddName" class="font-medium"></span>" 吗？</p>
+        
+        <!-- 目标虚拟机输入 -->
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-600 mb-1">目标虚拟机UUID *</label>
+            <input type="text" id="transferTargetVM" required
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                   placeholder="输入目标虚拟机UUID">
+            <p class="text-xs text-gray-500 mt-1">数据盘将从当前虚拟机移交到目标虚拟机</p>
+        </div>
+        
+        <!-- 重要提示 -->
+        <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p class="text-sm text-blue-700 flex items-start gap-2">
+                <span class="iconify mt-0.5" data-icon="mdi:information" data-width="16"></span>
+                <span>目标机器不会自动挂载接收的硬盘</span>
+            </p>
+        </div>
+        
+        <!-- 确认勾选 -->
+        <div class="space-y-3 mb-6">
+            <label class="flex items-start gap-2 cursor-pointer bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <input type="checkbox" id="transferConfirmCheck" 
+                       class="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                       onchange="toggleTransferConfirmButton()">
+                <span class="text-sm text-gray-700">
+                    我同意关闭当前虚拟机执行操作
+                </span>
+            </label>
+        </div>
+        
+        <div class="modal-action">
+            <button onclick="closeTransferHDDConfirmModal()"
+                    class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                取消
+            </button>
+            <button onclick="executeTransferHDD()"
+                    id="executeTransferBtn"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled>
+                确认移交
+            </button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>关闭</button>
+    </form>
+</dialog>
+
+<!-- 挂载数据盘确认模态框 -->
+<dialog id="mountHDDConfirmModal" class="modal">
+    <div class="modal-box max-w-md">
+        <h3 class="font-bold text-lg flex items-center gap-2 text-purple-600">
+            <span class="iconify" data-icon="mdi:harddisk-plus" data-width="24"></span>
+            挂载数据盘
+        </h3>
+        <p class="py-4">确定要挂载数据盘到虚拟机 "<span id="mountVmName" class="font-medium">{{ vm_uuid }}</span>" 吗？</p>
+        
+        <!-- 磁盘信息显示 -->
+        <div class="mb-4 bg-purple-50 border border-purple-200 rounded-lg p-3">
+            <p class="text-sm text-gray-700 mb-1">磁盘名称：</p>
+            <code id="mountHddName" class="text-sm font-mono text-purple-700"></code>
+        </div>
+        
+        <!-- 确认勾选 -->
+        <div class="space-y-3 mb-6">
+            <label class="flex items-start gap-2 cursor-pointer bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <input type="checkbox" id="mountConfirmCheck" 
+                       class="mt-1 w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                       onchange="toggleMountConfirmButton()">
+                <span class="text-sm text-gray-700">
+                    我同意关闭当前虚拟机执行操作
+                </span>
+            </label>
+        </div>
+        
+        <div class="modal-action">
+            <button onclick="closeMountHDDConfirmModal()"
+                    class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                取消
+            </button>
+            <button onclick="executeMountHDD()"
+                    id="executeMountBtn"
+                    class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled>
+                确认挂载
+            </button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>关闭</button>
+    </form>
+</dialog>
+
+<!-- 卸载数据盘确认模态框 -->
+<dialog id="unmountHDDConfirmModal" class="modal">
+    <div class="modal-box max-w-md">
+        <h3 class="font-bold text-lg flex items-center gap-2 text-orange-600">
+            <span class="iconify" data-icon="mdi:eject" data-width="24"></span>
+            卸载数据盘
+        </h3>
+        <p class="py-4">确定要卸载数据盘 "<span id="unmountHddName" class="font-medium"></span>" 吗？</p>
+        
+        <!-- 确认勾选 -->
+        <div class="space-y-3 mb-6">
+            <label class="flex items-start gap-2 cursor-pointer bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <input type="checkbox" id="unmountConfirmCheck" 
+                       class="mt-1 w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                       onchange="toggleUnmountConfirmButton()">
+                <span class="text-sm text-gray-700">
+                    我同意关闭当前虚拟机执行操作
+                </span>
+            </label>
+        </div>
+        
+        <div class="modal-action">
+            <button onclick="closeUnmountHDDConfirmModal()"
+                    class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                取消
+            </button>
+            <button onclick="executeUnmountHDD()"
+                    id="executeUnmountBtn"
+                    class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled>
+                确认卸载
+            </button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>关闭</button>
+    </form>
+</dialog>
+
+<!-- 删除数据盘确认模态框 -->
+<dialog id="deleteHDDConfirmModal" class="modal">
+    <div class="modal-box max-w-md">
+        <h3 class="font-bold text-lg flex items-center gap-2 text-red-600">
+            <span class="iconify" data-icon="mdi:delete" data-width="24"></span>
+            删除数据盘
+        </h3>
+        <p class="py-4">确定要删除数据盘 "<span id="deleteHddName" class="font-medium"></span>" 吗？</p>
+        
+        <!-- 警告信息 -->
+        <div class="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
+            <p class="text-sm text-red-700">⚠️ 此操作不可恢复，磁盘数据将被永久删除！</p>
+        </div>
+        
+        <!-- 确认勾选 -->
+        <div class="space-y-3 mb-6">
+            <label class="flex items-start gap-2 cursor-pointer bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <input type="checkbox" id="deleteConfirmCheck" 
+                       class="mt-1 w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                       onchange="toggleDeleteConfirmButton()">
+                <span class="text-sm text-gray-700">
+                    我同意关闭当前虚拟机执行操作
+                </span>
+            </label>
+        </div>
+        
+        <div class="modal-action">
+            <button onclick="closeDeleteHDDConfirmModal()"
+                    class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                取消
+            </button>
+            <button onclick="executeDeleteHDD()"
+                    id="executeDeleteBtn"
+                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled>
+                确认删除
+            </button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>关闭</button>
+    </form>
+</dialog>
+
+<!-- 添加ISO模态框 -->
+<dialog id="addISOModal" class="modal">
+    <div class="modal-box max-w-lg">
+        <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+            <span class="iconify text-purple-600" data-icon="mdi:disc" data-width="24"></span>
+            挂载ISO镜像
+        </h3>
+        <form id="addISOForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">选择ISO镜像 *</label>
+                <select id="isoFileSelect" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                    <option value="">请选择ISO镜像文件</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">从服务器可用的ISO镜像中选择</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">挂载名称 *</label>
+                <input type="text" id="isoName" required
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                       placeholder="例如: system_iso (仅支持英文和数字)">
+                <p class="text-xs text-gray-500 mt-1">挂载名称只能包含英文字母和数字</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">备注</label>
+                <input type="text" id="isoHint"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                       placeholder="例如: 系统安装盘">
+                <p class="text-xs text-gray-500 mt-1">可选，用于说明此ISO的用途</p>
+            </div>
+            
+            <!-- 确认勾选 -->
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <label class="flex items-start gap-2 cursor-pointer">
+                    <input type="checkbox" id="isoMountConfirmCheck" 
+                           class="mt-1 w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                           onchange="toggleIsoMountConfirmButton()">
+                    <span class="text-sm text-gray-700">
+                        我已同意强制关机此虚拟机
+                    </span>
+                </label>
+            </div>
+            
+            <div class="modal-action">
+                <button type="button" onclick="closeISOModal()"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                    取消
+                </button>
+                <button type="submit" id="confirmIsoMountBtn"
+                        class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled>
+                    <span class="iconify" data-icon="mdi:check" data-width="18"></span>
+                    挂载
+                </button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>关闭</button>
+    </form>
+</dialog>
+
+<!-- 卸载ISO确认模态框 -->
+<dialog id="unmountISOConfirmModal" class="modal">
+    <div class="modal-box max-w-md">
+        <h3 class="font-bold text-lg flex items-center gap-2 text-orange-600">
+            <span class="iconify" data-icon="mdi:eject" data-width="24"></span>
+            卸载ISO镜像
+        </h3>
+        <p class="py-4">确定要卸载ISO镜像 "<span id="unmountIsoName" class="font-medium"></span>" 吗？</p>
+        
+        <!-- 确认勾选 -->
+        <div class="space-y-3 mb-6">
+            <label class="flex items-start gap-2 cursor-pointer bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <input type="checkbox" id="unmountIsoConfirmCheck" 
+                       class="mt-1 w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                       onchange="toggleUnmountIsoConfirmButton()">
+                <span class="text-sm text-gray-700">
+                    我已同意强制关机此虚拟机
+                </span>
+            </label>
+        </div>
+        
+        <div class="modal-action">
+            <button onclick="closeUnmountISOConfirmModal()"
+                    class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                取消
+            </button>
+            <button onclick="executeUnmountISO()"
+                    id="executeUnmountIsoBtn"
+                    class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled>
+                确认卸载
+            </button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>关闭</button>
+    </form>
+</dialog>
+
+<!-- 创建备份模态框 -->
+<dialog id="createBackupModal" class="modal">
+    <div class="modal-box max-w-lg">
+        <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+            <span class="iconify text-purple-600" data-icon="mdi:backup-restore" data-width="24"></span>
+            创建备份
+        </h3>
+        <form id="createBackupForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">备份说明 *</label>
+                <input type="text" id="backupTips" required
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                       placeholder="例如: 系统更新前备份">
+                <p class="text-xs text-gray-500 mt-1">请输入备份的说明信息</p>
+            </div>
+            
+            <!-- 确认勾选 -->
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <label class="flex items-start gap-2 cursor-pointer">
+                    <input type="checkbox" id="backupConfirmCheck" 
+                           class="mt-1 w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                           onchange="toggleBackupConfirmButton()">
+                    <span class="text-sm text-gray-700">
+                        我已确认停止当前虚拟机进行操作
+                    </span>
+                </label>
+            </div>
+            
+            <div class="modal-action">
+                <button type="button" onclick="closeCreateBackupModal()"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                    取消
+                </button>
+                <button type="submit" id="confirmBackupBtn"
+                        class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled>
+                    <span class="iconify" data-icon="mdi:check" data-width="18"></span>
+                    创建
+                </button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>关闭</button>
+    </form>
+</dialog>
+
 <!-- 删除确认模态框 -->
 <dialog id="deleteModal" class="modal">
     <div class="modal-box">
@@ -749,6 +1203,61 @@
             <button onclick="executeDeleteVM()"
                     class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">
                 确认删除
+            </button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>关闭</button>
+    </form>
+</dialog>
+
+<!-- 还原备份确认模态框 -->
+<dialog id="restoreBackupModal" class="modal">
+    <div class="modal-box max-w-md">
+        <h3 class="font-bold text-lg flex items-center gap-2 text-blue-600">
+            <span class="iconify" data-icon="mdi:restore" data-width="24"></span>
+            还原备份
+        </h3>
+        <p class="py-4">为虚拟机 "<span id="restoreVmName" class="font-medium">{{ vm_uuid }}</span>" 还原备份
+        </p>
+        
+        <!-- 备份信息显示 -->
+        <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p class="text-sm text-gray-700 mb-1">备份名称：</p>
+            <code id="restoreBackupName" class="text-sm font-mono text-blue-700"></code>
+        </div>
+        
+        <!-- 确认勾选 -->
+        <div class="space-y-3 mb-6">
+            <label class="flex items-start gap-2 cursor-pointer bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <input type="checkbox" id="restoreConfirmCheck1" 
+                       class="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                       onchange="toggleRestoreConfirmButton()">
+                <span class="text-sm text-gray-700">
+                    我已确认停止当前虚拟机进行操作
+                </span>
+            </label>
+            
+            <label class="flex items-start gap-2 cursor-pointer bg-red-50 border border-red-200 rounded-lg p-3">
+                <input type="checkbox" id="restoreConfirmCheck2" 
+                       class="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                       onchange="toggleRestoreConfirmButton()">
+                <span class="text-sm text-gray-700">
+                    我已确认备份数据，将丢失系统盘数据
+                </span>
+            </label>
+        </div>
+        
+        <div class="modal-action">
+            <button onclick="closeRestoreBackupModal()"
+                    class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                取消
+            </button>
+            <button onclick="executeRestore()"
+                    id="executeRestoreBtn"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled>
+                确认还原
             </button>
         </div>
     </div>
@@ -1112,6 +1621,9 @@
         loadNATRules();
         loadIPAddresses();
         loadProxyConfigs();
+        loadHDDList();
+        loadISOList();
+        loadBackupList();
 
         // 表单提交处理
         $('#addNATForm').on('submit', function (e) {
@@ -1132,6 +1644,26 @@
         $('#addProxyForm').on('submit', function (e) {
             e.preventDefault();
             submitProxyConfig();
+        });
+
+        $('#addHDDForm').on('submit', function (e) {
+            e.preventDefault();
+            submitHDD();
+        });
+
+        $('#transferHDDForm').on('submit', function (e) {
+            e.preventDefault();
+            submitTransferHDD();
+        });
+
+        $('#addISOForm').on('submit', function (e) {
+            e.preventDefault();
+            submitISO();
+        });
+
+        $('#createBackupForm').on('submit', function (e) {
+            e.preventDefault();
+            submitBackup();
         });
 
         // 编辑虚拟机表单提交处理
@@ -1235,7 +1767,15 @@
         document.querySelectorAll('.tab-pane').forEach(pane => pane.style.display = 'none');
         document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('tab-active'));
 
-        const tabMap = {'info': 'infoTab', 'nat': 'natTab', 'ip': 'ipTab', 'proxy': 'proxyTab'};
+        const tabMap = {
+            'info': 'infoTab', 
+            'nat': 'natTab', 
+            'ip': 'ipTab', 
+            'proxy': 'proxyTab',
+            'hdd': 'hddTab',
+            'iso': 'isoTab',
+            'backup': 'backupTab'
+        };
         const selectedPane = document.getElementById(tabMap[tabName]);
         if (selectedPane) selectedPane.style.display = 'block';
 
@@ -2713,6 +3253,836 @@
         if (result && result.code === 200) {
             showToast('代理配置已删除', 'success');
             loadProxyConfigs();
+        } else {
+            showToast(result?.msg || '删除失败', 'error');
+        }
+    }
+
+    // ==================== 数据盘管理 ====================
+    async function loadHDDList() {
+        const result = await apiRequest(`/api/client/detail/${hostName}/${vmUuid}`);
+        if (result && result.code === 200 && result.data && result.data.config) {
+            const hddAll = result.data.config.hdd_all || {};
+            renderHDDList(hddAll);
+        } else {
+            $('#hddList').html('<p class="text-center text-gray-500 py-8 text-sm">暂无数据盘</p>');
+        }
+    }
+
+    function renderHDDList(hddAll) {
+        if (!hddAll || Object.keys(hddAll).length === 0) {
+            $('#hddList').html('<p class="text-center text-gray-500 py-8 text-sm">暂无数据盘</p>');
+            return;
+        }
+
+        let html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">';
+
+        Object.entries(hddAll).forEach(([hddName, hdd]) => {
+            const sizeGB = (hdd.hdd_size / 1024).toFixed(1);
+            const typeText = hdd.hdd_type === 1 ? 'SSD' : 'HDD';
+            const isMounted = hdd.hdd_flag === 1;
+            const mountStatusBadge = isMounted 
+                ? '<span class="px-2 py-0.5 text-xs font-medium text-green-700 bg-green-100 rounded">已挂载</span>'
+                : '<span class="px-2 py-0.5 text-xs font-medium text-gray-700 bg-gray-100 rounded">未挂载</span>';
+            
+            // 根据挂载状态显示不同的操作按钮
+            let actionButtons = '';
+            if (isMounted) {
+                // 已挂载：显示卸载、删除按钮
+                actionButtons = `
+                    <button onclick="showUnmountHDDConfirmModal('${hddName}')" class="p-1 text-orange-500 hover:bg-orange-50 rounded" title="卸载">
+                        <span class="iconify" data-icon="mdi:eject" data-width="18"></span>
+                    </button>
+                    <button onclick="showDeleteHDDConfirmModal('${hddName}')" class="p-1 text-red-500 hover:bg-red-50 rounded" title="删除">
+                        <span class="iconify" data-icon="mdi:delete" data-width="18"></span>
+                    </button>
+                `;
+            } else {
+                // 未挂载：显示挂载、移交、删除按钮
+                actionButtons = `
+                    <button onclick="showMountHDDConfirmModal('${hddName}', ${hdd.hdd_size}, ${hdd.hdd_type})" class="p-1 text-green-500 hover:bg-green-50 rounded" title="挂载">
+                        <span class="iconify" data-icon="mdi:harddisk-plus" data-width="18"></span>
+                    </button>
+                    <button onclick="showTransferHDDConfirmModal('${hddName}')" class="p-1 text-blue-500 hover:bg-blue-50 rounded" title="移交">
+                        <span class="iconify" data-icon="mdi:swap-horizontal" data-width="18"></span>
+                    </button>
+                    <button onclick="showDeleteHDDConfirmModal('${hddName}')" class="p-1 text-red-500 hover:bg-red-50 rounded" title="删除">
+                        <span class="iconify" data-icon="mdi:delete" data-width="18"></span>
+                    </button>
+                `;
+            }
+            
+            html += `
+                <div class="bg-white border border-gray-200 rounded-lg p-4 hover:border-purple-300 hover:shadow-md transition-all">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex gap-2">
+                            <span class="px-2 py-0.5 text-xs font-medium text-blue-700 bg-blue-100 rounded">
+                                ${typeText}
+                            </span>
+                            ${mountStatusBadge}
+                        </div>
+                        <div class="flex gap-1">
+                            ${actionButtons}
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 mb-2">
+                        <p class="text-xs text-gray-500">磁盘名称</p>
+                        <code class="text-sm font-mono text-gray-800 break-all">${hddName}</code>
+                    </div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-gray-500">容量</span>
+                        <code class="px-2 py-0.5 font-medium font-mono text-gray-700 bg-gray-100 rounded">${sizeGB} GB</code>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        $('#hddList').html(html);
+    }
+
+    function showAddHDDModal() {
+        $('#addHDDForm')[0].reset();
+        document.getElementById('addHDDModal').showModal();
+    }
+
+    function closeHDDModal() {
+        document.getElementById('addHDDModal').close();
+        $('#addHDDForm')[0].reset();
+        // 清除错误提示
+        document.getElementById('hddNameError').style.display = 'none';
+    }
+
+    // 验证磁盘名称：只能包含数字和字母
+    function validateHDDName(input) {
+        const value = input.value;
+        const errorElement = document.getElementById('hddNameError');
+        const regex = /^[a-zA-Z0-9_]+$/; // 只允许字母、数字和下划线
+        
+        if (value && !regex.test(value)) {
+            errorElement.textContent = '磁盘名称只能包含数字、字母和下划线';
+            errorElement.style.display = 'block';
+            input.setCustomValidity('磁盘名称只能包含数字、字母和下划线');
+        } else {
+            errorElement.style.display = 'none';
+            input.setCustomValidity('');
+        }
+    }
+
+    async function submitHDD() {
+        const hddName = $('#hddName').val();
+        const hddSize = parseInt($('#hddSize').val());
+        const hddType = parseInt($('#hddType').val());
+        
+        // 验证磁盘名称
+        const regex = /^[a-zA-Z0-9_]+$/;
+        if (!regex.test(hddName)) {
+            Swal.fire({
+                title: '磁盘名称格式错误',
+                text: '磁盘名称只能包含数字、字母和下划线，不能包含特殊符号和中文',
+                icon: 'error',
+                confirmButtonText: '确定'
+            });
+            return;
+        }
+        
+        // 关闭添加模态框
+        closeHDDModal();
+        
+        // 显示挂载确认模态框
+        showMountHDDConfirmModal(hddName, hddSize, hddType);
+    }
+
+    // 显示挂载确认模态框
+    function showMountHDDConfirmModal(hddName, hddSize, hddType) {
+        const vmName = vmData?.name || vmUuid;
+        document.getElementById('mountVmName').textContent = vmName;
+        document.getElementById('mountHddName').textContent = hddName;
+        
+        // 重置确认勾选框
+        document.getElementById('mountConfirmCheck').checked = false;
+        document.getElementById('executeMountBtn').disabled = true;
+        
+        // 保存磁盘信息到全局变量
+        window.currentMountHddData = { hdd_name: hddName, hdd_size: hddSize, hdd_type: hddType };
+        
+        // 显示模态框
+        document.getElementById('mountHDDConfirmModal').showModal();
+    }
+    
+    function closeMountHDDConfirmModal() {
+        document.getElementById('mountHDDConfirmModal').close();
+        window.currentMountHddData = null;
+    }
+    
+    function toggleMountConfirmButton() {
+        const check = document.getElementById('mountConfirmCheck');
+        const confirmBtn = document.getElementById('executeMountBtn');
+        confirmBtn.disabled = !check.checked;
+    }
+    
+    async function executeMountHDD() {
+        const data = window.currentMountHddData;
+        if (!data) return;
+        
+        // 关闭模态框
+        closeMountHDDConfirmModal();
+        
+        // 显示进度提示
+        Swal.fire({
+            title: '正在挂载数据盘',
+            text: '数据盘正在挂载中，请稍候...',
+            icon: 'info',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        const result = await apiRequest(`/api/client/hdd/mount/${hostName}/${vmUuid}`, 'POST', data);
+        if (result && result.code === 200) {
+            Swal.fire({
+                title: '挂载成功',
+                text: '数据盘已成功挂载！',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false
+            });
+            setTimeout(() => {
+                loadHDDList();
+            }, 2000);
+        } else {
+            Swal.fire({
+                title: '挂载失败',
+                text: result?.msg || '挂载数据盘失败，请稍后重试',
+                icon: 'error',
+                confirmButtonText: '确定'
+            });
+        }
+    }
+
+    // 显示卸载确认模态框
+    function showUnmountHDDConfirmModal(hddName) {
+        document.getElementById('unmountHddName').textContent = hddName;
+        
+        // 重置确认勾选框
+        document.getElementById('unmountConfirmCheck').checked = false;
+        document.getElementById('executeUnmountBtn').disabled = true;
+        
+        // 保存磁盘名称到全局变量
+        window.currentUnmountHddName = hddName;
+        
+        // 显示模态框
+        document.getElementById('unmountHDDConfirmModal').showModal();
+    }
+    
+    function closeUnmountHDDConfirmModal() {
+        document.getElementById('unmountHDDConfirmModal').close();
+        window.currentUnmountHddName = null;
+    }
+    
+    function toggleUnmountConfirmButton() {
+        const check = document.getElementById('unmountConfirmCheck');
+        const confirmBtn = document.getElementById('executeUnmountBtn');
+        confirmBtn.disabled = !check.checked;
+    }
+    
+    async function executeUnmountHDD() {
+        const hddName = window.currentUnmountHddName;
+        if (!hddName) return;
+        
+        // 关闭模态框
+        closeUnmountHDDConfirmModal();
+        
+        // 显示进度提示
+        Swal.fire({
+            title: '正在卸载数据盘',
+            text: '数据盘正在卸载中，请稍候...',
+            icon: 'info',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        const result = await apiRequest(`/api/client/hdd/unmount/${hostName}/${vmUuid}`, 'POST', {hdd_name: hddName});
+        if (result && result.code === 200) {
+            Swal.fire({
+                title: '卸载成功',
+                text: '数据盘已成功卸载！',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false
+            });
+            setTimeout(() => {
+                loadHDDList();
+            }, 2000);
+        } else {
+            Swal.fire({
+                title: '卸载失败',
+                text: result?.msg || '卸载数据盘失败，请稍后重试',
+                icon: 'error',
+                confirmButtonText: '确定'
+            });
+        }
+    }
+
+    // 显示移交确认模态框
+    function showTransferHDDConfirmModal(hddName) {
+        document.getElementById('transferHddName').textContent = hddName;
+        document.getElementById('transferTargetVM').value = '';
+        
+        // 重置确认勾选框
+        document.getElementById('transferConfirmCheck').checked = false;
+        document.getElementById('executeTransferBtn').disabled = true;
+        
+        // 保存磁盘名称到全局变量
+        window.currentTransferHddName = hddName;
+        
+        // 显示模态框
+        document.getElementById('transferHDDConfirmModal').showModal();
+    }
+    
+    function closeTransferHDDConfirmModal() {
+        document.getElementById('transferHDDConfirmModal').close();
+        document.getElementById('transferTargetVM').value = '';
+        window.currentTransferHddName = null;
+    }
+    
+    function toggleTransferConfirmButton() {
+        const check = document.getElementById('transferConfirmCheck');
+        const confirmBtn = document.getElementById('executeTransferBtn');
+        confirmBtn.disabled = !check.checked;
+    }
+    
+    async function executeTransferHDD() {
+        const hddName = window.currentTransferHddName;
+        const targetVM = document.getElementById('transferTargetVM').value;
+        
+        if (!hddName || !targetVM) {
+            Swal.fire({
+                title: '请输入目标虚拟机',
+                text: '请输入目标虚拟机UUID',
+                icon: 'warning',
+                confirmButtonText: '确定'
+            });
+            return;
+        }
+        
+        // 关闭模态框
+        closeTransferHDDConfirmModal();
+        
+        // 显示进度提示
+        Swal.fire({
+            title: '正在移交数据盘',
+            text: '数据盘正在移交中，请稍候...',
+            icon: 'info',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        const data = {
+            hdd_name: hddName,
+            target_vm: targetVM
+        };
+
+        const result = await apiRequest(`/api/client/hdd/transfer/${hostName}/${vmUuid}`, 'POST', data);
+        if (result && result.code === 200) {
+            Swal.fire({
+                title: '移交成功',
+                text: '数据盘已成功移交！页面将自动刷新。',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false
+            });
+            // 移交成功后刷新页面
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            Swal.fire({
+                title: '移交失败',
+                text: result?.msg || '移交数据盘失败，请稍后重试',
+                icon: 'error',
+                confirmButtonText: '确定'
+            });
+        }
+    }
+
+    // 显示删除确认模态框
+    function showDeleteHDDConfirmModal(hddName) {
+        document.getElementById('deleteHddName').textContent = hddName;
+        
+        // 重置确认勾选框
+        document.getElementById('deleteConfirmCheck').checked = false;
+        document.getElementById('executeDeleteBtn').disabled = true;
+        
+        // 保存磁盘名称到全局变量
+        window.currentDeleteHddName = hddName;
+        
+        // 显示模态框
+        document.getElementById('deleteHDDConfirmModal').showModal();
+    }
+    
+    function closeDeleteHDDConfirmModal() {
+        document.getElementById('deleteHDDConfirmModal').close();
+        window.currentDeleteHddName = null;
+    }
+    
+    function toggleDeleteConfirmButton() {
+        const check = document.getElementById('deleteConfirmCheck');
+        const confirmBtn = document.getElementById('executeDeleteBtn');
+        confirmBtn.disabled = !check.checked;
+    }
+    
+    async function executeDeleteHDD() {
+        const hddName = window.currentDeleteHddName;
+        if (!hddName) return;
+        
+        // 关闭模态框
+        closeDeleteHDDConfirmModal();
+        
+        // 显示进度提示
+        Swal.fire({
+            title: '正在删除数据盘',
+            text: '数据盘正在删除中，请稍候...',
+            icon: 'info',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        const result = await apiRequest(`/api/client/hdd/delete/${hostName}/${vmUuid}`, 'DELETE', {hdd_name: hddName});
+        if (result && result.code === 200) {
+            Swal.fire({
+                title: '删除成功',
+                text: '数据盘已成功删除！',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false
+            });
+            setTimeout(() => {
+                loadHDDList();
+            }, 2000);
+        } else {
+            Swal.fire({
+                title: '删除失败',
+                text: result?.msg || '删除数据盘失败，请稍后重试',
+                icon: 'error',
+                confirmButtonText: '确定'
+            });
+        }
+    }
+
+    // ==================== ISO管理 ====================
+    async function loadISOList() {
+        const result = await apiRequest(`/api/client/detail/${hostName}/${vmUuid}`);
+        if (result && result.code === 200 && result.data && result.data.config) {
+            const isoAll = result.data.config.iso_all || [];
+            renderISOList(isoAll);
+        } else {
+            $('#isoList').html('<p class="text-center text-gray-500 py-8 text-sm">暂无ISO挂载</p>');
+        }
+    }
+
+    function renderISOList(isoAll) {
+        if (!isoAll || Object.keys(isoAll).length === 0) {
+            $('#isoList').html('<p class="text-center text-gray-500 py-8 text-sm">暂无ISO挂载</p>');
+            return;
+        }
+
+        let html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">';
+
+        // isoAll现在是字典，遍历键值对
+        Object.entries(isoAll).forEach(([isoName, iso]) => {
+            html += `
+                <div class="bg-white border border-gray-200 rounded-lg p-4 hover:border-purple-300 hover:shadow-md transition-all">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="px-2 py-0.5 text-xs font-medium text-green-700 bg-green-100 rounded">
+                            ISO
+                        </span>
+                        <button onclick="showUnmountISOConfirmModal('${isoName}')" class="p-1 text-red-500 hover:bg-red-50 rounded" title="卸载">
+                            <span class="iconify" data-icon="mdi:eject" data-width="18"></span>
+                        </button>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="bg-gray-50 rounded-lg p-3">
+                            <p class="text-xs text-gray-500 mb-1">挂载名称</p>
+                            <code class="text-sm font-mono text-gray-800 break-all">${iso.iso_name || '-'}</code>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-3">
+                            <p class="text-xs text-gray-500 mb-1">文件名</p>
+                            <code class="text-sm font-mono text-gray-800 break-all">${iso.iso_file || '-'}</code>
+                        </div>
+                        ${iso.iso_hint ? `
+                        <div class="bg-blue-50 rounded-lg p-3">
+                            <p class="text-xs text-gray-500 mb-1">备注</p>
+                            <p class="text-sm text-gray-700">${iso.iso_hint}</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        $('#isoList').html(html);
+    }
+
+    async function showAddISOModal() {
+        $('#addISOForm')[0].reset();
+        $('#isoMountConfirmCheck').prop('checked', false);
+        toggleIsoMountConfirmButton();
+        
+        // 加载可用的ISO镜像列表
+        const result = await apiRequest(`/api/server/detail/${hostName}`);
+        if (result && result.code === 200 && result.data && result.data.config) {
+            const imagesMaps = result.data.config.images_maps || {};
+            const selectHtml = '<option value="">请选择ISO镜像文件</option>' + 
+                Object.entries(imagesMaps).map(([displayName, fileName]) => 
+                    `<option value="${fileName}">${displayName} (${fileName})</option>`
+                ).join('');
+            $('#isoFileSelect').html(selectHtml);
+        }
+        
+        document.getElementById('addISOModal').showModal();
+    }
+
+    function closeISOModal() {
+        document.getElementById('addISOModal').close();
+        $('#addISOForm')[0].reset();
+    }
+
+    async function submitISO() {
+        const isoFile = $('#isoFileSelect').val();
+        const isoName = $('#isoName').val().trim();
+        const isoHint = $('#isoHint').val().trim();
+
+        if (!isoFile) {
+            showToast('请选择ISO镜像文件', 'error');
+            return;
+        }
+
+        if (!isoName) {
+            showToast('请输入挂载名称', 'error');
+            return;
+        }
+
+        // 验证挂载名称格式（只能包含英文和数字）
+        if (!/^[a-zA-Z0-9_]+$/.test(isoName)) {
+            showToast('挂载名称只能包含英文字母、数字和下划线', 'error');
+            return;
+        }
+
+        const data = {
+            iso_name: isoName,
+            iso_file: isoFile,
+            iso_hint: isoHint
+        };
+
+        closeISOModal();
+
+        // 显示进度提示
+        Swal.fire({
+            title: '正在挂载ISO',
+            text: '请稍候...',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        const result = await apiRequest(`/api/client/iso/mount/${hostName}/${vmUuid}`, 'POST', data);
+        
+        if (result && result.code === 200) {
+            Swal.fire({
+                title: '挂载成功',
+                text: 'ISO镜像已成功挂载',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false
+            });
+            loadISOList();
+        } else {
+            Swal.fire({
+                title: '挂载失败',
+                text: result?.msg || '挂载失败，请稍后重试',
+                icon: 'error'
+            });
+        }
+    }
+
+    // ISO卸载确认流程
+    let currentUnmountIsoName = '';
+
+    function showUnmountISOConfirmModal(isoName) {
+        currentUnmountIsoName = isoName;
+        $('#unmountIsoName').text(isoName);
+        $('#unmountIsoConfirmCheck').prop('checked', false);
+        toggleUnmountIsoConfirmButton();
+        document.getElementById('unmountISOConfirmModal').showModal();
+    }
+
+    function closeUnmountISOConfirmModal() {
+        document.getElementById('unmountISOConfirmModal').close();
+        currentUnmountIsoName = '';
+        $('#unmountIsoConfirmCheck').prop('checked', false);
+    }
+
+    function toggleUnmountIsoConfirmButton() {
+        const isChecked = $('#unmountIsoConfirmCheck').is(':checked');
+        $('#executeUnmountIsoBtn').prop('disabled', !isChecked);
+    }
+
+    async function executeUnmountISO() {
+        if (!currentUnmountIsoName) return;
+
+        closeUnmountISOConfirmModal();
+
+        // 显示进度提示
+        Swal.fire({
+            title: '正在卸载ISO',
+            text: '请稍候...',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        const result = await apiRequest(`/api/client/iso/unmount/${hostName}/${vmUuid}/${currentUnmountIsoName}`, 'DELETE');
+        
+        if (result && result.code === 200) {
+            Swal.fire({
+                title: '卸载成功',
+                text: 'ISO镜像已成功卸载',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false
+            });
+            loadISOList();
+        } else {
+            Swal.fire({
+                title: '卸载失败',
+                text: result?.msg || '卸载失败，请稍后重试',
+                icon: 'error'
+            });
+        }
+    }
+
+    // ISO挂载确认按钮切换
+    function toggleIsoMountConfirmButton() {
+        const isChecked = $('#isoMountConfirmCheck').is(':checked');
+        $('#confirmIsoMountBtn').prop('disabled', !isChecked);
+    }
+
+    // ==================== 备份管理 ====================
+    async function loadBackupList() {
+        const result = await apiRequest(`/api/client/detail/${hostName}/${vmUuid}`);
+        if (result && result.code === 200 && result.data && result.data.config) {
+            const backups = result.data.config.backups || [];
+            renderBackupList(backups);
+        } else {
+            $('#backupList').html('<p class="text-center text-gray-500 py-8 text-sm">暂无备份</p>');
+        }
+    }
+
+    function renderBackupList(backups) {
+        if (!backups || backups.length === 0) {
+            $('#backupList').html('<p class="text-center text-gray-500 py-8 text-sm">暂无备份</p>');
+            return;
+        }
+
+        let html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">';
+
+        backups.forEach((backup, idx) => {
+            const backupDate = backup.backup_time ? new Date(backup.backup_time * 1000).toLocaleString('zh-CN') : '未知时间';
+            const backupHint = backup.backup_hint || '';
+            html += `
+                <div class="bg-white border border-gray-200 rounded-lg p-4 hover:border-purple-300 hover:shadow-md transition-all">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="px-2 py-0.5 text-xs font-medium text-purple-700 bg-purple-100 rounded">
+                            备份
+                        </span>
+                        <div class="flex gap-1">
+                            <button onclick="restoreBackup('${backup.backup_name}')" class="p-1 text-blue-500 hover:bg-blue-50 rounded" title="还原">
+                                <span class="iconify" data-icon="mdi:restore" data-width="18"></span>
+                            </button>
+                            <button onclick="deleteBackup('${backup.backup_name}')" class="p-1 text-red-500 hover:bg-red-50 rounded" title="删除">
+                                <span class="iconify" data-icon="mdi:delete" data-width="18"></span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 mb-2">
+                        <p class="text-xs text-gray-500 mb-1">备份名称</p>
+                        <code class="text-sm font-mono text-gray-800 break-all">${backup.backup_name || '-'}</code>
+                    </div>
+                    ${backupHint ? `
+                    <div class="mb-2">
+                        <p class="text-xs text-gray-500 mb-1">备份注释</p>
+                        <p class="text-sm text-gray-700">${backupHint}</p>
+                    </div>
+                    ` : ''}
+                    <div class="text-xs text-gray-500">
+                        <span class="iconify inline" data-icon="mdi:clock-outline" data-width="14"></span>
+                        ${backupDate}
+                    </div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        $('#backupList').html(html);
+    }
+
+    function showCreateBackupModal() {
+        $('#createBackupForm')[0].reset();
+        document.getElementById('backupConfirmCheck').checked = false;
+        document.getElementById('confirmBackupBtn').disabled = true;
+        document.getElementById('createBackupModal').showModal();
+    }
+
+    function closeCreateBackupModal() {
+        document.getElementById('createBackupModal').close();
+        $('#createBackupForm')[0].reset();
+    }
+    
+    function toggleBackupConfirmButton() {
+        const confirmCheck = document.getElementById('backupConfirmCheck');
+        const confirmBtn = document.getElementById('confirmBackupBtn');
+        confirmBtn.disabled = !confirmCheck.checked;
+    }
+
+    async function submitBackup() {
+        const data = {
+            vm_tips: $('#backupTips').val()
+        };
+
+        // 关闭模态框
+        closeCreateBackupModal();
+        
+        // 显示进度提示
+        Swal.fire({
+            title: '正在创建备份',
+            text: '备份正在创建中，请稍候...',
+            icon: 'info',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        const result = await apiRequest(`/api/client/backup/create/${hostName}/${vmUuid}`, 'POST', data);
+        if (result && result.code === 200) {
+            Swal.fire({
+                title: '备份创建成功',
+                text: '虚拟机备份已成功创建！',
+                icon: 'success',
+                timer: 3000,
+                showConfirmButton: false
+            });
+            loadBackupList();
+        } else {
+            Swal.fire({
+                title: '备份创建失败',
+                text: result?.msg || '创建备份失败，请稍后重试',
+                icon: 'error',
+                confirmButtonText: '确定'
+            });
+        }
+    }
+
+    async function restoreBackup(backupName) {
+        // 显示还原确认模态框
+        const vmName = vmData?.name || vmUuid;
+        document.getElementById('restoreVmName').textContent = vmName;
+        document.getElementById('restoreBackupName').textContent = backupName;
+        
+        // 重置确认勾选框
+        document.getElementById('restoreConfirmCheck1').checked = false;
+        document.getElementById('restoreConfirmCheck2').checked = false;
+        document.getElementById('executeRestoreBtn').disabled = true;
+        
+        // 保存备份名称到全局变量，供executeRestore使用
+        window.currentRestoreBackupName = backupName;
+        
+        // 显示模态框
+        document.getElementById('restoreBackupModal').showModal();
+    }
+    
+    function closeRestoreBackupModal() {
+        document.getElementById('restoreBackupModal').close();
+        window.currentRestoreBackupName = null;
+    }
+    
+    function toggleRestoreConfirmButton() {
+        const check1 = document.getElementById('restoreConfirmCheck1');
+        const check2 = document.getElementById('restoreConfirmCheck2');
+        const confirmBtn = document.getElementById('executeRestoreBtn');
+        confirmBtn.disabled = !(check1.checked && check2.checked);
+    }
+    
+    async function executeRestore() {
+        const backupName = window.currentRestoreBackupName;
+        if (!backupName) return;
+        
+        // 关闭模态框
+        closeRestoreBackupModal();
+        
+        // 显示进度提示
+        Swal.fire({
+            title: '正在还原备份',
+            text: '备份正在还原中，请稍候...',
+            icon: 'info',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        const result = await apiRequest(`/api/client/backup/restore/${hostName}/${vmUuid}`, 'POST', {vm_back: backupName});
+        if (result && result.code === 200) {
+            Swal.fire({
+                title: '备份还原成功',
+                text: '虚拟机备份已成功还原！页面将在3秒后自动刷新。',
+                icon: 'success',
+                timer: 3000,
+                showConfirmButton: false
+            });
+            setTimeout(() => {
+                location.reload();
+            }, 3000);
+        } else {
+            Swal.fire({
+                title: '备份还原失败',
+                text: result?.msg || '还原备份失败，请稍后重试',
+                icon: 'error',
+                confirmButtonText: '确定'
+            });
+        }
+    }
+
+    async function deleteBackup(backupName) {
+        if (!confirm(`确定要删除备份 "${backupName}" 吗？此操作不可恢复！`)) return;
+
+        const result = await apiRequest(`/api/client/backup/delete/${hostName}/${vmUuid}`, 'DELETE', {vm_back: backupName});
+        if (result && result.code === 200) {
+            showToast('备份已删除', 'success');
+            loadBackupList();
         } else {
             showToast(result?.msg || '删除失败', 'error');
         }

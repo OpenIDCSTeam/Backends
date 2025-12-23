@@ -11,12 +11,12 @@ class VMStatus:
         self.vm_status = HWStatus()
 
     # 转换为字典 ============================================================
-    def __dict__(self):
-        return self.vm_status.__dict__()
+    def __save__(self):
+        return self.vm_status.__save__()
 
     # 转换为文本 ============================================================
     def __str__(self):
-        return json.dumps(self.__dict__())
+        return json.dumps(self.__save__())
 
     # 获取状态 ==============================================================
     def status(self) -> HWStatus:

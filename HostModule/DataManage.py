@@ -131,14 +131,21 @@ class HostDatabase:
         """保存主机配置"""
         conn = self.get_db_sqlite()
         try:
+            # 调试日志：打印images_maps
+            logger.debug(f"[set_hs_config] hs_name: {hs_name}")
+            logger.debug(f"[set_hs_config] hs_config.images_maps: {hs_config.images_maps}")
+            logger.debug(f"[set_hs_config] images_maps类型: {type(hs_config.images_maps)}")
+            images_maps_json = json.dumps(hs_config.images_maps) if hs_config.images_maps else "{}"
+            logger.debug(f"[set_hs_config] images_maps_json: {images_maps_json}")
+            
             sql = """
             INSERT OR REPLACE INTO hs_config 
             (hs_name, server_name, server_type, server_addr, server_user, server_pass, 
              filter_name, images_path, system_path, backup_path, extern_path,
              launch_path, network_nat, network_pub, i_kuai_addr, i_kuai_user, 
-             i_kuai_pass, ports_start, ports_close, remote_port, system_maps, 
+             i_kuai_pass, ports_start, ports_close, remote_port, system_maps, images_maps,
              public_addr, extend_data, server_dnss, limits_nums, ipaddr_maps, ipaddr_dnss, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             """
             params = (
                 hs_name,
@@ -162,6 +169,7 @@ class HostDatabase:
                 hs_config.ports_close,
                 hs_config.remote_port,
                 json.dumps(hs_config.system_maps) if hs_config.system_maps else "{}",
+                images_maps_json,
                 json.dumps(hs_config.public_addr) if hs_config.public_addr else "[]",
                 json.dumps(hs_config.extend_data) if hs_config.extend_data else "{}",
                 json.dumps(hs_config.server_dnss) if hs_config.server_dnss else "[]",
@@ -171,6 +179,7 @@ class HostDatabase:
             )
             conn.execute(sql, params)
             conn.commit()
+            logger.debug(f"[set_hs_config] 数据库保存成功")
             return True
         except Exception as e:
             logger.error(f"保存主机配置错误: {e}")
@@ -228,7 +237,7 @@ class HostDatabase:
             all_status = self.get_hs_status(hs_name)
 
             # 转换状态对象为字典
-            status_dict = status.__dict__() if hasattr(status, '__dict__') else status
+            status_dict = status.__save__() if hasattr(status, '__save__') else status
             all_status.append(status_dict)
 
             # 限制状态历史记录数量（保留最近100条）
@@ -253,7 +262,7 @@ class HostDatabase:
             # 插入新状态
             sql = "INSERT INTO hs_status (hs_name, status_data) VALUES (?, ?)"
             for status in hs_status_list:
-                status_data = json.dumps(status.__dict__() if hasattr(status, '__dict__') else status)
+                status_data = json.dumps(status.__save__() if hasattr(status, '__save__') else status)
                 conn.execute(sql, (hs_name, status_data))
 
             conn.commit()
@@ -289,7 +298,7 @@ class HostDatabase:
             # 插入新配置
             sql = "INSERT INTO vm_saving (hs_name, vm_uuid, vm_config) VALUES (?, ?, ?)"
             for vm_uuid, vm_config in vm_saving.items():
-                config_data = json.dumps(vm_config.__dict__() if hasattr(vm_config, '__dict__') else vm_config)
+                config_data = json.dumps(vm_config.__save__() if hasattr(vm_config, '__save__') else vm_config)
                 conn.execute(sql, (hs_name, vm_uuid, config_data))
 
             conn.commit()
@@ -331,7 +340,7 @@ class HostDatabase:
                 all_status[vm_uuid] = []
 
             # 转换状态对象为字典
-            status_dict = status.__dict__() if hasattr(status, '__dict__') else status
+            status_dict = status.__save__() if hasattr(status, '__save__') else status
             
             # 累加流量消耗：从数据库取出之前的flu_usage，加上当前的
             if vm_uuid in all_status and len(all_status[vm_uuid]) > 0:
@@ -374,7 +383,7 @@ class HostDatabase:
             insert_count = 0
             for vm_uuid, status_list in vm_status.items():
                 status_data = json.dumps(
-                    [status.__dict__() if hasattr(status, '__dict__') else status for status in status_list])
+                    [status.__save__() if hasattr(status, '__save__') else status for status in status_list])
                 logger.debug(
                     f"[DataManage] 插入虚拟机 {vm_uuid} 状态，记录数: {len(status_list)}, 数据长度: {len(status_data)}")
                 conn.execute(sql, (hs_name, vm_uuid, status_data))
@@ -415,7 +424,7 @@ class HostDatabase:
             # 插入新任务
             sql = "INSERT INTO vm_tasker (hs_name, task_data) VALUES (?, ?)"
             for tasker in vm_tasker:
-                task_data = json.dumps(tasker.__dict__() if hasattr(tasker, '__dict__') else tasker)
+                task_data = json.dumps(tasker.__save__() if hasattr(tasker, '__save__') else tasker)
                 conn.execute(sql, (hs_name, task_data))
 
             conn.commit()
@@ -455,8 +464,8 @@ class HostDatabase:
             for proxy in web_proxies:
                 if hasattr(proxy, '__save__'):
                     proxy_data = proxy.__save__()
-                elif hasattr(proxy, '__dict__'):
-                    proxy_data = proxy.__dict__()
+                elif hasattr(proxy, '__save__'):
+                    proxy_data = proxy.__save__()
                 else:
                     proxy_data = proxy
 
@@ -547,7 +556,7 @@ class HostDatabase:
         """
         conn = self.get_db_sqlite()
         try:
-            log_data = json.dumps(logs.__dict__() if hasattr(logs, '__dict__') else logs)
+            log_data = json.dumps(logs.__save__() if hasattr(logs, '__save__') else logs)
             log_level = getattr(logs, 'level', 'INFO') if hasattr(logs, 'level') else 'INFO'
 
             sql = "INSERT INTO hs_logger (hs_name, log_data, log_level) VALUES (?, ?, ?)"
@@ -600,7 +609,7 @@ class HostDatabase:
             # 插入新日志
             sql = "INSERT INTO hs_logger (hs_name, log_data, log_level) VALUES (?, ?, ?)"
             for log in logs:
-                log_data = json.dumps(log.__dict__() if hasattr(log, '__dict__') else log)
+                log_data = json.dumps(log.__save__() if hasattr(log, '__save__') else log)
                 log_level = getattr(log, 'level', 'INFO') if hasattr(log, 'level') else 'INFO'
                 conn.execute(sql, (hs_name, log_data, log_level))
 

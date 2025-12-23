@@ -27,6 +27,7 @@ class HSConfig:
         self.server_dnss: list = []  # DNS服务器
         self.extend_data: dict = {}  # API可选项
         self.system_maps: dict[str, list] = {}
+        self.images_maps: dict[str, str] = {}  # ISO镜像映射: 显示名称->文件名(xxx.iso)
         self.ipaddr_maps: dict[str, dict] = {}
         # self.ipaddr_maps：{
         #     "Set1": {
@@ -53,11 +54,11 @@ class HSConfig:
     # 读取数据 =================================
     def __read__(self, data: dict):
         for key, value in data.items():
-            if key in self.__dict__:
+            if key in self.__save__:
                 setattr(self, key, value)
 
     # 转换为字典 ===============================
-    def __dict__(self):
+    def __save__(self):
         return {
             "server_name": self.server_name,
             "server_type": self.server_type,
@@ -80,6 +81,7 @@ class HSConfig:
             "remote_port": self.remote_port,
             "limits_nums": self.limits_nums,
             "system_maps": self.system_maps,
+            "images_maps": self.images_maps,
             "ipaddr_maps": self.ipaddr_maps,
             "ipaddr_dnss": self.ipaddr_dnss,
             "public_addr": self.public_addr,
@@ -89,4 +91,4 @@ class HSConfig:
 
     # 转换为字符串 ===========================
     def __str__(self):
-        return json.dumps(self.__dict__())
+        return json.dumps(self.__save__())

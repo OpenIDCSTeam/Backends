@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 
 import requests
@@ -323,8 +324,10 @@ class VRestAPI:
         # 生成新的配置内容
         new_vmx_content = self.create_vmx(vm_conf, hs_config)
         new_config_lines = new_vmx_content.strip().split('\n')
-
-        # 解析现有VMX文件
+        white_list_conf = [
+            "uuid.bios", "uuid.location", "vm.genid", "vm.genidX"
+        ]
+        # 解析现有VMX文件，只保留白名单中的字段
         existing_config = {}
         existing_lines = existing_vmx.strip().split('\n')
 
@@ -333,35 +336,27 @@ class VRestAPI:
             if line and '=' in line and not line.startswith('#'):
                 key_part = line.split('=')[0].strip()
                 value_part = line.split('=', 1)[1].strip()
-                existing_config[key_part] = value_part
+                # 只保留白名单中的字段
+                if key_part in white_list_conf:
+                    existing_config[key_part] = value_part
 
         # 解析新配置并创建更新后的配置
-        updated_config = existing_config.copy()
+        updated_config = {}
 
         for line in new_config_lines:
             line = line.strip()
             if line and '=' in line and not line.startswith('#'):
                 key_part = line.split('=')[0].strip()
                 value_part = line.split('=', 1)[1].strip()
-                # 用新配置替换现有配置
+                # 使用新配置
                 updated_config[key_part] = value_part
+
+        # 将白名单中的字段添加到更新后的配置中
+        for key, value in existing_config.items():
+            updated_config[key] = value
 
         # 重新构建VMX内容
         result_lines = []
-        for line in existing_lines:
-            line = line.strip()
-            if line and '=' in line and not line.startswith('#'):
-                key_part = line.split('=')[0].strip()
-                if key_part in updated_config:
-                    result_lines.append(f"{key_part} = {updated_config[key_part]}")
-                    del updated_config[key_part]
-                else:
-                    result_lines.append(line)
-            else:
-                # 保留注释和空行
-                result_lines.append(line)
-
-        # 添加新配置中不存在的项
         for key, value in sorted(updated_config.items()):
             result_lines.append(f"{key} = {value}")
 
@@ -397,10 +392,12 @@ class VRestAPI:
             # 设备配置 ============================================
             "vmci0.present": "TRUE",
             "hpet0.present": "TRUE",
+            "sata0.present": "TRUE",
             "usb.present": "TRUE",
             "ehci.present": "TRUE",
             "usb_xhci.present": "TRUE",
             "tools.syncTime": "TRUE",
+            "floppy0.present": "FALSE",
             "nvram": vm_conf.vm_uuid + ".nvram",
             "virtualHW.productCompatibility": "hosted",
             "extendedConfigFile": vm_conf.vm_uuid + ".vmxf",
@@ -436,7 +433,6 @@ class VRestAPI:
                 nic_types = hs_config.network_nat
             elif nic_data.nic_type == 'pub':
                 nic_types = hs_config.network_pub
-
             vmx_config[f"ethernet{nic_uuid}"] = {
                 "connectionType": nic_types,
                 "addressType": "generated" if use_auto else "static",
@@ -447,14 +443,34 @@ class VRestAPI:
                 "rxbw.limit": str(vm_conf.speed_d * 1024),
             }
             nic_uuid += 1
-        hdd_uuid = 1  # 数据磁盘 ==========================================
+        hdd_nums = 1  # 数据磁盘 ==========================================
         for hdd_name, hdd_data in vm_conf.hdd_all.items():
-            # todo: 创建VMDK文件
-            vmx_config[f"nvme0:{hdd_uuid}"] = {
-                "fileName": vm_conf.vm_uuid + f"-{hdd_uuid}.vmdk",
+            if hdd_data.hdd_flag == 0:
+                continue
+            vmx_disk = os.path.join(self.host_path, "vmware-vdiskmanager.exe")
+            vmx_name = os.path.join(
+                hs_config.system_path, vm_conf.vm_uuid,
+                f"{vm_conf.vm_uuid}-{hdd_name}.vmdk")
+            if os.path.exists(vmx_name):
+                continue
+            vmd_cmds = [vmx_disk, "-c", "-s", f"{hdd_data.hdd_size}MB",
+                        "-a", "lsilogic", "-t", "0", vmx_name]
+            subprocess.run(vmd_cmds, shell=True)
+            vmx_config[f"nvme0:{hdd_nums}"] = {
+                "fileName": vm_conf.vm_uuid + f"-{hdd_name}.vmdk",
                 "present": "TRUE"
             }
-            hdd_uuid += 1
+            hdd_nums += 1
+        iso_uuid = 1  # 光盘镜像 ==========================================
+        for iso_name in vm_conf.iso_all:
+            iso_data = vm_conf.iso_all[iso_name]
+            iso_full = os.path.join(hs_config.images_path, iso_data.iso_file)
+            vmx_config[f"sata0:{str(iso_uuid)}"] = {
+                "fileName": iso_full,
+                "present": "TRUE",
+                "deviceType": "cdrom-image"
+            }
+            iso_uuid += 1
         return VRestAPI.create_txt(vmx_config)
 
     # 扩展VM磁盘 ##########################################################
@@ -480,3 +496,13 @@ class VRestAPI:
             actions="extend_hdd",
             message="硬盘扩展成功" if vm_exec.returncode == 0 \
                 else f"硬盘扩展失败: {stderr.strip() if stderr else ''}")
+
+    # 备份VM磁盘 ##########################################################
+    # :param vmx_path: VMX文件路径
+    def backup_vmx(self, vmx_path: str) -> ZMessage:
+        pass
+
+    # 重置VM磁盘 ##########################################################
+    # :param vmx_path: VMX文件路径
+    def resets_vmx(self, vmx_path: str) -> ZMessage:
+        pass

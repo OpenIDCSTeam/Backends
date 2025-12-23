@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS hs_config
     ports_close INTEGER   DEFAULT 0,    -- TCP-端口结束
     remote_port INTEGER   DEFAULT 0,    -- VNC-服务端口
     system_maps TEXT      DEFAULT '{}', -- 系统映射字典
+    images_maps TEXT      DEFAULT '{}', -- ISO镜像映射: 显示名称->文件名
     public_addr TEXT      DEFAULT '[]', -- 公共IP46列表
     extend_data TEXT      DEFAULT '{}', -- 存储扩展数据
     server_dnss TEXT      DEFAULT '[]', -- NS服务器列表

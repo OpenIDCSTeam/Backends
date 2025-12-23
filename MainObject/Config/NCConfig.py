@@ -9,7 +9,7 @@ class NCConfig:
         self.dns_addr: list[str] = []
         self.__load__(**kwargs)
 
-    def __dict__(self):
+    def __save__(self):
         return {
             "mac_addr": self.mac_addr,
             "nic_type": self.nic_type,
@@ -42,13 +42,13 @@ class NCConfig:
                     mac_parts = [format(int(part), '02x') for part in ip4_parts]  # 转换为两位十六进制
                     mac_parts = ":".join(mac_parts)
                     if self.ip4_addr.startswith("192"):
-                        return "00:1C:" + mac_parts
+                        return "00:1c:" + mac_parts
                     elif self.ip4_addr.startswith("172"):
-                        return "CC:D9:" + mac_parts
+                        return "cc:d9:" + mac_parts
                     elif self.ip4_addr.startswith("10"):
-                        return "10:F6:" + mac_parts
+                        return "10:f6:" + mac_parts
                     elif self.ip4_addr.startswith("100"):
-                        return "00:1E:" + mac_parts
+                        return "00:1e:" + mac_parts
                     else:
                         return "00:00:" + mac_parts
                 except (ValueError, TypeError):

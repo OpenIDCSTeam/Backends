@@ -553,6 +553,85 @@ def api_delete_vm_proxy_config(hs_name, vm_uuid, proxy_index):
 
 
 # ============================================================================
+# 数据盘管理API
+# ============================================================================
+@app.route('/api/client/hdd/mount/<hs_name>/<vm_uuid>', methods=['POST'])
+@require_auth
+def api_mount_vm_hdd(hs_name, vm_uuid):
+    """挂载数据盘到虚拟机"""
+    return rest_manager.mount_vm_hdd(hs_name, vm_uuid)
+
+
+@app.route('/api/client/hdd/unmount/<hs_name>/<vm_uuid>', methods=['POST'])
+@require_auth
+def api_unmount_vm_hdd(hs_name, vm_uuid):
+    """卸载虚拟机数据盘"""
+    return rest_manager.unmount_vm_hdd(hs_name, vm_uuid)
+
+
+@app.route('/api/client/hdd/transfer/<hs_name>/<vm_uuid>', methods=['POST'])
+@require_auth
+def api_transfer_vm_hdd(hs_name, vm_uuid):
+    """移交数据盘所有权"""
+    return rest_manager.transfer_vm_hdd(hs_name, vm_uuid)
+
+
+@app.route('/api/client/hdd/delete/<hs_name>/<vm_uuid>', methods=['DELETE'])
+@require_auth
+def api_delete_vm_hdd(hs_name, vm_uuid):
+    """删除虚拟机数据盘"""
+    return rest_manager.delete_vm_hdd(hs_name, vm_uuid)
+
+
+# ============================================================================
+# ISO管理API
+# ============================================================================
+@app.route('/api/client/iso/mount/<hs_name>/<vm_uuid>', methods=['POST'])
+@require_auth
+def api_mount_vm_iso(hs_name, vm_uuid):
+    """挂载ISO镜像到虚拟机"""
+    return rest_manager.mount_vm_iso(hs_name, vm_uuid)
+
+
+@app.route('/api/client/iso/unmount/<hs_name>/<vm_uuid>/<iso_name>', methods=['DELETE'])
+@require_auth
+def api_unmount_vm_iso(hs_name, vm_uuid, iso_name):
+    """卸载虚拟机ISO镜像"""
+    return rest_manager.unmount_vm_iso(hs_name, vm_uuid, iso_name)
+
+
+# ============================================================================
+# 备份管理API
+# ============================================================================
+@app.route('/api/client/backup/create/<hs_name>/<vm_uuid>', methods=['POST'])
+@require_auth
+def api_create_vm_backup(hs_name, vm_uuid):
+    """创建虚拟机备份"""
+    return rest_manager.create_vm_backup(hs_name, vm_uuid)
+
+
+@app.route('/api/client/backup/restore/<hs_name>/<vm_uuid>', methods=['POST'])
+@require_auth
+def api_restore_vm_backup(hs_name, vm_uuid):
+    """还原虚拟机备份"""
+    return rest_manager.restore_vm_backup(hs_name, vm_uuid)
+
+
+@app.route('/api/client/backup/delete/<hs_name>/<vm_uuid>', methods=['DELETE'])
+@require_auth
+def api_delete_vm_backup(hs_name, vm_uuid):
+    """删除虚拟机备份"""
+    return rest_manager.delete_vm_backup(hs_name, vm_uuid)
+
+
+@app.route('/api/server/backup/scan/<hs_name>', methods=['POST'])
+@require_auth
+def api_scan_backups(hs_name):
+    """扫描主机备份文件"""
+    return rest_manager.scan_backups(hs_name)
+
+
+# ============================================================================
 # 定时任务
 # ============================================================================
 def cron_scheduler():

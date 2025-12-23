@@ -54,7 +54,7 @@ class HWStatus:
                 setattr(self, key, value)
 
     # 转换为字典 ==============================
-    def __dict__(self):
+    def __save__(self):
         return {
             "ac_status": VPower.to_json(
                 self.ac_status),
@@ -83,4 +83,4 @@ class HWStatus:
 
     # 转换为文本 ==============================
     def __str__(self):
-        return json.dumps(self.__dict__())
+        return json.dumps(self.__save__())

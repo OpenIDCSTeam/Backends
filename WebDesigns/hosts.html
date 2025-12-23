@@ -128,6 +128,21 @@
                 </div>
             </div>
 
+            <div class="border-t border-gray-200 pt-4">
+                <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <span class="iconify" data-icon="mdi:disc-alert" data-width="18"></span>
+                    ISO镜像映射配置
+                </h4>
+                <div id="imagesMapsContainer" class="space-y-2 mb-3">
+                    <!-- 镜像映射项将动态添加到这里 -->
+                </div>
+                <button type="button" onclick="addImageMapItem()"
+                        class="px-3 py-1.5 text-sm bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 flex items-center gap-1">
+                    <span class="iconify" data-icon="mdi:plus" data-width="16"></span>
+                    添加镜像映射
+                </button>
+            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">程序启动路径</label>
@@ -446,6 +461,81 @@
         }
     }
 
+    // ISO镜像映射配置相关函数 =======================================
+
+    // 添加镜像映射行
+    function addImageMapItem(displayName = '', fileName = '') {
+        const container = document.getElementById('imagesMapsContainer');
+        const rowId = Date.now() + Math.random();
+        const rowHtml = `
+            <div class="image-map-row bg-gray-50 p-3 rounded-lg" data-row-id="${rowId}">
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                    <div class="md:col-span-5">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">显示名称</label>
+                        <input type="text" 
+                            class="display-name w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent" 
+                            placeholder="例如: Ubuntu 22.04 Server" 
+                            value="${displayName}">
+                    </div>
+                    <div class="md:col-span-6">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">ISO文件名</label>
+                        <input type="text" 
+                            class="file-name w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent" 
+                            placeholder="例如: ubuntu-22.04-server.iso" 
+                            value="${fileName}">
+                    </div>
+                    <div class="md:col-span-1">
+                        <button type="button" onclick="removeImageMapRow('${rowId}')" 
+                            class="w-full px-2 py-1.5 bg-red-500 text-white text-sm rounded hover:bg-red-600 flex items-center justify-center gap-1">
+                            <span class="iconify" data-icon="mdi:delete" data-width="16"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', rowHtml);
+    }
+
+    // 删除镜像映射行
+    function removeImageMapRow(rowId) {
+        const row = document.querySelector(`[data-row-id="${rowId}"]`);
+        if (row) {
+            row.remove();
+        }
+    }
+
+    // 获取镜像映射数据
+    function getImagesMapsData() {
+        const maps = {};
+        const rows = document.querySelectorAll('.image-map-row');
+        rows.forEach(row => {
+            const displayName = row.querySelector('.display-name').value.trim();
+            const fileName = row.querySelector('.file-name').value.trim();
+
+            if (displayName && fileName) {
+                maps[displayName] = fileName;
+            }
+        });
+        return maps;
+    }
+
+    // 加载镜像映射数据
+    function loadImagesMapsData(imagesMaps) {
+        const container = document.getElementById('imagesMapsContainer');
+        container.innerHTML = ''; // 清空现有内容
+
+        if (imagesMaps && typeof imagesMaps === 'object') {
+            for (const [displayName, fileName] of Object.entries(imagesMaps)) {
+                addImageMapItem(displayName, fileName);
+            }
+        }
+
+        // 如果没有任何映射，添加一个空行作为默认
+        if (Object.keys(imagesMaps || {}).length === 0) {
+            addImageMapItem();
+        }
+    }
+
     // IP地址池配置相关函数 =======================================
 
     // 添加IP地址池配置行
@@ -458,8 +548,8 @@
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end mb-3">
                     <div class="md:col-span-3">
                         <label class="block text-xs font-medium text-gray-600 mb-1">配置名称</label>
-                        <input type="text" 
-                            class="set-name w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent" 
+                        <input type="text"
+                            class="set-name w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
                             placeholder="例如: default"
                             value="${setName}">
                     </div>
@@ -479,14 +569,14 @@
                     </div>
                     <div class="md:col-span-4">
                         <label class="block text-xs font-medium text-gray-600 mb-1">数量</label>
-                        <input type="number" 
-                            class="ip-nums w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent" 
-                            placeholder="100" 
-                            min="1" 
+                        <input type="number"
+                            class="ip-nums w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="100"
+                            min="1"
                             value="${nums}">
                     </div>
                     <div class="md:col-span-1">
-                        <button type="button" onclick="removeIpaddrMapRow('${rowId}')" 
+                        <button type="button" onclick="removeIpaddrMapRow('${rowId}')"
                             class="w-full px-2 py-1.5 bg-red-500 text-white text-sm rounded hover:bg-red-600 flex items-center justify-center gap-1">
                             <span class="iconify" data-icon="mdi:delete" data-width="16"></span>
                         </button>
@@ -496,23 +586,23 @@
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                     <div class="md:col-span-4">
                         <label class="block text-xs font-medium text-gray-600 mb-1">起始IP地址</label>
-                        <input type="text" 
-                            class="ip-from w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent" 
+                        <input type="text"
+                            class="ip-from w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
                             placeholder="例如: 192.168.1.100"
                             value="${fromIp}">
                     </div>
                     <div class="md:col-span-4">
                         <label class="block text-xs font-medium text-gray-600 mb-1">网关地址</label>
-                        <input type="text" 
-                            class="ip-gate w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent" 
+                        <input type="text"
+                            class="ip-gate w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
                             placeholder="例如: 192.168.1.1"
                             value="${gate}">
                     </div>
                     <div class="md:col-span-4">
                         <label class="block text-xs font-medium text-gray-600 mb-1">子网掩码</label>
-                        <input type="text" 
-                            class="ip-mask w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent" 
-                            placeholder="例如: 255.255.255.0" 
+                        <input type="text"
+                            class="ip-mask w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="例如: 255.255.255.0"
                             value="${mask}">
                     </div>
                 </div>
@@ -639,11 +729,11 @@
 
             container.innerHTML = '';
             // 并行获取所有主机的状态信息
-            const statusPromises = Object.keys(hosts).map(name => 
+            const statusPromises = Object.keys(hosts).map(name =>
                 apiRequest(`/api/server/status/${name}`).catch(() => null)
             );
             const statusResults = await Promise.all(statusPromises);
-            
+
             // 创建状态映射
             const statusMap = {};
             Object.keys(hosts).forEach((name, index) => {
@@ -688,13 +778,13 @@
     // 渲染主机卡片
     function renderHostCard(name, host, status) {
         const typeInfo = engineTypes[host.type] || {};
-        
+
         // 计算各项资源使用率
         const cpuPercent = status ? Math.min(status.cpu_usage || 0, 100) : 0;
         const memPercent = status && status.mem_total > 0 ? Math.min((status.mem_usage / status.mem_total * 100), 100) : 0;
         const memUsageGB = status ? (status.mem_usage / 1024).toFixed(1) : 0;
         const memTotalGB = status ? (status.mem_total / 1024).toFixed(1) : 0;
-        
+
         // 获取第一个磁盘（系统盘）
         let diskPercent = 0;
         let diskTotal = 0;
@@ -712,7 +802,7 @@
         }
         const diskUsageGB = (diskUsage / 1024).toFixed(1);
         const diskTotalGB = (diskTotal / 1024).toFixed(1);
-        
+
         // 网络带宽（从network_a获取，单位Mbps）
         const networkA = status ? (status.network_a || 1000) : 1000; // Mbps
         const maxBandwidth = networkA * 1024 / 8; // 转换为KB/s
@@ -720,7 +810,7 @@
         const networkD = status ? (status.network_d || 0) : 0; // KB/s
         const networkUPercent = Math.min((networkU / maxBandwidth * 100), 100);
         const networkDPercent = Math.min((networkD / maxBandwidth * 100), 100);
-        
+
         // GPU使用率（取第一个GPU）
         let gpuPercent = 0;
         if (status && status.gpu_usage) {
@@ -729,12 +819,12 @@
                 gpuPercent = Math.min(status.gpu_usage[gpuKeys[0]] || 0, 100);
             }
         }
-        
+
         // CPU温度和功耗
         const cpuTemp = status ? (status.cpu_heats || 0) : 0;
         const cpuPower = status ? (status.cpu_power || 0) : 0;
         const cpuTempPercent = Math.min((cpuTemp / 100 * 100), 100);
-        
+
         return `
             <div class="bg-white rounded-lg border border-gray-200 card-hover overflow-hidden">
                 <div class="p-4">
@@ -753,7 +843,7 @@
                             ${host.status === 'active' ? '运行中' : '已停止'}
                         </span>
                     </div>
-                    
+
                     <div class="grid grid-cols-2 gap-4">
                         <!-- 左侧：基本信息 -->
                         <div class="space-y-2 text-sm">
@@ -815,7 +905,7 @@
                                 <span class="font-medium text-gray-800">${host.vm_count || 0} 台</span>
                             </div>
                         </div>
-                        
+
                         <!-- 右侧：资源状态 -->
                         <div class="space-y-2 text-sm">
                             ${status ? `
@@ -907,26 +997,30 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="border-t border-gray-200 px-4 py-3 bg-gray-50 flex items-center justify-between">
                     <a href="/hosts/${name}/vms" class="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1">
                         <span class="iconify" data-icon="mdi:cube-outline" data-width="16"></span>
                         虚拟机管理
                     </a>
                     <div class="flex items-center gap-2">
-                        <button onclick="scanHostVMs('${name}')" 
+                        <button onclick="scanHostBackups('${name}')"
+                            class="p-2 rounded-lg hover:bg-purple-100 text-purple-600" title="扫描备份">
+                            <span class="iconify" data-icon="mdi:backup-restore" data-width="18"></span>
+                        </button>
+                        <button onclick="scanHostVMs('${name}')"
                             class="p-2 rounded-lg hover:bg-orange-100 text-orange-600" title="扫描虚拟机">
                             <span class="iconify" data-icon="mdi:radar" data-width="18"></span>
                         </button>
-                        <button onclick="toggleHost('${name}', ${host.status !== 'active'})" 
+                        <button onclick="toggleHost('${name}', ${host.status !== 'active'})"
                             class="p-2 rounded-lg hover:bg-gray-200 text-gray-600" title="${host.status === 'active' ? '停止' : '启动'}">
                             <span class="iconify" data-icon="${host.status === 'active' ? 'mdi:stop' : 'mdi:play'}" data-width="18"></span>
                         </button>
-                        <button onclick="editHost('${name}')" 
+                        <button onclick="editHost('${name}')"
                             class="p-2 rounded-lg hover:bg-gray-200 text-gray-600" title="编辑">
                             <span class="iconify" data-icon="mdi:pencil" data-width="18"></span>
                         </button>
-                        <button onclick="deleteHost('${name}')" 
+                        <button onclick="deleteHost('${name}')"
                             class="p-2 rounded-lg hover:bg-red-100 text-red-600" title="删除">
                             <span class="iconify" data-icon="mdi:delete" data-width="18"></span>
                         </button>
@@ -947,6 +1041,7 @@
         document.getElementById('hostName').disabled = false;
         // 初始化系统映射为空
         loadSystemMapsData({});
+        loadImagesMapsData({});
         document.getElementById('hostModal').showModal();
     }
 
@@ -986,6 +1081,7 @@
             document.getElementById('remotePort').value = config.remote_port || '';
             document.getElementById('limitsNums').value = config.limits_nums || '';
             loadSystemMapsData(config.system_maps || {});
+            loadImagesMapsData(config.images_maps || {});
             loadIpaddrMapsData(config.ipaddr_maps || {});
             document.getElementById('ipaddrDnss').value = (config.ipaddr_dnss || []).join(', ');
             document.getElementById('publicAddr').value = (config.public_addr || []).join(', ');
@@ -1076,6 +1172,51 @@
         }
     }
 
+    // 扫描主机备份文件
+    async function scanHostBackups(hostName) {
+        // 显示扫描中状态
+        Swal.fire({
+            title: '扫描中...',
+            html: `正在扫描主机 "<strong>${hostName}</strong>" 的备份文件`,
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        try {
+            const result = await apiRequest(`/api/server/backup/scan/${hostName}`, 'POST', {});
+
+            if (result && result.code === 200) {
+                Swal.fire({
+                    icon: 'success',
+                    title: '扫描完成',
+                    text: '备份文件扫描成功',
+                    timer: 2000,
+                    showConfirmButton: true,
+                    confirmButtonText: '确定'
+                });
+
+                // 刷新主机列表
+                loadHosts();
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: '扫描失败',
+                    text: result?.msg || '扫描备份文件失败，请重试'
+                });
+            }
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: '扫描失败',
+                text: '网络错误或服务器异常'
+            });
+        }
+    }
+
     // 表单提交
     document.getElementById('hostForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -1105,6 +1246,7 @@
             remote_port: parseInt(document.getElementById('remotePort').value) || 0,
             limits_nums: parseInt(document.getElementById('limitsNums').value) || 0,
             system_maps: getSystemMapsData(),
+            images_maps: getImagesMapsData(),
             ipaddr_maps: getIpaddrMapsData(),
             ipaddr_dnss: document.getElementById('ipaddrDnss').value.split(',').map(s => s.trim()).filter(s => s),
             public_addr: document.getElementById('publicAddr').value.split(',').map(s => s.trim()).filter(s => s),

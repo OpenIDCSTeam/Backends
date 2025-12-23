@@ -50,7 +50,7 @@ class ZMessage:
             "execute": str(self.execute) if self.execute else None
         }
 
-    def __dict__(self):
+    def __save__(self):
         return self.to_dict()
 
     # 转换为字符串 ==========================

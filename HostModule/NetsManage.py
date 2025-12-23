@@ -184,9 +184,7 @@ class NetsManage:
         logger.info(f"🔍 准备添加DHCP - 提交参数: {json.dumps(param, ensure_ascii=False)}")
 
         result = self.posts("dhcp_static", "add", param)
-        success = result is not None and result.get("success", False)
-        if result['ErrMsg'] == "Success":
-            success = True
+        success = result is not None and result.get("ErrMsg") == "Success"
         if success:
             logger.info(f"✅ 静态IP添加成功: {lan_addr} -> {mac_addr}")
         else:
@@ -226,7 +224,7 @@ class NetsManage:
         logger.info(f"🔍 准备删除DHCP - 提交参数: {json.dumps(param, ensure_ascii=False)}")
 
         result = self.posts("dhcp_static", "del", param)
-        success = result is not None and result.get("success", False)
+        success = result is not None and result.get("ErrMsg") == "Success"
         logger.debug(result)
         if result and result.get('ErrMsg') == "Success":
             success = True
@@ -253,9 +251,7 @@ class NetsManage:
         }
 
         result = self.posts("dnat", "add", param)
-        success = result is not None and result.get("success", False)
-        if result['ErrMsg'] == "Success":
-            success = True
+        success = result is not None and result.get("ErrMsg") == "Success"
         if success:
             logger.info(f"✅ 端口转发添加成功: 外部端口{wan_port} -> {lan_addr}:{lan_port}")
         else:
@@ -298,9 +294,7 @@ class NetsManage:
         logger.info(f"🔍 准备删除端口映射 - 提交参数: {json.dumps(param, ensure_ascii=False)}")
 
         result = self.posts("dnat", "del", param)
-        success = result is not None and result.get("success", False)
-        if result and result.get('ErrMsg') == "Success":
-            success = True
+        success = result is not None and result.get("ErrMsg") == "Success"
         if success:
             identifier = f"{lan_addr}:{lan_port}"
             logger.info(f"✅ 端口转发删除成功: {identifier}")
@@ -322,8 +316,6 @@ class NetsManage:
 
         result = self.posts("arp", "add", param)
         success = result is not None and result.get("success", False)
-        if result['ErrMsg'] == "Success" or result['Result'] == 3000:
-            success = True
         if success:
             logger.info(f"✅ ARP绑定添加成功: {lan_addr} -> {mac_addr}")
         else:
@@ -366,9 +358,7 @@ class NetsManage:
         logger.info(f"🔍 准备删除ARP - 提交参数: {json.dumps(param, ensure_ascii=False)}")
 
         result = self.posts("arp", "del", param)
-        success = result is not None and result.get("success", False)
-        if result and result.get('ErrMsg') == "Success":
-            success = True
+        success = result is not None and result.get("ErrMsg") == "Success"
         if success:
             logger.info(f"✅ ARP绑定删除成功: ID={target_id}, IP={target_ip}")
         else:

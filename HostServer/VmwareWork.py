@@ -1,11 +1,14 @@
 import os
 import shutil
 import subprocess
+from copy import deepcopy
 
 from pyexpat.errors import messages
 
 from HostServer.BaseServer import BaseServer
 from MainObject.Config.HSConfig import HSConfig
+from MainObject.Config.IMConfig import IMConfig
+from MainObject.Config.SDConfig import SDConfig
 from MainObject.Config.VMPowers import VMPowers
 from MainObject.Public.HWStatus import HWStatus
 from MainObject.Public.ZMessage import ZMessage
@@ -96,6 +99,81 @@ class HostServer(BaseServer):
         # 通用操作 =============================================================
         return super().VMStatus(vm_name)
 
+    # 虚拟机扫描 ###############################################################
+    def VScanner(self) -> ZMessage:
+        try:
+            # 使用主机配置的filter_name作为前缀过滤
+            filter_prefix = self.hs_config.filter_name if self.hs_config else ""
+
+            # 获取所有虚拟机列表
+            vms_result = self.vmrest_api.return_vmx()
+            if not vms_result.success:
+                return ZMessage(
+                    success=False, action="VScanner",
+                    message=f"Failed to get VM list: {vms_result.message}")
+
+            vms_list = vms_result.results \
+                if isinstance(vms_result.results, list) else []
+            scanned_count = 0  # 符合过滤条件的虚拟机数量
+            added_count = 0  # 新增的虚拟机数量
+            # 处理每个虚拟机
+            for vm_info in vms_list:
+                vm_path = vm_info.get("path", "")
+                vm_id = vm_info.get("id", "")
+                if not vm_path:
+                    continue
+                # 从路径中提取虚拟机名称
+                vmx_name = os.path.splitext(os.path.basename(vm_path))[0]
+                # 前缀过滤（使用主机配置的filter_name）
+                if filter_prefix and not vmx_name.startswith(filter_prefix):
+                    continue
+                # 符合过滤条件的虚拟机计数
+                scanned_count += 1
+                # 检查是否已存在
+                if vmx_name in self.vm_saving:
+                    continue
+                # 创建默认虚拟机配置
+                default_vm_config = VMConfig()
+                # 添加到服务器的虚拟机配置中
+                self.vm_saving[vmx_name] = default_vm_config
+                added_count += 1
+                # 记录日志
+                log_msg = ZMessage(
+                    success=True,
+                    action="VScanner",
+                    message=f"发现并添加虚拟机: {vmx_name}",
+                    results={
+                        "vm_name": vmx_name,
+                        "vm_id": vm_id,
+                        "vm_path": vm_path}
+                )
+                self.LogStack(log_msg)
+
+            # 保存到数据库
+            if added_count > 0:
+                success = self.data_set()
+                if not success:
+                    return ZMessage(
+                        success=False, action="VScanner",
+                        message="Failed to save scanned VMs to database")
+            # 返回成功消息 =====================================================
+            return ZMessage(
+                success=True,
+                action="VScanner",
+                message=f"扫描完成。"
+                        f"共扫描到{scanned_count}台虚拟机，"
+                        f"新增{added_count}台虚拟机配置。",
+                results={
+                    "scanned": scanned_count,
+                    "added": added_count,
+                    "prefix_filter": filter_prefix
+                }
+            )
+
+        except Exception as e:
+            return ZMessage(success=False, action="VScanner",
+                            message=f"扫描虚拟机时出错: {str(e)}")
+
     # 创建虚拟机 ###############################################################
     def VMCreate(self, vm_conf: VMConfig) -> ZMessage:
         vm_conf, net_result = self.NetCheck(vm_conf)
@@ -173,8 +251,8 @@ class HostServer(BaseServer):
         # 关闭虚拟机 ===========================================================
         self.VMPowers(vm_conf.vm_uuid, VMPowers.H_CLOSE)
         # 重装系统 =============================================================
-        if vm_conf.os_name != vm_last.os_name:
-            self.VInstall(vm_conf.os_name, vm_path, vm_conf.hdd_num)
+        if vm_conf.os_name != vm_last.os_name and vm_last.os_name != "":
+            self.VInstall(vm_conf)
         # 更新硬盘 =============================================================
         if vm_conf.hdd_num > vm_last.hdd_num:
             disk_file = f"{vm_path}.{vm_conf.os_name.split('.')[-1]}"
@@ -233,9 +311,6 @@ class HostServer(BaseServer):
         return hs_result
 
     # 虚拟机电源 ###############################################################
-    # :params vm_name: 虚拟机UUID
-    # :params power: 虚拟机电源状态
-    # ##########################################################################
     def VMPowers(self, vm_name: str, power: VMPowers) -> ZMessage:
         # 专用操作 =============================================================
         if power == VMPowers.H_RESET or power == VMPowers.S_RESET:
@@ -248,11 +323,30 @@ class HostServer(BaseServer):
         super().VMPowers(vm_name, power)
         return hs_result
 
-    # 设置虚拟机密码 ###########################################################
-    # :params vm_name: 虚拟机UUID
-    # :params os_pass: 虚拟机密码
-    # ##########################################################################
-    def Password(self, vm_name: str, os_pass: str) -> ZMessage:
-        # 专用操作 =============================================================
-        # 通用操作 =============================================================
-        return super().Password(vm_name, os_pass)
+    # 备份虚拟机 ###############################################################
+    def VMBackup(self, vm_name: str, vm_tips: str) -> ZMessage:
+        return super().VMBackup(vm_name, vm_tips)
+
+    # 恢复虚拟机 ###############################################################
+    def Restores(self, vm_name: str, vm_back: str) -> ZMessage:
+        return super().Restores(vm_name, vm_back)
+
+    # VM镜像挂载 ###############################################################
+    def HDDMount(self, vm_name: str, vm_imgs: SDConfig, in_flag=True) -> ZMessage:
+        return super().HDDMount(vm_name, vm_imgs, in_flag)
+
+    # ISO镜像挂载 ##############################################################
+    def ISOMount(self, vm_name: str, vm_imgs: IMConfig, in_flag=True) -> ZMessage:
+        return super().ISOMount(vm_name, vm_imgs, in_flag)
+
+    # 加载备份 #################################################################
+    def LDBackup(self, vm_back: str = "") -> ZMessage:
+        return super().LDBackup(vm_back)
+
+    # 移除备份 #################################################################
+    def RMBackup(self, vm_back: str) -> ZMessage:
+        return super().RMBackup(vm_back)
+
+    # 移除磁盘 #################################################################
+    def RMMounts(self, vm_name: str, vm_imgs: str) -> ZMessage:
+        return super().RMMounts(vm_name, vm_imgs)

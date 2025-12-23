@@ -227,7 +227,7 @@ class RestManager:
                 'name': hs_name,
                 'type': server.hs_config.server_type if server.hs_config else '',
                 'addr': server.hs_config.server_addr if server.hs_config else '',
-                'config': server.hs_config.__dict__() if server.hs_config else {},
+                'config': server.hs_config.__save__() if server.hs_config else {},
                 'vm_count': len(server.vm_saving),
                 'status': 'active'  # 可以根据实际情况判断
             }
@@ -251,7 +251,7 @@ class RestManager:
             'name': hs_name,
             'type': server.hs_config.server_type if server.hs_config else '',
             'addr': server.hs_config.server_addr if server.hs_config else '',
-            'config': server.hs_config.__dict__() if server.hs_config else {},
+            'config': server.hs_config.__save__() if server.hs_config else {},
             'vm_count': len(server.vm_saving),
             'vm_list': list(server.vm_saving.keys()),
             'last_updated': getattr(server, '_status_cache_time', 0)
@@ -273,10 +273,10 @@ class RestManager:
                     # 获取新状态并缓存
                     status_obj = server.HSStatus()
                     if status_obj:
-                        host_data['status'] = status_obj.__dict__()
+                        host_data['status'] = status_obj.__save__()
                         host_data['status_source'] = 'fresh'
                         # 缓存状态数据
-                        server._status_cache = status_obj.__dict__()
+                        server._status_cache = status_obj.__save__()
                         server._status_cache_time = current_time
                     else:
                         host_data['status'] = {}
@@ -306,8 +306,17 @@ class RestManager:
         # 构建配置
         config_data = data.get('config', {})
         config_data['server_type'] = hs_type
+        
+        # 调试日志：打印images_maps
+        logger.debug(f"[add_host] 接收到的config_data.images_maps: {config_data.get('images_maps')}")
+        logger.debug(f"[add_host] images_maps类型: {type(config_data.get('images_maps'))}")
+        
         hs_conf = HSConfig(**config_data)
         hs_conf.server_name = hs_name  # 设置server_name，确保save_data能正常工作
+        
+        # 调试日志：打印HSConfig对象的images_maps
+        logger.debug(f"[add_host] HSConfig.images_maps: {hs_conf.images_maps}")
+        logger.debug(f"[add_host] HSConfig.images_maps类型: {type(hs_conf.images_maps)}")
 
         result = self.hs_manage.add_host(hs_name, hs_type, hs_conf)
 
@@ -394,7 +403,7 @@ class RestManager:
         try:
             status = server.HSStatus()
             if status:
-                status_data = status.__dict__()
+                status_data = status.__save__()
                 # 更新缓存
                 server._status_cache = status_data
                 server._status_cache_time = current_time
@@ -446,10 +455,10 @@ class RestManager:
             # 检查是否为函数对象
             if callable(obj):
                 return f"<function: {getattr(obj, '__name__', 'unknown')}>"
-            # 尝试调用__dict__()方法
-            if hasattr(obj, '__dict__') and callable(obj.__dict__):
+            # 尝试调用__save__()方法
+            if hasattr(obj, '__save__') and callable(obj.__save__):
                 try:
-                    return obj.__dict__()
+                    return obj.__save__()
                 except (TypeError, AttributeError):
                     pass
             # 尝试使用vars()获取属性字典
@@ -498,21 +507,21 @@ class RestManager:
             status_list = status_dict[vm_uuid]
             for hw_status in status_list:
                 if hw_status is not None:
-                    # 如果已经是字典则直接使用，否则调用__dict__()方法
+                    # 如果已经是字典则直接使用，否则调用__save__()方法
                     if isinstance(hw_status, dict):
                         status_result.append(hw_status)
-                    elif hasattr(hw_status, '__dict__') and callable(getattr(hw_status, '__dict__', None)):
-                        status_result.append(hw_status.__dict__())
+                    elif hasattr(hw_status, '__save__') and callable(getattr(hw_status, '__save__', None)):
+                        status_result.append(hw_status.__save__())
                     else:
                         status_result.append(hw_status)
                 else:
                     status_result.append(None)
 
-        # 如果vm_config已经是字典则直接使用，否则调用__dict__()方法
+        # 如果vm_config已经是字典则直接使用，否则调用__save__()方法
         if isinstance(vm_config, dict):
             config_data = vm_config
-        elif hasattr(vm_config, '__dict__') and callable(getattr(vm_config, '__dict__', None)):
-            config_data = vm_config.__dict__()
+        elif hasattr(vm_config, '__save__') and callable(getattr(vm_config, '__save__', None)):
+            config_data = vm_config.__save__()
         else:
             config_data = vm_config if vm_config else {}
 
@@ -709,7 +718,7 @@ class RestManager:
             for hw_status in status_list:
                 if hw_status is not None:
                     try:
-                        result.append(hw_status.__dict__())
+                        result.append(hw_status.__save__())
                     except (TypeError, AttributeError):
                         result.append(vars(hw_status))
                 else:
@@ -1005,7 +1014,7 @@ class RestManager:
             return self.api_response(404, '虚拟机不存在')
 
         # 拷贝并修改vm_conf
-        vm_config_dict = vm_config.__dict__()
+        vm_config_dict = vm_config.__save__()
         old_vm_config = VMConfig(**vm_config_dict)
 
         # 生成新的网卡名称
@@ -1080,7 +1089,7 @@ class RestManager:
             return self.api_response(404, '虚拟机不存在')
 
         # 拷贝并修改vm_conf
-        vm_config_dict = vm_config.__dict__()
+        vm_config_dict = vm_config.__save__()
         old_vm_config = VMConfig(**vm_config_dict)
         
         # 删除网卡
@@ -1129,7 +1138,7 @@ class RestManager:
             return self.api_response(404, '虚拟机不存在')
 
         # 拷贝并修改vm_conf
-        vm_config_dict = vm_config.__dict__()
+        vm_config_dict = vm_config.__save__()
         old_vm_config = VMConfig(**vm_config_dict)
 
         # 获取要修改的网卡
@@ -1281,6 +1290,377 @@ class RestManager:
         self.hs_manage.all_save()
         return self.api_response(200, '代理配置已删除')
 
+    # ========================================================================
+    # 数据盘管理API - /api/client/hdd/<action>/<hs_name>/<vm_uuid>
+    # ========================================================================
+
+    # 挂载数据盘 ########################################################################
+    # :param hs_name: 主机名称
+    # :param vm_uuid: 虚拟机UUID
+    # :return: API响应
+    # ####################################################################################
+    def mount_vm_hdd(self, hs_name, vm_uuid):
+        """挂载数据盘到虚拟机"""
+        server = self.hs_manage.get_host(hs_name)
+        if not server:
+            return self.api_response(404, '主机不存在')
+
+        vm_config = server.vm_saving.get(vm_uuid)
+        if not vm_config:
+            return self.api_response(404, '虚拟机不存在')
+
+        data = request.get_json() or {}
+        hdd_name = data.get('hdd_name', '')
+        hdd_size = data.get('hdd_size', 0)
+        hdd_type = data.get('hdd_type', 0)
+
+        if not hdd_name:
+            return self.api_response(400, '磁盘名称不能为空')
+        
+        # 验证磁盘名称：只能包含数字、字母和下划线
+        import re
+        if not re.match(r'^[a-zA-Z0-9_]+$', hdd_name):
+            return self.api_response(400, '磁盘名称只能包含数字、字母和下划线，不能包含特殊符号和中文')
+
+        # 检查磁盘是否已存在
+        hdd_config = None
+        if hdd_name in vm_config.hdd_all:
+            # 磁盘已存在，检查挂载状态
+            existing_hdd = vm_config.hdd_all[hdd_name]
+            hdd_flag = getattr(existing_hdd, 'hdd_flag', 0)
+            
+            if hdd_flag == 1:
+                # 已挂载，不允许重复挂载
+                return self.api_response(400, '磁盘已挂载，无需重复挂载')
+            
+            # 未挂载（hdd_flag=0），使用已有配置进行挂载
+            hdd_config = existing_hdd
+            logger.info(f"挂载已存在的未挂载磁盘: {hdd_name}")
+        else:
+            # 磁盘不存在，创建新磁盘
+            if hdd_size < 1024:
+                return self.api_response(400, '磁盘大小至少为1024MB')
+            
+            # 创建SDConfig对象
+            from MainObject.Config.SDConfig import SDConfig
+            hdd_config = SDConfig(hdd_name=hdd_name, hdd_size=hdd_size, hdd_type=hdd_type)
+            logger.info(f"创建新磁盘: {hdd_name}, 大小: {hdd_size}MB, 类型: {hdd_type}")
+
+        # 调用HDDMount挂载
+        result = server.HDDMount(vm_uuid, hdd_config, in_flag=True)
+        if not result.success:
+            return self.api_response(500, f'挂载失败: {result.message}')
+
+        # 如果是新磁盘，添加到vm_config.hdd_all
+        if hdd_name not in vm_config.hdd_all:
+            vm_config.hdd_all[hdd_name] = hdd_config
+
+        # 保存配置
+        self.hs_manage.all_save()
+        return self.api_response(200, '数据盘挂载成功')
+
+    # 卸载数据盘 ########################################################################
+    # :param hs_name: 主机名称
+    # :param vm_uuid: 虚拟机UUID
+    # :return: API响应
+    # ####################################################################################
+    def unmount_vm_hdd(self, hs_name, vm_uuid):
+        """卸载虚拟机数据盘"""
+        server = self.hs_manage.get_host(hs_name)
+        if not server:
+            return self.api_response(404, '主机不存在')
+
+        vm_config = server.vm_saving.get(vm_uuid)
+        if not vm_config:
+            return self.api_response(404, '虚拟机不存在')
+
+        data = request.get_json() or {}
+        hdd_name = data.get('hdd_name', '')
+
+        if not hdd_name or hdd_name not in vm_config.hdd_all:
+            return self.api_response(404, '数据盘不存在')
+
+        hdd_config = vm_config.hdd_all[hdd_name]
+
+        # 调用HDDMount卸载
+        result = server.HDDMount(vm_uuid, hdd_config, in_flag=False)
+        if not result.success:
+            return self.api_response(500, f'卸载失败: {result.message}')
+
+        # 保存配置
+        self.hs_manage.all_save()
+        return self.api_response(200, '数据盘已卸载')
+
+    # 移交数据盘所有权 ##################################################################
+    # :param hs_name: 主机名称
+    # :param vm_uuid: 虚拟机UUID
+    # :return: API响应
+    # ####################################################################################
+    def transfer_vm_hdd(self, hs_name, vm_uuid):
+        """移交数据盘所有权到另一个虚拟机"""
+        server = self.hs_manage.get_host(hs_name)
+        if not server:
+            return self.api_response(404, '主机不存在')
+
+        vm_config = server.vm_saving.get(vm_uuid)
+        if not vm_config:
+            return self.api_response(404, '虚拟机不存在')
+
+        data = request.get_json() or {}
+        hdd_name = data.get('hdd_name', '')
+        target_vm = data.get('target_vm', '')
+
+        if not hdd_name or hdd_name not in vm_config.hdd_all:
+            return self.api_response(404, '数据盘不存在')
+        if not target_vm:
+            return self.api_response(400, '目标虚拟机不能为空')
+
+        # 检查目标虚拟机是否存在
+        if target_vm not in server.vm_saving:
+            return self.api_response(404, '目标虚拟机不存在')
+
+        hdd_config = vm_config.hdd_all[hdd_name]
+
+        # 调用HDDTrans移交所有权
+        result = server.HDDTrans(vm_uuid, hdd_config, target_vm)
+        if not result.success:
+            return self.api_response(500, f'移交失败: {result.message}')
+
+        # 保存配置
+        self.hs_manage.all_save()
+        return self.api_response(200, '数据盘所有权移交成功')
+
+    # 删除数据盘 ########################################################################
+    # :param hs_name: 主机名称
+    # :param vm_uuid: 虚拟机UUID
+    # :return: API响应
+    # ####################################################################################
+    def delete_vm_hdd(self, hs_name, vm_uuid):
+        """删除虚拟机数据盘"""
+        server = self.hs_manage.get_host(hs_name)
+        if not server:
+            return self.api_response(404, '主机不存在')
+
+        vm_config = server.vm_saving.get(vm_uuid)
+        if not vm_config:
+            return self.api_response(404, '虚拟机不存在')
+
+        data = request.get_json() or {}
+        hdd_name = data.get('hdd_name', '')
+
+        if not hdd_name or hdd_name not in vm_config.hdd_all:
+            return self.api_response(404, '数据盘不存在')
+
+        hdd_config = vm_config.hdd_all[hdd_name]
+
+        # 调用RMMounts删除磁盘
+        result = server.RMMounts(vm_uuid, hdd_name)
+        if not result.success:
+            return self.api_response(500, f'删除失败: {result.message}')
+
+        # 保存配置
+        self.hs_manage.all_save()
+        return self.api_response(200, '数据盘已删除')
+
+    # ========================================================================
+    # ISO管理API - /api/client/iso/<action>/<hs_name>/<vm_uuid>
+    # ========================================================================
+
+    # 挂载ISO ########################################################################
+    # :param hs_name: 主机名称
+    # :param vm_uuid: 虚拟机UUID
+    # :return: API响应
+    # ####################################################################################
+    def mount_vm_iso(self, hs_name, vm_uuid):
+        """挂载ISO镜像到虚拟机"""
+        server = self.hs_manage.get_host(hs_name)
+        if not server:
+            return self.api_response(404, '主机不存在')
+
+        vm_config = server.vm_saving.get(vm_uuid)
+        if not vm_config:
+            return self.api_response(404, '虚拟机不存在')
+
+        data = request.get_json() or {}
+        iso_name = data.get('iso_name', '')  # 挂载名称（英文+数字）
+        iso_file = data.get('iso_file', '')  # ISO文件名（xxx.iso）
+        iso_hint = data.get('iso_hint', '')  # 备注
+
+        if not iso_name:
+            return self.api_response(400, '挂载名称不能为空')
+        
+        if not iso_file:
+            return self.api_response(400, 'ISO文件不能为空')
+
+        # 创建IMConfig对象
+        from MainObject.Config.IMConfig import IMConfig
+        iso_config = IMConfig(
+            iso_name=iso_name,
+            iso_file=iso_file,
+            iso_hint=iso_hint
+        )
+
+        # 调用ISOMount挂载
+        result = server.ISOMount(vm_uuid, iso_config, in_flag=True)
+        if not result.success:
+            return self.api_response(500, f'挂载失败: {result.message}')
+
+        # 保存配置
+        self.hs_manage.all_save()
+        return self.api_response(200, 'ISO挂载成功')
+
+    # 卸载ISO ########################################################################
+    # :param hs_name: 主机名称
+    # :param vm_uuid: 虚拟机UUID
+    # :param iso_index: ISO索引
+    # :return: API响应
+    # ####################################################################################
+    def unmount_vm_iso(self, hs_name, vm_uuid, iso_name):
+        """卸载虚拟机ISO镜像"""
+        server = self.hs_manage.get_host(hs_name)
+        if not server:
+            return self.api_response(404, '主机不存在')
+
+        vm_config = server.vm_saving.get(vm_uuid)
+        if not vm_config:
+            return self.api_response(404, '虚拟机不存在')
+
+        if not hasattr(vm_config, 'iso_all') or not vm_config.iso_all:
+            return self.api_response(404, 'ISO配置不存在')
+
+        # iso_all现在是字典，使用iso_name作为key
+        if iso_name not in vm_config.iso_all:
+            return self.api_response(404, 'ISO不存在')
+
+        iso_config = vm_config.iso_all[iso_name]
+
+        # 调用ISOMount卸载
+        result = server.ISOMount(vm_uuid, iso_config, in_flag=False)
+        if not result.success:
+            return self.api_response(500, f'卸载失败: {result.message}')
+
+        # 保存配置
+        self.hs_manage.all_save()
+        return self.api_response(200, 'ISO已卸载')
+
+    # ========================================================================
+    # 备份管理API - /api/client/backup/<action>/<hs_name>/<vm_uuid>
+    # ========================================================================
+
+    # 创建备份 ########################################################################
+    # :param hs_name: 主机名称
+    # :param vm_uuid: 虚拟机UUID
+    # :return: API响应
+    # ####################################################################################
+    def create_vm_backup(self, hs_name, vm_uuid):
+        """创建虚拟机备份"""
+        server = self.hs_manage.get_host(hs_name)
+        if not server:
+            return self.api_response(404, '主机不存在')
+
+        vm_config = server.vm_saving.get(vm_uuid)
+        if not vm_config:
+            return self.api_response(404, '虚拟机不存在')
+
+        data = request.get_json() or {}
+        vm_tips = data.get('vm_tips', '')
+
+        if not vm_tips:
+            return self.api_response(400, '备份说明不能为空')
+
+        # 调用VMBackup创建备份
+        result = server.VMBackup(vm_uuid, vm_tips)
+        if not result.success:
+            return self.api_response(500, f'备份失败: {result.message}')
+
+        # 保存配置
+        self.hs_manage.all_save()
+        return self.api_response(200, '备份创建成功')
+
+    # 还原备份 ########################################################################
+    # :param hs_name: 主机名称
+    # :param vm_uuid: 虚拟机UUID
+    # :return: API响应
+    # ####################################################################################
+    def restore_vm_backup(self, hs_name, vm_uuid):
+        """还原虚拟机备份"""
+        server = self.hs_manage.get_host(hs_name)
+        if not server:
+            return self.api_response(404, '主机不存在')
+
+        vm_config = server.vm_saving.get(vm_uuid)
+        if not vm_config:
+            return self.api_response(404, '虚拟机不存在')
+
+        data = request.get_json() or {}
+        vm_back = data.get('vm_back', '')
+
+        if not vm_back:
+            return self.api_response(400, '备份名称不能为空')
+
+        # 调用Restores还原备份
+        result = server.Restores(vm_uuid, vm_back)
+        if not result.success:
+            return self.api_response(500, f'还原失败: {result.message}')
+
+        # 保存配置
+        self.hs_manage.all_save()
+        return self.api_response(200, '备份还原成功')
+
+    # 删除备份 ########################################################################
+    # :param hs_name: 主机名称
+    # :param vm_uuid: 虚拟机UUID
+    # :return: API响应
+    # ####################################################################################
+    def delete_vm_backup(self, hs_name, vm_uuid):
+        """删除虚拟机备份"""
+        server = self.hs_manage.get_host(hs_name)
+        if not server:
+            return self.api_response(404, '主机不存在')
+
+        vm_config = server.vm_saving.get(vm_uuid)
+        if not vm_config:
+            return self.api_response(404, '虚拟机不存在')
+
+        data = request.get_json() or {}
+        vm_back = data.get('vm_back', '')
+
+        if not vm_back:
+            return self.api_response(400, '备份名称不能为空')
+
+        # 调用RMBackup删除备份
+        result = server.RMBackup(vm_uuid, vm_back)
+        if not result.success:
+            return self.api_response(500, f'删除失败: {result.message}')
+
+        # 从backups中删除
+        vm_config.backups = [b for b in vm_config.backups if b.backup_name != vm_back]
+
+        # 保存配置
+        self.hs_manage.all_save()
+        return self.api_response(200, '备份已删除')
+
+    # 扫描备份 ########################################################################
+    # :param hs_name: 主机名称
+    # :return: API响应
+    # ####################################################################################
+    def scan_backups(self, hs_name):
+        """扫描主机备份文件"""
+        server = self.hs_manage.get_host(hs_name)
+        if not server:
+            return self.api_response(404, '主机不存在')
+
+        try:
+            # 调用LDBackup扫描备份
+            result = server.LDBackup("")
+            
+            # 保存配置
+            self.hs_manage.all_save()
+            return self.api_response(200, '备份扫描成功')
+        except Exception as e:
+            logger.error(f"扫描备份失败: {e}")
+            return self.api_response(500, f'扫描失败: {str(e)}')
+
     # 获取全局反向代理配置列表 ########################################################################
     # :return: 包含全局反向代理配置列表的API响应
     # ####################################################################################
@@ -1291,8 +1671,8 @@ class RestManager:
             for proxy in self.hs_manage.web_all:
                 if hasattr(proxy, '__save__'):
                     proxy_list.append(proxy.__save__())
-                elif hasattr(proxy, '__dict__') and callable(proxy.__dict__):
-                    proxy_list.append(proxy.__dict__())
+                elif hasattr(proxy, '__save__') and callable(proxy.__save__):
+                    proxy_list.append(proxy.__save__())
                 else:
                     proxy_list.append({
                         'lan_port': getattr(proxy, 'lan_port', 0),

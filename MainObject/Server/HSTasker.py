@@ -14,12 +14,12 @@ class HSTasker(abc.ABC):
             self.__read__(config)
         self.__load__(**kwargs)
 
-    def __dict__(self):
+    def __save__(self):
         return {
             "process": self.process,
             "success": self.success,
             "results": self.results,
-            "message": self.message.__dict__() if self.message else None,
+            "message": self.message.__save__() if self.message else None,
         }
 
     # 加载数据 ==============================

@@ -26,13 +26,13 @@ class HostManage:
         self.set_conf()
 
     # 字典化 #####################################################################
-    def __dict__(self):
+    def __save__(self):
         return {
             "engine": {
-                string: server.__dict__() for string, server in self.engine.items()
+                string: server.__save__() for string, server in self.engine.items()
             },
             "logger": [
-                logger.__dict__() for logger in self.logger
+                logger.__save__() for logger in self.logger
             ],
             "bearer": self.bearer
         }
@@ -170,6 +170,8 @@ class HostManage:
                 # 解析新字段的JSON数据
                 hs_conf_data["system_maps"] = json.loads(host_config["system_maps"]) if host_config.get(
                     "system_maps") else {}
+                hs_conf_data["images_maps"] = json.loads(host_config["images_maps"]) if host_config.get(
+                    "images_maps") else {}
                 hs_conf_data["public_addr"] = json.loads(host_config["public_addr"]) if host_config.get(
                     "public_addr") else []
                 hs_conf_data["server_dnss"] = json.loads(host_config["server_dnss"]) if host_config.get(
@@ -257,82 +259,25 @@ class HostManage:
 
         server = self.engine[hs_name]
 
+        # 检查是否支持VScanner方法
+        if not hasattr(server, 'VScanner'):
+            return ZMessage(success=False, message="Host does not support VM scanning")
+
+        # 如果指定了prefix参数，临时修改主机配置的filter_name
+        original_filter_name = None
+        if prefix:
+            original_filter_name = server.hs_config.filter_name if server.hs_config else None
+            if server.hs_config:
+                server.hs_config.filter_name = prefix
+
         try:
-            # 获取VMRestAPI实例（假设是Vmware类型）
-            if not hasattr(server, 'vmrest_api'):
-                return ZMessage(success=False, message="Host does not support VM scanning")
-
-            # 使用主机配置的filter_name作为前缀过滤（如果prefix参数为空）
-            filter_prefix = prefix if prefix else (server.hs_config.filter_name if server.hs_config else "")
-
-            # 获取所有虚拟机列表
-            vms_result = server.vmrest_api.return_vmx()
-            if not vms_result.success:
-                return ZMessage(success=False, message=f"Failed to get VM list: {vms_result.message}")
-
-            vms_list = vms_result.results if isinstance(vms_result.results, list) else []
-            scanned_count = 0  # 符合过滤条件的虚拟机数量
-            added_count = 0  # 新增的虚拟机数量
-
-            # 处理每个虚拟机
-            for vm_info in vms_list:
-                vm_path = vm_info.get("path", "")
-                vm_id = vm_info.get("id", "")
-
-                if not vm_path:
-                    continue
-
-                # 从路径中提取虚拟机名称
-                import os
-                vmx_name = os.path.splitext(os.path.basename(vm_path))[0]
-
-                # 前缀过滤（使用主机配置的filter_name或传入的prefix）
-                if filter_prefix and not vmx_name.startswith(filter_prefix):
-                    continue
-
-                # 符合过滤条件的虚拟机计数
-                scanned_count += 1
-
-                # 检查是否已存在
-                if vmx_name in server.vm_saving:
-                    continue
-
-                # 创建默认虚拟机配置
-                default_vm_config = VMConfig()
-                # 添加到服务器的虚拟机配置中
-                server.vm_saving[vmx_name] = default_vm_config
-
-                # 虚拟机状态由DataManage管理，立即保存到数据库 =================
-
-                added_count += 1
-
-                # 记录日志
-                log_msg = ZMessage(
-                    success=True,
-                    actions="scan_vm",
-                    message=f"发现并添加虚拟机: {vmx_name}",
-                    results={"vm_name": vmx_name, "vm_id": vm_id, "vm_path": vm_path}
-                )
-                server.LogStack(log_msg)
-
-            # 保存到数据库
-            if added_count > 0:
-                success = server.data_set()
-                if not success:
-                    return ZMessage(success=False, message="Failed to save scanned VMs to database")
-
-            return ZMessage(
-                success=True,
-                message=f"扫描完成。共扫描到{scanned_count}台虚拟机，新增{added_count}台虚拟机配置。",
-                results={
-                    "scanned": scanned_count,
-                    "added": added_count,
-                    "prefix_filter": filter_prefix
-                }
-            )
-
-        except Exception as e:
-            return ZMessage(success=False, message=f"扫描虚拟机时出错: {str(e)}")
+            # 调用服务器的VScanner方法
+            result = server.VScanner()
+            return result
+        finally:
+            # 恢复原始的filter_name
+            if original_filter_name is not None and server.hs_config:
+                server.hs_config.filter_name = original_filter_name
 
     # 添加全局代理 ###################################################################
     def add_proxy(self, proxy_data: dict) -> ZMessage:
