@@ -24,35 +24,39 @@
                 <label class="block text-sm font-medium text-gray-700 mb-2">当前Token</label>
                 <div class="flex gap-2">
                     <input type="password" id="currentToken" readonly
-                        class="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                    <button onclick="toggleTokenVisibility()" class="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50" title="显示/隐藏">
+                           class="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                    <button onclick="toggleTokenVisibility()"
+                            class="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50" title="显示/隐藏">
                         <span class="iconify" data-icon="mdi:eye" data-width="20" id="toggleIcon"></span>
                     </button>
-                    <button onclick="copyToken()" class="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50" title="复制">
+                    <button onclick="copyToken()" class="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                            title="复制">
                         <span class="iconify" data-icon="mdi:content-copy" data-width="20"></span>
                     </button>
                 </div>
             </div>
-            
+
             <div class="border-t border-gray-200 pt-4">
                 <label class="block text-sm font-medium text-gray-700 mb-2">设置新Token</label>
                 <div class="flex gap-2">
                     <input type="text" id="newToken" placeholder="留空则自动生成随机Token"
-                        class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <button onclick="setNewToken()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2">
+                           class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <button onclick="setNewToken()"
+                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2">
                         <span class="iconify" data-icon="mdi:check" data-width="18"></span>
                         设置
                     </button>
                 </div>
             </div>
-            
+
             <div class="flex gap-2">
-                <button onclick="resetToken()" class="flex-1 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg flex items-center justify-center gap-2">
+                <button onclick="resetToken()"
+                        class="flex-1 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg flex items-center justify-center gap-2">
                     <span class="iconify" data-icon="mdi:refresh" data-width="18"></span>
                     重置Token
                 </button>
             </div>
-            
+
             <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                 <div class="flex items-start gap-2">
                     <span class="iconify text-yellow-600 mt-0.5" data-icon="mdi:alert" data-width="18"></span>
@@ -78,9 +82,10 @@
                 <div class="bg-gray-50 rounded-lg p-3">
                     <p class="font-medium text-gray-800 mb-1">认证方式</p>
                     <p class="text-gray-600">在请求头中添加：</p>
-                    <code class="block mt-1 bg-gray-200 px-2 py-1 rounded text-xs">Authorization: Bearer YOUR_TOKEN</code>
+                    <code class="block mt-1 bg-gray-200 px-2 py-1 rounded text-xs">Authorization: Bearer
+                        YOUR_TOKEN</code>
                 </div>
-                
+
                 <div class="border-t border-gray-200 pt-3">
                     <p class="font-medium text-gray-800 mb-2">主要接口</p>
                     <div class="space-y-2">
@@ -124,7 +129,8 @@
             </h2>
         </div>
         <div class="p-4 space-y-3">
-            <button onclick="saveConfig()" class="w-full flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:border-green-300 hover:bg-green-50 smooth-transition">
+            <button onclick="saveConfig()"
+                    class="w-full flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:border-green-300 hover:bg-green-50 smooth-transition">
                 <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                     <span class="iconify text-green-600" data-icon="mdi:content-save" data-width="20"></span>
                 </div>
@@ -133,8 +139,9 @@
                     <p class="text-xs text-gray-600">将当前配置保存到文件</p>
                 </div>
             </button>
-            
-            <button onclick="loadConfig()" class="w-full flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 smooth-transition">
+
+            <button onclick="loadConfig()"
+                    class="w-full flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 smooth-transition">
                 <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                     <span class="iconify text-blue-600" data-icon="mdi:folder-open" data-width="20"></span>
                 </div>
@@ -195,7 +202,7 @@
                     <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                 </label>
             </div>
-            
+
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-gray-800">邮箱验证</p>
@@ -207,7 +214,79 @@
                 </label>
             </div>
 
-            <button onclick="saveRegistrationSettings()" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-2">
+            <!-- 新注册用户默认资源配置 -->
+            <div class="border-t border-gray-200 pt-4">
+                <h4 class="text-sm font-medium text-gray-800 mb-3">新用户默认资源配额</h4>
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">CPU核心</label>
+                        <input type="number" id="defaultQuotaCpu" min="0" max="32" value="2"
+                               class="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">内存(GB)</label>
+                        <input type="number" id="defaultQuotaRam" min="0" max="128" value="4"
+                               class="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">磁盘(GB)</label>
+                        <input type="number" id="defaultQuotaSsd" min="0" max="1000" value="20"
+                               class="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">GPU</label>
+                        <input type="number" id="defaultQuotaGpu" min="0" max="8" value="0"
+                               class="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">NAT端口</label>
+                        <input type="number" id="defaultQuotaNatPorts" min="0" max="100" value="5"
+                               class="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Web代理</label>
+                        <input type="number" id="defaultQuotaWebProxy" min="0" max="10" value="0"
+                               class="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">上行带宽(Mbps)</label>
+                        <input type="number" id="defaultQuotaBandwidthUp" min="0" max="1000" value="10"
+                               class="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">下行带宽(Mbps)</label>
+                        <input type="number" id="defaultQuotaBandwidthDown" min="0" max="1000" value="10"
+                               class="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-xs font-medium text-gray-700 mb-1">每月流量(GB)</label>
+                        <input type="number" id="defaultQuotaTraffic" min="0" max="10000" value="100"
+                               class="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 新用户默认权限设置 -->
+            <div class="border-t border-gray-200 pt-4">
+                <h4 class="text-sm font-medium text-gray-800 mb-3">新用户默认权限</h4>
+                <div class="space-y-2">
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" id="defaultCanCreateVm" checked class="rounded">
+                        <span class="text-sm text-gray-700">允许创建虚拟机</span>
+                    </label>
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" id="defaultCanModifyVm" checked class="rounded">
+                        <span class="text-sm text-gray-700">允许修改虚拟机</span>
+                    </label>
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" id="defaultCanDeleteVm" checked class="rounded">
+                        <span class="text-sm text-gray-700">允许删除虚拟机</span>
+                    </label>
+                </div>
+            </div>
+
+            <button onclick="saveRegistrationSettings()"
+                    class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-2">
                 <span class="iconify" data-icon="mdi:content-save" data-width="18"></span>
                 保存设置
             </button>
@@ -223,40 +302,43 @@
             </h2>
         </div>
         <div class="p-4 space-y-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">发件邮箱</label>
-                <input 
-                    type="email" 
-                    id="resendEmail"
-                    placeholder="noreply@yourdomain.com"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-            </div>
-            
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">API Key</label>
-                <input 
-                    type="password" 
-                    id="resendApikey"
-                    placeholder="re_xxxxxxxxxxxxxxxx"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-            </div>
-
-            <button onclick="saveEmailSettings()" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-2">
-                <span class="iconify" data-icon="mdi:content-save" data-width="18"></span>
-                保存配置
-            </button>
-
             <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <div class="flex items-start gap-2">
                     <span class="iconify text-blue-600 mt-0.5" data-icon="mdi:information" data-width="18"></span>
                     <div class="text-xs text-blue-800">
                         <p class="font-medium">Resend 邮件服务</p>
-                        <p class="mt-1">访问 <a href="https://resend.com" target="_blank" class="underline">resend.com</a> 获取API Key</p>
+                        <p class="mt-1">访问 <a href="https://resend.com" target="_blank"
+                                                class="underline">resend.com</a> 获取API Key</p>
                     </div>
                 </div>
             </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">发件邮箱</label>
+                <input
+                        type="email"
+                        id="resendEmail"
+                        placeholder="noreply@yourdomain.com"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">API Key</label>
+                <input
+                        type="password"
+                        id="resendApikey"
+                        placeholder="re_xxxxxxxxxxxxxxxx"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+            </div>
+
+            <button onclick="saveEmailSettings()"
+                    class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-2">
+                <span class="iconify" data-icon="mdi:content-save" data-width="18"></span>
+                保存配置
+            </button>
+
+
         </div>
     </div>
 </div>
@@ -267,7 +349,7 @@
     let tokenVisible = false;
     let currentTokenValue = '';
 
-    $(document).ready(function() {
+    $(document).ready(function () {
         loadCurrentToken();
         loadSystemInfo();
         loadSystemSettings();
@@ -297,15 +379,45 @@
             document.getElementById('emailVerificationEnabled').checked = settings.email_verification_enabled === '1';
             document.getElementById('resendEmail').value = settings.resend_email || '';
             document.getElementById('resendApikey').value = settings.resend_apikey || '';
+
+            // 加载默认资源配置
+            document.getElementById('defaultQuotaCpu').value = settings.default_quota_cpu || '2';
+            document.getElementById('defaultQuotaRam').value = settings.default_quota_ram || '4';
+            document.getElementById('defaultQuotaSsd').value = settings.default_quota_ssd || '20';
+            document.getElementById('defaultQuotaGpu').value = settings.default_quota_gpu || '0';
+            document.getElementById('defaultQuotaNatPorts').value = settings.default_quota_nat_ports || '5';
+            document.getElementById('defaultQuotaWebProxy').value = settings.default_quota_web_proxy || '0';
+            document.getElementById('defaultQuotaBandwidthUp').value = settings.default_quota_bandwidth_up || '10';
+            document.getElementById('defaultQuotaBandwidthDown').value = settings.default_quota_bandwidth_down || '10';
+            document.getElementById('defaultQuotaTraffic').value = settings.default_quota_traffic || '100';
+
+            // 加载默认权限设置
+            document.getElementById('defaultCanCreateVm').checked = settings.default_can_create_vm !== '0';
+            document.getElementById('defaultCanModifyVm').checked = settings.default_can_modify_vm !== '0';
+            document.getElementById('defaultCanDeleteVm').checked = settings.default_can_delete_vm !== '0';
         }
     }
 
     async function saveRegistrationSettings() {
         const data = {
             registration_enabled: document.getElementById('registrationEnabled').checked ? '1' : '0',
-            email_verification_enabled: document.getElementById('emailVerificationEnabled').checked ? '1' : '0'
+            email_verification_enabled: document.getElementById('emailVerificationEnabled').checked ? '1' : '0',
+            // 默认资源配置
+            default_quota_cpu: document.getElementById('defaultQuotaCpu').value,
+            default_quota_ram: document.getElementById('defaultQuotaRam').value,
+            default_quota_ssd: document.getElementById('defaultQuotaSsd').value,
+            default_quota_gpu: document.getElementById('defaultQuotaGpu').value,
+            default_quota_nat_ports: document.getElementById('defaultQuotaNatPorts').value,
+            default_quota_web_proxy: document.getElementById('defaultQuotaWebProxy').value,
+            default_quota_bandwidth_up: document.getElementById('defaultQuotaBandwidthUp').value,
+            default_quota_bandwidth_down: document.getElementById('defaultQuotaBandwidthDown').value,
+            default_quota_traffic: document.getElementById('defaultQuotaTraffic').value,
+            // 默认权限设置
+            default_can_create_vm: document.getElementById('defaultCanCreateVm').checked ? '1' : '0',
+            default_can_modify_vm: document.getElementById('defaultCanModifyVm').checked ? '1' : '0',
+            default_can_delete_vm: document.getElementById('defaultCanDeleteVm').checked ? '1' : '0'
         };
-        
+
         const result = await apiRequest('/api/system/settings', 'POST', data);
         if (result && result.code === 200) {
             showToast('注册设置已保存', 'success');
@@ -319,7 +431,7 @@
             resend_email: document.getElementById('resendEmail').value,
             resend_apikey: document.getElementById('resendApikey').value
         };
-        
+
         const result = await apiRequest('/api/system/settings', 'POST', data);
         if (result && result.code === 200) {
             showToast('邮件配置已保存', 'success');
@@ -332,7 +444,7 @@
         tokenVisible = !tokenVisible;
         const input = document.getElementById('currentToken');
         const icon = document.getElementById('toggleIcon');
-        
+
         if (tokenVisible) {
             input.value = currentTokenValue;
             input.type = 'text';
@@ -352,8 +464,8 @@
 
     async function setNewToken() {
         const newToken = document.getElementById('newToken').value;
-        const result = await apiRequest('/api/token/set', 'POST', { token: newToken });
-        
+        const result = await apiRequest('/api/token/set', 'POST', {token: newToken});
+
         if (result && result.code === 200) {
             currentTokenValue = result.data.token;
             document.getElementById('newToken').value = '';
@@ -366,7 +478,7 @@
 
     async function resetToken() {
         if (!confirm('确定要重置Token吗？所有使用旧Token的API调用都将失效。')) return;
-        
+
         const result = await apiRequest('/api/token/reset', 'POST');
         if (result && result.code === 200) {
             currentTokenValue = result.data.token;
@@ -388,7 +500,7 @@
 
     async function loadConfig() {
         if (!confirm('确定要重新加载配置吗？未保存的更改将丢失。')) return;
-        
+
         const result = await apiRequest('/api/system/load', 'POST');
         if (result && result.code === 200) {
             showToast('配置已重新加载', 'success');

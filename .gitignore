@@ -2,3 +2,8 @@
 templates.old
 DataSaving
 *.pyc
+GoVersions
+.idea/CopilotChatHistory.xml
+.idea/CopilotChatTabs.xml
+.idea/CopilotChatHistory.xml
+.idea

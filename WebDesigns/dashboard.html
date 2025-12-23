@@ -10,7 +10,8 @@
     <p class="text-gray-600 mt-1">系统概览与快速操作</p>
 </div>
 
-<!-- 统计卡片 -->
+{% if session.get('is_admin') or session.get('is_token_login') %}
+<!-- 管理员视图：统计卡片 -->
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
     <!-- 主机统计 -->
     <div class="bg-white rounded-lg border border-gray-200 p-6 card-hover">
@@ -82,7 +83,8 @@
                 <span class="iconify text-blue-600" data-icon="mdi:format-list-bulleted" data-width="20"></span>
                 主机概览
             </h2>
-            <a href="/hosts" class="text-xs text-blue-600 hover:text-blue-800 font-medium smooth-transition flex items-center gap-1">
+            <a href="/hosts"
+               class="text-xs text-blue-600 hover:text-blue-800 font-medium smooth-transition flex items-center gap-1">
                 查看全部
                 <span class="iconify" data-icon="mdi:arrow-right" data-width="14"></span>
             </a>
@@ -104,7 +106,8 @@
             </h2>
         </div>
         <div class="p-4 space-y-3">
-            <a href="/hosts" class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 smooth-transition group">
+            <a href="/hosts"
+               class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 smooth-transition group">
                 <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 smooth-transition">
                     <span class="iconify text-blue-600" data-icon="mdi:server-plus" data-width="20"></span>
                 </div>
@@ -112,10 +115,12 @@
                     <p class="text-sm font-semibold text-gray-800">添加主机</p>
                     <p class="text-xs text-gray-600">添加新的虚拟化主机</p>
                 </div>
-                <span class="iconify text-gray-400 group-hover:text-blue-600 smooth-transition" data-icon="mdi:chevron-right" data-width="20"></span>
+                <span class="iconify text-gray-400 group-hover:text-blue-600 smooth-transition"
+                      data-icon="mdi:chevron-right" data-width="20"></span>
             </a>
 
-            <a href="/settings" class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 smooth-transition group">
+            <a href="/settings"
+               class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 smooth-transition group">
                 <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-gray-200 smooth-transition">
                     <span class="iconify text-gray-600" data-icon="mdi:cog" data-width="20"></span>
                 </div>
@@ -123,10 +128,12 @@
                     <p class="text-sm font-semibold text-gray-800">系统设置</p>
                     <p class="text-xs text-gray-600">管理Token和系统配置</p>
                 </div>
-                <span class="iconify text-gray-400 group-hover:text-blue-600 smooth-transition" data-icon="mdi:chevron-right" data-width="20"></span>
+                <span class="iconify text-gray-400 group-hover:text-blue-600 smooth-transition"
+                      data-icon="mdi:chevron-right" data-width="20"></span>
             </a>
 
-            <button onclick="saveAll()" class="w-full flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:border-green-300 hover:bg-green-50 smooth-transition group">
+            <button onclick="saveAll()"
+                    class="w-full flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:border-green-300 hover:bg-green-50 smooth-transition group">
                 <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200 smooth-transition">
                     <span class="iconify text-green-600" data-icon="mdi:content-save" data-width="20"></span>
                 </div>
@@ -134,7 +141,8 @@
                     <p class="text-sm font-semibold text-gray-800">保存配置</p>
                     <p class="text-xs text-gray-600">保存所有主机和虚拟机配置</p>
                 </div>
-                <span class="iconify text-gray-400 group-hover:text-green-600 smooth-transition" data-icon="mdi:chevron-right" data-width="20"></span>
+                <span class="iconify text-gray-400 group-hover:text-green-600 smooth-transition"
+                      data-icon="mdi:chevron-right" data-width="20"></span>
             </button>
 
             <div class="border border-gray-200 rounded-lg p-3 bg-gradient-to-br from-blue-50 to-indigo-50">
@@ -149,16 +157,387 @@
         </div>
     </div>
 </div>
+
+{% else %}
+<!-- 普通用户视图：资源使用情况 -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+    <!-- CPU使用情况 -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 card-hover">
+        <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-md">
+                <span class="iconify text-white" data-icon="mdi:cpu-64-bit" data-width="28"></span>
+            </div>
+            <div class="text-right">
+                <p class="text-sm text-gray-600 font-medium mb-1">CPU核心</p>
+                <p class="text-2xl font-bold text-gray-800">
+                    <span id="usedCpu">-</span>/<span id="quotaCpu">-</span>
+                </p>
+            </div>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-2">
+            <div id="cpuProgress" class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                 style="width: 0%"></div>
+        </div>
+    </div>
+
+    <!-- 内存使用情况 -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 card-hover">
+        <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center shadow-md">
+                <span class="iconify text-white" data-icon="mdi:memory" data-width="28"></span>
+            </div>
+            <div class="text-right">
+                <p class="text-sm text-gray-600 font-medium mb-1">内存</p>
+                <p class="text-2xl font-bold text-gray-800">
+                    <span id="usedRam">-</span>/<span id="quotaRam">-</span>GB
+                </p>
+            </div>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-2">
+            <div id="ramProgress" class="bg-green-600 h-2 rounded-full transition-all duration-300"
+                 style="width: 0%"></div>
+        </div>
+    </div>
+
+    <!-- 磁盘使用情况 -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 card-hover">
+        <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center shadow-md">
+                <span class="iconify text-white" data-icon="mdi:harddisk" data-width="28"></span>
+            </div>
+            <div class="text-right">
+                <p class="text-sm text-gray-600 font-medium mb-1">磁盘</p>
+                <p class="text-2xl font-bold text-gray-800">
+                    <span id="usedSsd">-</span>/<span id="quotaSsd">-</span>GB
+                </p>
+            </div>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-2">
+            <div id="ssdProgress" class="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                 style="width: 0%"></div>
+        </div>
+    </div>
+
+    <!-- 虚拟机数量 -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 card-hover">
+        <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center shadow-md">
+                <span class="iconify text-white" data-icon="mdi:cube-outline" data-width="28"></span>
+            </div>
+            <div class="text-right">
+                <p class="text-sm text-gray-600 font-medium mb-1">我的虚拟机</p>
+                <p class="text-2xl font-bold text-gray-800" id="myVmCount">-</p>
+            </div>
+        </div>
+        <div class="pt-3 border-t border-gray-200">
+            <div class="flex items-center justify-between text-sm">
+                <span class="text-gray-600 flex items-center gap-1">
+                    <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                    运行中
+                </span>
+                <span class="font-medium text-gray-800" id="myRunningVm">-</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 我的虚拟机 -->
+<div class="bg-white rounded-lg border border-gray-200 card-hover">
+    <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+        <h2 class="text-base font-semibold text-gray-800 flex items-center gap-2">
+            <span class="iconify text-blue-600" data-icon="mdi:cube-outline" data-width="20"></span>
+            我的虚拟机
+        </h2>
+        <button onclick="openCreateVmModal()"
+                class="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+                id="createVmBtn">
+            <span class="iconify" data-icon="mdi:plus" data-width="16"></span>
+            创建虚拟机
+        </button>
+    </div>
+    <div id="myVmsList" class="p-4">
+        <p class="text-center py-8 text-gray-500 text-xs flex items-center justify-center gap-2">
+            <span class="iconify animate-pulse-slow" data-icon="mdi:loading" data-width="16"></span>
+            加载中...
+        </p>
+    </div>
+</div>
+
+{% endif %}
+
+{% if not (session.get('is_admin') or session.get('is_token_login')) %}
+<!-- 创建虚拟机模态框 -->
+<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden" id="createVmModal">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden m-4">
+        <!-- 模态框头部 -->
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <span class="iconify text-white" data-icon="mdi:cube-plus" data-width="20"></span>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800">创建虚拟机</h3>
+                    <p class="text-sm text-gray-600">根据您的资源配额创建新的虚拟机</p>
+                </div>
+            </div>
+            <button onclick="closeCreateVmModal()" class="text-gray-400 hover:text-gray-600 transition">
+                <span class="iconify" data-icon="mdi:close" data-width="24"></span>
+            </button>
+        </div>
+
+        <!-- 模态框内容 -->
+        <div class="p-6 max-h-[calc(90vh-200px)] overflow-y-auto">
+            <form id="createVmForm" class="space-y-6">
+                <!-- 基本信息 -->
+                <div>
+                    <h4 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                        <span class="iconify text-blue-600" data-icon="mdi:information" data-width="16"></span>
+                        基本信息
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">主机 <span class="text-red-500">*</span></label>
+                            <select name="host_name" id="vmHost" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    onchange="loadHostImages()">
+                                <option value="">请选择主机</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">操作系统 <span
+                                    class="text-red-500">*</span></label>
+                            <select name="os_name" id="vmOsName" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">请先选择主机</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 密码和端口配置 -->
+                <div>
+                    <h4 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                        <span class="iconify text-blue-600" data-icon="mdi:key" data-width="16"></span>
+                        密码和端口配置
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">系统密码</label>
+                            <div class="flex gap-2">
+                                <input type="text" name="os_pass" id="osPass"
+                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                       placeholder="设置系统登录密码">
+                                <button type="button" onclick="generateOsPass()"
+                                        class="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-1">
+                                    <span class="iconify" data-icon="mdi:refresh" data-width="16"></span>
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">VNC密码</label>
+                            <div class="flex gap-2">
+                                <input type="text" name="vc_pass" id="vcPass"
+                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                       placeholder="VNC远程密码">
+                                <button type="button" onclick="copyOsPassToVnc()"
+                                        class="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-1">
+                                    <span class="iconify" data-icon="mdi:content-copy" data-width="16"></span>
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">VNC端口</label>
+                            <div class="flex gap-2">
+                                <input type="number" name="vc_port" id="vcPort" min="5900" max="6999"
+                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                       placeholder="VNC远程端口">
+                                <button type="button" onclick="generateRandomVncPortForInput()"
+                                        class="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors flex items-center gap-1">
+                                    <span class="iconify" data-icon="mdi:dice-6" data-width="16"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                        <span class="iconify text-blue-600" data-icon="mdi:memory" data-width="16"></span>
+                        硬件配置
+                    </h4>
+                    <!-- 硬件配置 -->
+                    <div>
+                        <h4 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                            <span class="iconify text-blue-600" data-icon="mdi:memory" data-width="16"></span>
+                            硬件配置
+                        </h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    CPU核心数 <span class="text-red-500">*</span>
+                                    <span class="text-xs text-gray-500 font-normal">(可用: <span
+                                            id="availableCpu">-</span> 核心)</span>
+                                </label>
+                                <input type="number" name="cpu_num" id="vmCpuNum" required min="1" step="1"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    内存 (MB) <span class="text-red-500">*</span>
+                                    <span class="text-xs text-gray-500 font-normal">(可用: <span
+                                            id="availableRam">-</span>MB)</span>
+                                </label>
+                                <input type="number" name="ram_num" id="vmRamNum" required min="512" step="512"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                       placeholder="例如: 2048">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">GPU ID</label>
+                                <input type="number" name="gpu_num" id="vmGpuNum" value="0" readonly
+                                       class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
+                                       placeholder="固定为0">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">GPU显存 (MB)</label>
+                                <input type="number" name="gpu_mem" id="vmGpuMem" min="0" step="512"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                       placeholder="例如: 2048">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    硬盘 (MB) <span class="text-red-500">*</span>
+                                    <span class="text-xs text-gray-500 font-normal">(可用: <span
+                                            id="availableSsd">-</span>MB)</span>
+                                </label>
+                                <input type="number" name="hdd_num" id="vmHddNum" required min="10240" step="1024"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                       placeholder="例如: 20480 (20GB)">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">流量限制 (MB)</label>
+                                <input type="number" name="flu_num" id="vmFluNum" min="0" step="1024"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                       placeholder="例如: 102400 (100GB)">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 网络配置 -->
+                <div>
+                    <h4 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                        <span class="iconify text-blue-600" data-icon="mdi:network" data-width="16"></span>
+                        网络配置
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">上行带宽 (Mbps)</label>
+                            <input type="number" name="speed_u" id="vmSpeedU" min="1" max="1000" step="1"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="例如: 100">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">下行带宽 (Mbps)</label>
+                            <input type="number" name="speed_d" id="vmSpeedD" min="1" max="1000" step="1"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="例如: 100">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Web代理数量</label>
+                            <input type="number" name="web_num" id="vmWebNum" min="0" step="1"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="例如: 2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">NAT端口数量</label>
+                            <input type="number" name="nat_num" id="vmNatNum" min="0" step="1"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="例如: 5">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 网卡配置 -->
+                <div>
+                    <h4 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                        <span class="iconify text-blue-600" data-icon="mdi:ethernet" data-width="16"></span>
+                        网卡配置
+                    </h4>
+                    <div id="nicConfigs" class="space-y-3">
+                        <!-- 网卡配置将通过JavaScript动态添加 -->
+                    </div>
+                    <button type="button" onclick="addNicConfig()"
+                            class="mt-3 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm flex items-center gap-2">
+                        <span class="iconify" data-icon="mdi:plus" data-width="16"></span>
+                        添加网卡
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 模态框底部 -->
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+            <div class="text-sm text-gray-600">
+                创建虚拟机将消耗相应的资源配额
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="closeCreateVmModal()"
+                        class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition font-medium">
+                    取消
+                </button>
+                <button onclick="createVm()"
+                        class="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition font-medium flex items-center gap-2"
+                        id="submitCreateVmBtn">
+                    <span class="iconify" data-icon="mdi:plus" data-width="16"></span>
+                    创建虚拟机
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* 自定义滚动条样式 */
+    #createVmModal .overflow-y-auto::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    #createVmModal .overflow-y-auto::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+
+    #createVmModal .overflow-y-auto::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+    }
+
+    #createVmModal .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+    }
+</style>
+
+{% endif %}
+
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
-    $(document).ready(function() {
+    $(document).ready(function () {
         loadDashboard();
         setInterval(loadDashboard, 30000);
     });
 
     async function loadDashboard() {
+        // 根据页面元素判断用户权限类型并加载相应的仪表盘数据
+        // 管理员视图有hostCount元素，普通用户视图有usedCpu元素
+        if (document.getElementById('hostCount')) {
+            await loadAdminDashboard();
+        } else {
+            await loadUserDashboard();
+        }
+    }
+
+    async function loadAdminDashboard() {
         try {
             const result = await apiRequest('/api/system/statis');
             if (result && result.code === 200) {
@@ -174,16 +553,156 @@
             }
 
             const now = new Date();
-            $('#lastUpdate').text(now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+            $('#lastUpdate').text(now.toLocaleTimeString('zh-CN', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            }));
         } catch (error) {
             console.error('加载数据失败:', error);
         }
     }
 
+    async function loadUserDashboard() {
+        try {
+            // 加载用户资源使用情况
+            const userResult = await apiRequest('/api/users/current');
+            if (userResult && userResult.code === 200) {
+                const user = userResult.data;
+                updateUserResourceDisplay(user);
+            }
+
+            // 加载用户的虚拟机
+            await loadUserVms();
+
+            const now = new Date();
+            $('#lastUpdate')?.text(now.toLocaleTimeString('zh-CN', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            }));
+        } catch (error) {
+            console.error('加载用户数据失败:', error);
+        }
+    }
+
+    function updateUserResourceDisplay(user) {
+        // 更新资源使用显示
+        $('#usedCpu').text(user.used_cpu || 0);
+        $('#quotaCpu').text(user.quota_cpu || 0);
+        $('#usedRam').text(user.used_ram || 0);
+        $('#quotaRam').text(user.quota_ram || 0);
+        $('#usedSsd').text(user.used_ssd || 0);
+        $('#quotaSsd').text(user.quota_ssd || 0);
+
+        // 更新进度条
+        const cpuPercent = user.quota_cpu > 0 ? (user.used_cpu / user.quota_cpu * 100) : 0;
+        const ramPercent = user.quota_ram > 0 ? (user.used_ram / user.quota_ram * 100) : 0;
+        const ssdPercent = user.quota_ssd > 0 ? (user.used_ssd / user.quota_ssd * 100) : 0;
+
+        $('#cpuProgress').css('width', cpuPercent + '%');
+        $('#ramProgress').css('width', ramPercent + '%');
+        $('#ssdProgress').css('width', ssdPercent + '%');
+
+        // 根据使用率改变颜色
+        if (cpuPercent > 90) $('#cpuProgress').removeClass('bg-blue-600').addClass('bg-red-600');
+        if (ramPercent > 90) $('#ramProgress').removeClass('bg-green-600').addClass('bg-red-600');
+        if (ssdPercent > 90) $('#ssdProgress').removeClass('bg-purple-600').addClass('bg-red-600');
+    }
+
+    async function loadUserVms() {
+        try {
+            // 获取用户有权限访问的主机
+            const userResult = await apiRequest('/api/users/current');
+            if (!userResult || userResult.code !== 200) {
+                return;
+            }
+
+            const user = userResult.data;
+            const assignedHosts = user.assigned_hosts || [];
+
+            let allVms = [];
+            let runningCount = 0;
+
+            // 从每个主机获取虚拟机
+            for (const hostName of assignedHosts) {
+                try {
+                    const vmsResult = await apiRequest(`/api/client/detail/${hostName}`);
+                    if (vmsResult && vmsResult.code === 200) {
+                        const vms = Object.entries(vmsResult.data || {});
+                        allVms.push(...vms.map(([uuid, vm]) => ({uuid, ...vm, host: hostName})));
+
+                        // 统计运行中的虚拟机
+                        vms.forEach(([uuid, vm]) => {
+                            if (vm.power === 'powered_on') runningCount++;
+                        });
+                    }
+                } catch (error) {
+                    console.error(`加载主机 ${hostName} 的虚拟机失败:`, error);
+                }
+            }
+
+            // 更新虚拟机计数
+            $('#myVmCount').text(allVms.length);
+            $('#myRunningVm').text(runningCount);
+
+            // 渲染虚拟机列表
+            renderMyVmsList(allVms);
+        } catch (error) {
+            console.error('加载用户虚拟机失败:', error);
+            $('#myVmsList').html('<p class="text-center py-8 text-gray-500 text-sm">加载失败，请刷新页面重试</p>');
+        }
+    }
+
+    function renderMyVmsList(vms) {
+        const container = document.getElementById('myVmsList');
+
+        if (vms.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8">
+                    <span class="iconify text-gray-300" data-icon="mdi:cube-off" data-width="48"></span>
+                    <p class="mt-4 text-gray-500 text-sm">暂无虚拟机</p>
+                    <p class="text-xs text-gray-400 mt-1">请联系管理员为您分配权限</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '<div class="space-y-2">';
+        vms.forEach(vm => {
+            const statusColor = vm.power === 'powered_on' ? 'green' : 'gray';
+            const statusText = vm.power === 'powered_on' ? '运行中' : '已关闭';
+
+            html += `
+                <a href="/hosts/${vm.host}/vms/${vm.uuid}" class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 smooth-transition group">
+                    <div class="flex items-center gap-3 flex-1 min-w-0">
+                        <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+                            <span class="iconify text-white" data-icon="mdi:cube-outline" data-width="16"></span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-semibold text-gray-800 truncate">${vm.display_name || vm.uuid}</p>
+                            <p class="text-xs text-gray-600 truncate">${vm.host} - ${vm.os_name || '未配置'}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <span class="flex items-center gap-1 text-xs text-gray-600">
+                            <span class="w-2 h-2 bg-${statusColor}-500 rounded-full"></span>
+                            ${statusText}
+                        </span>
+                        <span class="iconify text-gray-400 group-hover:text-blue-600 smooth-transition" data-icon="mdi:chevron-right" data-width="16"></span>
+                    </div>
+                </a>
+            `;
+        });
+
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
     function renderHostsList(hosts) {
         const container = document.getElementById('hostsList');
         const hostsList = Object.entries(hosts);
-        
+
         if (hostsList.length === 0) {
             container.innerHTML = `
                 <div class="text-center py-8">
@@ -235,6 +754,334 @@
         } else {
             showToast(result?.msg || '保存失败', 'error');
         }
+    }
+
+    // 创建虚拟机相关函数
+    let currentUser = null;
+    let availableImages = [];
+
+    async function openCreateVmModal() {
+        // 获取用户信息和可用资源
+        try {
+            const userResult = await apiRequest('/api/users/current');
+            if (userResult.code === 200) {
+                currentUser = userResult.data;
+
+                // 检查创建权限
+                if (!currentUser.can_create_vm) {
+                    showToast('您没有创建虚拟机的权限', 'error');
+                    return;
+                }
+
+                updateAvailableResources();
+                await loadAvailableHosts();
+
+                // 初始化网卡配置
+                document.getElementById('nicConfigs').innerHTML = '';
+                nicCounter = 0;
+                addNicConfig();
+
+                // 生成随机密码
+                generateOsPass();
+                copyOsPassToVnc();
+
+                // 生成随机VNC端口
+                generateRandomVncPortForInput();
+            } else {
+                showToast('获取用户信息失败', 'error');
+                return;
+            }
+        } catch (error) {
+            console.error('加载用户信息失败:', error);
+            showToast('加载用户信息失败', 'error');
+            return;
+        }
+
+        // 显示模态框
+        document.getElementById('createVmModal').classList.remove('hidden');
+    }
+
+    function generateRandomVmName() {
+        const prefixes = ['vm', 'srv', 'host', 'node'];
+        const suffixes = ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010'];
+        const randomPrefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+        const randomSuffix = suffixes[Math.floor(Math.random() * suffixes.length)];
+        const randomNum = Math.floor(Math.random() * 1000);
+        const vmName = `${randomPrefix}-${randomSuffix}-${randomNum}`;
+
+        // 这个函数不再需要，因为删除了虚拟机名称字段
+        return vmName;
+    }
+
+    function closeCreateVmModal() {
+        document.getElementById('createVmModal').classList.add('hidden');
+        document.getElementById('createVmForm').reset();
+    }
+
+    // 生成系统密码
+    function generateOsPass() {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+        let result = '';
+        for (let i = 0; i < 12; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        document.getElementById('osPass').value = result;
+    }
+
+    // 复制系统密码到VNC密码
+    function copyOsPassToVnc() {
+        const osPass = document.getElementById('osPass').value;
+        if (osPass) {
+            document.getElementById('vcPass').value = osPass;
+        }
+    }
+
+    // 生成随机VNC端口
+    function generateRandomVncPortForInput() {
+        const randomPort = Math.floor(Math.random() * (6999 - 5900 + 1)) + 5900;
+        document.getElementById('vcPort').value = randomPort;
+    }
+
+    // 网卡配置相关变量
+    let nicCounter = 0;
+
+    // 添加网卡配置
+    function addNicConfig(nicName = '', nicType = 'nat', nicIp = '') {
+        nicCounter++;
+        if (!nicName) {
+            nicName = `ethernet${nicCounter - 1}`;
+        }
+
+        const container = document.getElementById('nicConfigs');
+        const nicHtml = `
+            <div class="flex items-center gap-2 p-3 bg-gray-50 rounded-lg" id="nic_${nicCounter}">
+                <input type="text" name="nic_name_${nicCounter}" value="${nicName}" placeholder="网卡名称"
+                    class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <select name="nic_type_${nicCounter}" class="px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="nat" ${nicType === 'nat' ? 'selected' : ''}>内网</option>
+                    <option value="pub" ${nicType === 'pub' ? 'selected' : ''}>公网</option>
+                </select>
+                <input type="text" name="nic_ip_${nicCounter}" value="${nicIp}" placeholder="IPv4地址"
+                    class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <button type="button" onclick="removeNicConfig(${nicCounter})" class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition">
+                    <span class="iconify" data-icon="mdi:close" data-width="16"></span>
+                </button>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', nicHtml);
+    }
+
+    // 移除网卡配置
+    function removeNicConfig(id) {
+        const element = document.getElementById(`nic_${id}`);
+        if (element) {
+            element.remove();
+        }
+    }
+
+    function updateAvailableResources() {
+        if (!currentUser) return;
+
+        const availableCpu = (currentUser.quota_cpu || 0) - (currentUser.used_cpu || 0);
+        const availableRam = (currentUser.quota_ram || 0) - (currentUser.used_ram || 0);
+        const availableSsd = (currentUser.quota_ssd || 0) - (currentUser.used_ssd || 0);
+
+        // 更新可用资源显示
+        document.getElementById('availableCpu').textContent = availableCpu;
+        document.getElementById('availableRam').textContent = availableRam;
+        document.getElementById('availableSsd').textContent = availableSsd;
+
+        // 设置输入框的最大值
+        const cpuInput = document.getElementById('vmCpuNum');
+        const ramInput = document.getElementById('vmRamNum');
+        const hddInput = document.getElementById('vmHddNum');
+
+        if (cpuInput) {
+            cpuInput.max = availableCpu;
+            cpuInput.value = Math.min(1, availableCpu);
+        }
+
+        if (ramInput) {
+            ramInput.max = availableRam;
+            ramInput.value = Math.min(2048, availableRam);
+        }
+
+        if (hddInput) {
+            hddInput.max = availableSsd;
+            hddInput.value = Math.min(20480, availableSsd);
+        }
+    }
+
+
+    async function loadAvailableHosts() {
+        try {
+            const userResult = await apiRequest('/api/users/current');
+            if (userResult.code === 200) {
+                const user = userResult.data;
+                const assignedHosts = user.assigned_hosts || [];
+                const hostSelect = document.getElementById('vmHost');
+
+                hostSelect.innerHTML = '<option value="">请选择主机</option>';
+
+                for (const hostName of assignedHosts) {
+                    try {
+                        const hostResult = await apiRequest('/api/server/detail');
+                        if (hostResult.code === 200 && hostResult.data[hostName]) {
+                            const option = document.createElement('option');
+                            option.value = hostName;
+                            option.textContent = `${hostName} (${hostResult.data[hostName].addr || '未知地址'})`;
+                            hostSelect.appendChild(option);
+                        }
+                    } catch (error) {
+                        console.error(`加载主机 ${hostName} 信息失败:`, error);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('加载主机列表失败:', error);
+        }
+    }
+
+    async function loadHostImages() {
+        const hostSelect = document.getElementById('vmHost');
+        const osSelect = document.getElementById('vmOsName');
+        const selectedHost = hostSelect.value;
+
+        if (!selectedHost) {
+            osSelect.innerHTML = '<option value="">请先选择主机</option>';
+            return;
+        }
+
+        try {
+            // 获取指定主机的系统镜像列表
+            const imagesResult = await apiRequest(`/api/server/detail/${selectedHost}`);
+            if (imagesResult.code === 200 && imagesResult.data && imagesResult.data.system_maps) {
+                const images = imagesResult.data.system_maps;
+
+                osSelect.innerHTML = '<option value="">请选择系统镜像</option>';
+
+                images.forEach(image => {
+                    const option = document.createElement('option');
+                    option.value = image;
+                    option.textContent = image;
+                    osSelect.appendChild(option);
+                });
+            } else {
+                osSelect.innerHTML = '<option value="">该主机暂无可用镜像</option>';
+            }
+        } catch (error) {
+            console.error('加载系统镜像失败:', error);
+            osSelect.innerHTML = '<option value="">加载镜像失败</option>';
+        }
+    }
+
+    async function createVm() {
+        const form = document.getElementById('createVmForm');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const formData = new FormData(form);
+
+        // 收集网卡配置
+        const nicAll = {};
+        const nicContainers = document.querySelectorAll('[id^="nic_"]');
+        nicContainers.forEach((container) => {
+            const nicNameInput = container.querySelector('[name^="nic_name_"]');
+            const nicTypeInput = container.querySelector('[name^="nic_type_"]');
+            const nicIpInput = container.querySelector('[name^="nic_ip_"]');
+
+            if (nicNameInput && nicNameInput.value) {
+                const nicName = nicNameInput.value;
+                nicAll[nicName] = {
+                    nic_type: nicTypeInput ? nicTypeInput.value : 'nat',
+                    ip4_addr: nicIpInput ? nicIpInput.value : ''
+                };
+            }
+        });
+
+        const data = {
+            host_name: formData.get('host_name'),
+            os_name: formData.get('os_name'),
+            os_pass: formData.get('os_pass'),
+            vc_pass: formData.get('vc_pass'),
+            vc_port: parseInt(formData.get('vc_port')) || 5900,
+            cpu_num: parseInt(formData.get('cpu_num')),
+            ram_num: parseInt(formData.get('ram_num')),
+            hdd_num: parseInt(formData.get('hdd_num')),
+            gpu_num: parseInt(formData.get('gpu_num')) || 0,
+            gpu_mem: parseInt(formData.get('gpu_mem')) || 0,
+            speed_u: parseInt(formData.get('speed_u')) || 100,
+            speed_d: parseInt(formData.get('speed_d')) || 100,
+            nat_num: parseInt(formData.get('nat_num')) || 0,
+            flu_num: parseInt(formData.get('flu_num')) || 0,
+            web_num: parseInt(formData.get('web_num')) || 0,
+            nic_all: nicAll
+        };
+
+        // 验证资源配额
+        const cpuNeeded = data.cpu_num;
+        const ramNeeded = data.ram_num;
+        const ssdNeeded = data.hdd_num;
+
+        if (cpuNeeded > (currentUser.quota_cpu - currentUser.used_cpu)) {
+            showToast('CPU资源不足', 'error');
+            return;
+        }
+        if (ramNeeded > (currentUser.quota_ram - currentUser.used_ram)) {
+            showToast('内存资源不足', 'error');
+            return;
+        }
+        if (ssdNeeded > (currentUser.quota_ssd - currentUser.used_ssd)) {
+            showToast('磁盘资源不足', 'error');
+            return;
+        }
+
+        try {
+            const submitBtn = document.getElementById('submitCreateVmBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="iconify animate-spin" data-icon="mdi:loading" data-width="16"></span> 创建中...';
+
+            const result = await apiRequest(`/api/server/${data.host_name}/vms`, 'POST', data);
+
+            if (result.code === 200) {
+                showToast('虚拟机创建成功', 'success');
+                closeCreateVmModal();
+                // 刷新仪表盘数据
+                await loadUserDashboard();
+            } else {
+                showToast(result.msg || '创建失败', 'error');
+            }
+        } catch (error) {
+            console.error('创建虚拟机失败:', error);
+            showToast('创建失败，请重试', 'error');
+        } finally {
+            const submitBtn = document.getElementById('submitCreateVmBtn');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<span class="iconify" data-icon="mdi:plus" data-width="16"></span> 创建虚拟机';
+        }
+    }
+
+    // ESC键关闭模态框
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            // 只有在模态框显示时才关闭
+            const createVmModal = document.getElementById('createVmModal');
+            if (createVmModal && !createVmModal.classList.contains('hidden')) {
+                closeCreateVmModal();
+            }
+        }
+    });
+
+    // 点击模态框外部关闭
+    const createVmModal = document.getElementById('createVmModal');
+    if (createVmModal) {
+        createVmModal.addEventListener('click', function (e) {
+            if (e.target === this) {
+                closeCreateVmModal();
+            }
+        });
     }
 </script>
 {% endblock %}

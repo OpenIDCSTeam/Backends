@@ -21,11 +21,11 @@ app.secret_key = secrets.token_hex(32)
 # 全局主机管理实例
 hs_manage = HostManage()
 
-# 全局REST管理器实例
-rest_manager = RestManager(hs_manage)
-
 # 数据库实例
 db = HostDatabase()
+
+# 全局REST管理器实例
+rest_manager = RestManager(hs_manage, db)
 
 # ============================================================================
 # 认证装饰器（保持向后兼容）
@@ -139,9 +139,9 @@ def dashboard():
 
 
 @app.route('/hosts')
-@require_auth
+@require_admin
 def hosts_page():
-    """主机管理页面"""
+    """主机管理页面（仅管理员）"""
     from MainObject.Server.HSEngine import HEConfig
     return render_template('hosts.html',
                            title='OpenIDCS - 主机管理',
@@ -150,18 +150,18 @@ def hosts_page():
 
 
 @app.route('/debug')
-@require_auth
+@require_admin
 def logs_page():
-    """日志管理页面"""
+    """日志管理页面（仅管理员）"""
     return render_template('logs.html',
                            title='OpenIDCS - 日志管理',
                            username=session.get('username', 'admin'))
 
 
 @app.route('/tasks')
-@require_auth
+@require_admin
 def tasks_page():
-    """任务管理页面"""
+    """任务管理页面（仅管理员）"""
     return render_template('tasks.html',
                            title='OpenIDCS - 任务管理',
                            username=session.get('username', 'admin'))
@@ -189,12 +189,21 @@ def vm_detail_page(hs_name, vm_uuid):
 
 
 @app.route('/settings')
-@require_auth
+@require_admin
 def settings_page():
-    """设置页面"""
+    """设置页面（仅管理员）"""
     return render_template('settings.html',
                            title='OpenIDCS - 系统设置',
                            username=session.get('username', 'admin'))
+
+
+@app.route('/profile')
+@require_auth
+def profile_page():
+    """个人设置页面"""
+    return render_template('profile.html',
+                           title='OpenIDCS - 个人设置',
+                           username=session.get('username', 'user'))
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -235,7 +244,29 @@ def register():
     hashed_password = UserAuth.hash_password(password)
     
     # 创建用户
-    user_id = db.create_user(username, hashed_password, email)
+    settings = db.get_system_settings()
+    
+    # 获取默认资源配置
+    default_quotas = {
+        'quota_cpu': int(settings.get('default_quota_cpu', 2)),
+        'quota_ram': int(settings.get('default_quota_ram', 4)),
+        'quota_ssd': int(settings.get('default_quota_ssd', 20)),
+        'quota_gpu': int(settings.get('default_quota_gpu', 0)),
+        'quota_nat_ports': int(settings.get('default_quota_nat_ports', 5)),
+        'quota_web_proxy': int(settings.get('default_quota_web_proxy', 0)),
+        'quota_bandwidth_up': int(settings.get('default_quota_bandwidth_up', 10)),
+        'quota_bandwidth_down': int(settings.get('default_quota_bandwidth_down', 10)),
+        'quota_traffic': int(settings.get('default_quota_traffic', 100)),
+        # 默认权限
+        'can_create_vm': settings.get('default_can_create_vm', '1') == '1',
+        'can_modify_vm': settings.get('default_can_modify_vm', '1') == '1',
+        'can_delete_vm': settings.get('default_can_delete_vm', '1') == '1',
+        'is_admin': 0,  # 新用户默认不是管理员
+        'is_active': 1,  # 新用户默认启用
+        'assigned_hosts': '[]'  # 默认无分配主机
+    }
+    
+    user_id = db.create_user(username, hashed_password, email, **default_quotas)
     if not user_id:
         return api_response_wrapper(500, '注册失败，请重试')
     
@@ -277,6 +308,134 @@ def verify_email():
         return redirect(url_for('login') + '?verified=1')
     else:
         return '验证失败，请重试'
+
+@app.route('/api/users/change-password', methods=['POST'])
+@require_login
+def change_password():
+    """修改密码"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'code': 401, 'msg': '未登录'})
+        
+        data = request.get_json()
+        old_password = data.get('old_password')
+        new_password = data.get('new_password')
+        confirm_password = data.get('confirm_password')
+        
+        if not old_password or not new_password or not confirm_password:
+            return jsonify({'code': 400, 'msg': '请填写完整信息'})
+        
+        if new_password != confirm_password:
+            return jsonify({'code': 400, 'msg': '新密码与确认密码不一致'})
+        
+        if len(new_password) < 6:
+            return jsonify({'code': 400, 'msg': '新密码长度不能少于6位'})
+        
+        # 验证旧密码
+        user_data = db.get_user_by_id(user_id)
+        if not user_data or not UserAuth.verify_password(old_password, user_data['password']):
+            return jsonify({'code': 400, 'msg': '旧密码不正确'})
+        
+        # 更新密码
+        success = db.update_user_password(user_id, UserAuth.hash_password(new_password))
+        if success:
+            return jsonify({'code': 200, 'msg': '密码修改成功'})
+        else:
+            return jsonify({'code': 500, 'msg': '密码修改失败'})
+            
+    except Exception as e:
+        logger.error(f"密码修改失败: {e}")
+        return jsonify({'code': 500, 'msg': '密码修改失败'})
+
+
+@app.route('/api/system/forgot-password', methods=['POST'])
+def forgot_password():
+    """找回密码"""
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        
+        if not email:
+            return jsonify({'code': 400, 'msg': '请输入邮箱地址'})
+        
+        # 检查是否启用了邮件验证
+        system_settings = db.get_system_settings()
+        if system_settings.get('email_verification_enabled') != '1':
+            return jsonify({'code': 400, 'msg': '系统未启用邮件验证功能'})
+        
+        # 查找用户
+        user_data = db.get_user_by_email(email)
+        if not user_data:
+            return jsonify({'code': 404, 'msg': '该邮箱未注册'})
+        
+        # 生成重置token
+        reset_token = UserAuth.generate_token()
+        db.set_password_reset_token(user_data['id'], reset_token)
+        
+        # 发送重置邮件
+        email_service = EmailService(
+            api_key=system_settings.get('resend_apikey', ''),
+            from_email=system_settings.get('resend_email', '')
+        )
+        reset_link = f"{request.host_url}reset-password?token={reset_token}"
+        
+        try:
+            email_service.send_password_reset_email(email, user_data['username'], reset_link)
+            return jsonify({'code': 200, 'msg': '密码重置邮件已发送，请查收'})
+        except Exception as e:
+            logger.error(f"发送重置邮件失败: {e}")
+            return jsonify({'code': 500, 'msg': '发送重置邮件失败'})
+        
+    except Exception as e:
+        logger.error(f"找回密码失败: {e}")
+        return jsonify({'code': 500, 'msg': '找回密码失败'})
+
+
+@app.route('/reset-password')
+def reset_password_page():
+    """密码重置页面"""
+    token = request.args.get('token')
+    return render_template('reset_password.html',
+                           title='OpenIDCS - 重置密码',
+                           token=token)
+
+
+@app.route('/api/system/reset-password', methods=['POST'])
+def reset_password():
+    """重置密码"""
+    try:
+        data = request.get_json()
+        token = data.get('token')
+        new_password = data.get('new_password')
+        confirm_password = data.get('confirm_password')
+        
+        if not token or not new_password or not confirm_password:
+            return jsonify({'code': 400, 'msg': '请填写完整信息'})
+        
+        if new_password != confirm_password:
+            return jsonify({'code': 400, 'msg': '密码与确认密码不一致'})
+        
+        if len(new_password) < 6:
+            return jsonify({'code': 400, 'msg': '密码长度不能少于6位'})
+        
+        # 验证token
+        user_data = db.get_user_by_reset_token(token)
+        if not user_data:
+            return jsonify({'code': 400, 'msg': '重置链接已过期或无效'})
+        
+        # 更新密码
+        success = db.update_user_password(user_data['id'], UserAuth.hash_password(new_password))
+        if success:
+            # 删除已使用的token
+            db.delete_password_reset_token(token)
+            return jsonify({'code': 200, 'msg': '密码重置成功'})
+        else:
+            return jsonify({'code': 500, 'msg': '密码重置失败'})
+            
+    except Exception as e:
+        logger.error(f"密码重置失败: {e}")
+        return jsonify({'code': 500, 'msg': '密码重置失败'})
 
 
 @app.route('/users')
@@ -428,7 +587,7 @@ def api_get_tasks():
 
 # 主机列表 ########################################################################
 @app.route('/api/server/detail', methods=['GET'])
-@require_auth
+@require_admin
 def api_get_hosts():
     """获取所有主机列表"""
     return rest_manager.get_hosts()
@@ -436,7 +595,7 @@ def api_get_hosts():
 
 # 主机详情 ########################################################################
 @app.route('/api/server/detail/<hs_name>', methods=['GET'])
-@require_auth
+@require_admin
 def api_get_host(hs_name):
     """获取单个主机详情"""
     return rest_manager.get_host(hs_name)
@@ -444,7 +603,7 @@ def api_get_host(hs_name):
 
 # 添加主机 ########################################################################
 @app.route('/api/server/create', methods=['POST'])
-@require_auth
+@require_admin
 def api_add_host():
     """添加主机"""
     return rest_manager.add_host()
@@ -452,7 +611,7 @@ def api_add_host():
 
 # 修改主机 ########################################################################
 @app.route('/api/server/update/<hs_name>', methods=['PUT'])
-@require_auth
+@require_admin
 def api_update_host(hs_name):
     """修改主机配置"""
     return rest_manager.update_host(hs_name)
@@ -460,7 +619,7 @@ def api_update_host(hs_name):
 
 # 删除主机 ########################################################################
 @app.route('/api/server/delete/<hs_name>', methods=['DELETE'])
-@require_auth
+@require_admin
 def api_delete_host(hs_name):
     """删除主机"""
     return rest_manager.delete_host(hs_name)
@@ -468,7 +627,7 @@ def api_delete_host(hs_name):
 
 # 电源控制 ########################################################################
 @app.route('/api/server/powers/<hs_name>', methods=['POST'])
-@require_auth
+@require_admin
 def api_host_power(hs_name):
     """主机电源控制（启用/禁用）"""
     return rest_manager.host_power(hs_name)
@@ -491,6 +650,19 @@ def api_get_host_status(hs_name):
 @require_auth
 def api_get_vms(hs_name):
     """获取主机下所有虚拟机"""
+    # 检查主机访问权限
+    current_user = UserAuth.get_current_user_from_session()
+    if not current_user:
+        return api_response_wrapper(401, '未授权访问')
+    
+    # Token登录或管理员有所有权限
+    if current_user.get('is_token_login') or current_user.get('is_admin'):
+        return rest_manager.get_vms(hs_name)
+    
+    # 检查主机访问权限
+    if not check_host_access(hs_name, current_user):
+        return api_response_wrapper(403, '没有访问该主机的权限')
+    
     return rest_manager.get_vms(hs_name)
 
 
@@ -769,6 +941,51 @@ def api_scan_backups(hs_name):
 # 用户管理API - /api/users
 # ============================================================================
 
+@app.route('/api/users/current', methods=['GET'])
+@require_auth
+def api_get_current_user():
+    """获取当前用户信息"""
+    try:
+        # 检查Bearer Token
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            # Token登录，返回管理员用户信息
+            return api_response_wrapper(200, '获取成功', {
+                'id': 1,
+                'username': 'admin',
+                'is_admin': True,
+                'is_token_login': True,
+                'used_cpu': 0,
+                'used_ram': 0,
+                'used_ssd': 0,
+                'quota_cpu': 999999,
+                'quota_ram': 999999,
+                'quota_ssd': 999999,
+                'assigned_hosts': []
+            })
+        
+        # 检查Session登录
+        if session.get('logged_in'):
+            user_id = session.get('user_id')
+            user_data = db.get_user_by_id(user_id)
+            if user_data:
+                # 移除敏感信息
+                user_data.pop('password', None)
+                user_data.pop('verify_token', None)
+                # 解析JSON字段
+                if isinstance(user_data.get('assigned_hosts'), str):
+                    try:
+                        user_data['assigned_hosts'] = json.loads(user_data['assigned_hosts'])
+                    except:
+                        user_data['assigned_hosts'] = []
+                return api_response_wrapper(200, '获取成功', user_data)
+        
+        return api_response_wrapper(401, '未授权访问')
+    except Exception as e:
+        logger.error(f"获取当前用户信息失败: {e}")
+        return api_response_wrapper(500, f'获取失败: {str(e)}')
+
+
 @app.route('/api/users', methods=['GET'])
 @require_admin
 def api_get_users():
@@ -890,6 +1107,7 @@ def api_get_user(user_id):
         return api_response_wrapper(200, '获取成功', user)
     except Exception as e:
         logger.error(f"获取用户信息失败: {e}")
+        traceback.print_exc()
         return api_response_wrapper(500, f'获取失败: {str(e)}')
 
 

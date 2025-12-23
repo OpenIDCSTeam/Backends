@@ -85,8 +85,9 @@
                 <span class="iconify" data-icon="mdi:login" data-width="20"></span>
                 登 录
             </button>
-            <div class="text-center">
-                <a href="/register" class="text-sm text-blue-600 hover:text-blue-700">还没有账号？立即注册</a>
+            <div class="flex justify-between items-center text-sm">
+                <a href="/register" class="text-blue-600 hover:text-blue-700">还没有账号？立即注册</a>
+                <button type="button" onclick="openForgotPasswordModal()" class="text-blue-600 hover:text-blue-700">忘记密码？</button>
             </div>
         </form>
 
@@ -124,6 +125,61 @@
             </div>
         </form>
     </div>
+
+    <!-- 找回密码模态框 -->
+    <div id="forgotPasswordModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md m-4">
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                        <span class="iconify text-white" data-icon="mdi:lock-reset" data-width="20"></span>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800">找回密码</h3>
+                        <p class="text-sm text-gray-600">通过邮件重置您的密码</p>
+                    </div>
+                </div>
+                <button onclick="closeForgotPasswordModal()" class="text-gray-400 hover:text-gray-600 transition">
+                    <span class="iconify" data-icon="mdi:close" data-width="24"></span>
+                </button>
+            </div>
+
+            <form id="forgotPasswordForm" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">邮箱地址 <span class="text-red-500">*</span></label>
+                    <input 
+                        type="email" 
+                        name="email" 
+                        required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="请输入注册时使用的邮箱"
+                    >
+                    <p class="mt-1 text-xs text-gray-500">我们将向此邮箱发送密码重置链接</p>
+                </div>
+
+                <div id="forgotPasswordError" class="hidden bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-lg text-sm flex items-center gap-2">
+                    <span class="iconify" data-icon="mdi:alert-circle" data-width="16"></span>
+                    <span id="forgotPasswordErrorText"></span>
+                </div>
+
+                <div id="forgotPasswordSuccess" class="hidden bg-green-50 border border-green-200 text-green-600 px-3 py-2 rounded-lg text-sm flex items-center gap-2">
+                    <span class="iconify" data-icon="mdi:check-circle" data-width="16"></span>
+                    <span id="forgotPasswordSuccessText"></span>
+                </div>
+
+                <div class="flex items-center gap-3 pt-2">
+                    <button type="button" onclick="closeForgotPasswordModal()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition font-medium">
+                        取消
+                    </button>
+                    <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition font-medium flex items-center justify-center gap-2" id="forgotPasswordBtn">
+                        <span class="iconify" data-icon="mdi:email-send" data-width="16"></span>
+                        发送重置邮件
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         let currentTab = 'user';
 
@@ -210,6 +266,79 @@
                 errorDiv.classList.add('hidden');
             }, 4000);
         }
+
+        // 找回密码功能
+        function openForgotPasswordModal() {
+            document.getElementById('forgotPasswordModal').classList.remove('hidden');
+            document.getElementById('forgotPasswordForm').reset();
+            document.getElementById('forgotPasswordError').classList.add('hidden');
+            document.getElementById('forgotPasswordSuccess').classList.add('hidden');
+        }
+
+        function closeForgotPasswordModal() {
+            document.getElementById('forgotPasswordModal').classList.add('hidden');
+        }
+
+        // 找回密码表单提交
+        document.getElementById('forgotPasswordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const email = formData.get('email');
+            
+            try {
+                const submitBtn = document.getElementById('forgotPasswordBtn');
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="iconify animate-spin" data-icon="mdi:loading" data-width="16"></span> 发送中...';
+                
+                const response = await fetch('/api/forgot-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email: email }),
+                });
+                
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    document.getElementById('forgotPasswordSuccessText').textContent = result.msg || '重置邮件已发送，请查收';
+                    document.getElementById('forgotPasswordSuccess').classList.remove('hidden');
+                    document.getElementById('forgotPasswordError').classList.add('hidden');
+                    
+                    // 3秒后自动关闭
+                    setTimeout(() => {
+                        closeForgotPasswordModal();
+                    }, 3000);
+                } else {
+                    document.getElementById('forgotPasswordErrorText').textContent = result.msg || '发送失败，请重试';
+                    document.getElementById('forgotPasswordError').classList.remove('hidden');
+                    document.getElementById('forgotPasswordSuccess').classList.add('hidden');
+                }
+            } catch (error) {
+                document.getElementById('forgotPasswordErrorText').textContent = '发送失败，请重试';
+                document.getElementById('forgotPasswordError').classList.remove('hidden');
+                document.getElementById('forgotPasswordSuccess').classList.add('hidden');
+            } finally {
+                const submitBtn = document.getElementById('forgotPasswordBtn');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span class="iconify" data-icon="mdi:email-send" data-width="16"></span> 发送重置邮件';
+            }
+        });
+
+        // ESC键关闭模态框
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeForgotPasswordModal();
+            }
+        });
+
+        // 点击模态框外部关闭
+        document.getElementById('forgotPasswordModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeForgotPasswordModal();
+            }
+        });
     </script>
 </body>
 </html>

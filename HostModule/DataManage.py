@@ -336,19 +336,37 @@ class HostDatabase:
         """保存虚拟机存储配置"""
         conn = self.get_db_sqlite()
         try:
-            # 清除旧配置
-            conn.execute("DELETE FROM vm_saving WHERE hs_name = ?", (hs_name,))
-
-            # 插入新配置
-            sql = "INSERT INTO vm_saving (hs_name, vm_uuid, vm_config) VALUES (?, ?, ?)"
+            # 插入或更新配置，不覆写created_at和updated_at
+            sql = """
+                INSERT OR REPLACE INTO vm_saving (hs_name, vm_uuid, vm_config, created_at, updated_at)
+                VALUES (?, ?, ?, 
+                    COALESCE((SELECT created_at FROM vm_saving WHERE hs_name = ? AND vm_uuid = ?), CURRENT_TIMESTAMP),
+                    COALESCE((SELECT updated_at FROM vm_saving WHERE hs_name = ? AND vm_uuid = ?), CURRENT_TIMESTAMP)
+                )
+            """
             for vm_uuid, vm_config in vm_saving.items():
                 config_data = json.dumps(vm_config.__save__() if hasattr(vm_config, '__save__') else vm_config)
-                conn.execute(sql, (hs_name, vm_uuid, config_data))
+                conn.execute(sql, (hs_name, vm_uuid, config_data, hs_name, vm_uuid, hs_name, vm_uuid))
 
             conn.commit()
             return True
         except Exception as e:
             logger.error(f"保存虚拟机存储配置错误: {e}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+
+    def update_vm_saving_timestamp(self, hs_name: str, vm_uuid: str) -> bool:
+        """更新虚拟机配置的updated_at时间戳（状态上报时调用）"""
+        conn = self.get_db_sqlite()
+        try:
+            sql = "UPDATE vm_saving SET updated_at = CURRENT_TIMESTAMP WHERE hs_name = ? AND vm_uuid = ?"
+            cursor = conn.execute(sql, (hs_name, vm_uuid))
+            conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"更新虚拟机配置时间戳错误: {e}")
             conn.rollback()
             return False
         finally:
@@ -740,21 +758,50 @@ class HostDatabase:
         }
 
     # ==================== 用户管理操作 ====================
-    def create_user(self, username: str, password: str, email: str) -> Optional[int]:
+    def create_user(self, username: str, password: str, email: str, **kwargs) -> Optional[int]:
         """
         创建新用户
         :param username: 用户名
         :param password: 密码（已加密）
         :param email: 邮箱
+        :param kwargs: 其他用户字段（配额、权限等）
         :return: 用户ID，失败返回None
         """
         conn = self.get_db_sqlite()
         try:
-            sql = """
-            INSERT INTO web_users (username, password, email)
-            VALUES (?, ?, ?)
-            """
-            cursor = conn.execute(sql, (username, password, email))
+            # 获取所有可能的用户字段
+            all_fields = [
+                'username', 'password', 'email', 'is_admin', 'is_active', 'email_verified',
+                'quota_cpu', 'quota_ram', 'quota_ssd', 'quota_gpu', 'quota_nat_ports',
+                'quota_web_proxy', 'quota_bandwidth_up', 'quota_bandwidth_down', 'quota_traffic',
+                'can_create_vm', 'can_modify_vm', 'can_delete_vm', 'assigned_hosts',
+                'used_cpu', 'used_ram', 'used_ssd', 'used_gpu', 'used_nat_ports',
+                'used_web_proxy', 'used_bandwidth_up', 'used_bandwidth_down', 'used_traffic',
+                'verify_token', 'reset_token'
+            ]
+            
+            # 构建插入SQL
+            fields = ['username', 'password', 'email']
+            values = [username, password, email]
+            placeholders = ['?', '?', '?']
+            
+            # 添加额外的字段
+            for field in all_fields[3:]:  # 跳过前三个基本字段
+                if field in kwargs:
+                    fields.append(field)
+                    value = kwargs[field]
+                    # 处理JSON字段
+                    if field in ['assigned_hosts'] and isinstance(value, list):
+                        value = json.dumps(value)
+                    # 处理布尔字段
+                    elif field in ['is_admin', 'is_active', 'email_verified', 'can_create_vm', 'can_modify_vm', 'can_delete_vm']:
+                        value = 1 if value else 0
+                    fields.append(field)
+                    values.append(value)
+                    placeholders.append('?')
+            
+            sql = f"INSERT INTO web_users ({', '.join(fields)}) VALUES ({', '.join(placeholders)})"
+            cursor = conn.execute(sql, values)
             conn.commit()
             return cursor.lastrowid
         except sqlite3.IntegrityError as e:
@@ -902,9 +949,58 @@ class HostDatabase:
         finally:
             conn.close()
 
+    def update_user_password(self, user_id: int, hashed_password: str) -> bool:
+        """更新用户密码"""
+        return self.update_user(user_id, password=hashed_password)
+
+    def set_password_reset_token(self, user_id: int, token: str) -> bool:
+        """设置密码重置token（使用verify_token字段存储）"""
+        return self.update_user(user_id, verify_token=token)
+
+    def get_user_by_reset_token(self, token: str) -> Optional[Dict[str, Any]]:
+        """根据重置token获取用户"""
+        conn = self.get_db_sqlite()
+        try:
+            cursor = conn.execute(
+                "SELECT * FROM web_users WHERE verify_token = ? AND verify_token != ''",
+                (token,)
+            )
+            row = cursor.fetchone()
+            if row:
+                return dict(row)
+            return None
+        finally:
+            conn.close()
+
+    def delete_password_reset_token(self, token: str) -> bool:
+        """删除已使用的密码重置token"""
+        conn = self.get_db_sqlite()
+        try:
+            conn.execute(
+                "UPDATE web_users SET verify_token = '' WHERE verify_token = ?",
+                (token,)
+            )
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"删除重置token错误: {e}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+
     def update_user_resources(self, user_id: int, **resources) -> bool:
         """
         更新用户已使用资源
+        :param user_id: 用户ID
+        :param resources: 资源字段（used_cpu, used_ram等）
+        :return: 是否成功
+        """
+        return self.update_user(user_id, **resources)
+
+    def update_user_resource_usage(self, user_id: int, **resources) -> bool:
+        """
+        更新用户资源使用量（别名方法）
         :param user_id: 用户ID
         :param resources: 资源字段（used_cpu, used_ram等）
         :return: 是否成功

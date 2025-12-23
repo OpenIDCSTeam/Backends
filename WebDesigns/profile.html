@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- 页面标题 -->
+<div class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-800 flex items-center gap-3">
+        <span class="iconify text-blue-600" data-icon="mdi:account-circle" data-width="36"></span>
+        个人设置
+    </h1>
+    <p class="text-gray-600 mt-1">管理您的个人信息和账户设置</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- 个人信息 -->
+    <div class="lg:col-span-2">
+        <div class="bg-white rounded-lg border border-gray-200 card-hover">
+            <div class="p-4 border-b border-gray-200">
+                <h2 class="text-base font-semibold text-gray-800 flex items-center gap-2">
+                    <span class="iconify text-blue-600" data-icon="mdi:account" data-width="20"></span>
+                    个人信息
+                </h2>
+            </div>
+            <div class="p-6">
+                <div class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                            <input type="text" id="username" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">邮箱地址</label>
+                            <input type="email" id="email" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">注册时间</label>
+                        <input type="text" id="created_time" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 修改密码 -->
+        <div class="bg-white rounded-lg border border-gray-200 card-hover mt-6">
+            <div class="p-4 border-b border-gray-200">
+                <h2 class="text-base font-semibold text-gray-800 flex items-center gap-2">
+                    <span class="iconify text-blue-600" data-icon="mdi:lock" data-width="20"></span>
+                    修改密码
+                </h2>
+            </div>
+            <div class="p-6">
+                <form id="changePasswordForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">当前密码 <span class="text-red-500">*</span></label>
+                        <input type="password" id="old_password" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="请输入当前密码">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">新密码 <span class="text-red-500">*</span></label>
+                        <input type="password" id="new_password" required minlength="6" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="请输入新密码（至少6位）">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">确认新密码 <span class="text-red-500">*</span></label>
+                        <input type="password" id="confirm_password" required minlength="6" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="请再次输入新密码">
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition font-medium flex items-center gap-2" id="changePasswordBtn">
+                            <span class="iconify" data-icon="mdi:lock-reset" data-width="16"></span>
+                            修改密码
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 权限和配额 -->
+    <div class="lg:col-span-1">
+        <div class="bg-white rounded-lg border border-gray-200 card-hover">
+            <div class="p-4 border-b border-gray-200">
+                <h2 class="text-base font-semibold text-gray-800 flex items-center gap-2">
+                    <span class="iconify text-blue-600" data-icon="mdi:shield-account" data-width="20"></span>
+                    权限信息
+                </h2>
+            </div>
+            <div class="p-6">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">虚拟机权限</label>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-2">
+                                <span class="iconify text-green-500" data-icon="mdi:check-circle" data-width="16"></span>
+                                <span class="text-sm text-gray-600">创建虚拟机</span>
+                                <span id="can_create_vm" class="text-xs px-2 py-1 rounded-full">-</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="iconify text-green-500" data-icon="mdi:check-circle" data-width="16"></span>
+                                <span class="text-sm text-gray-600">编辑虚拟机</span>
+                                <span id="can_edit_vm" class="text-xs px-2 py-1 rounded-full">-</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="iconify text-green-500" data-icon="mdi:check-circle" data-width="16"></span>
+                                <span class="text-sm text-gray-600">删除虚拟机</span>
+                                <span id="can_delete_vm" class="text-xs px-2 py-1 rounded-full">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">分配的主机</label>
+                        <div id="assigned_hosts" class="space-y-1">
+                            <span class="text-xs text-gray-500">加载中...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg border border-gray-200 card-hover mt-6">
+            <div class="p-4 border-b border-gray-200">
+                <h2 class="text-base font-semibold text-gray-800 flex items-center gap-2">
+                    <span class="iconify text-blue-600" data-icon="mdi:chart-pie" data-width="20"></span>
+                    资源配额
+                </h2>
+            </div>
+            <div class="p-6">
+                <div class="space-y-3">
+                    <div>
+                        <div class="flex items-center justify-between text-sm mb-1">
+                            <span class="text-gray-600">CPU核心</span>
+                            <span class="text-gray-800 font-medium"><span id="used_cpu">-</span>/<span id="quota_cpu">-</span></span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div id="cpu_progress" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between text-sm mb-1">
+                            <span class="text-gray-600">内存</span>
+                            <span class="text-gray-800 font-medium"><span id="used_ram">-</span>/<span id="quota_ram">-</span>GB</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div id="ram_progress" class="bg-green-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between text-sm mb-1">
+                            <span class="text-gray-600">磁盘</span>
+                            <span class="text-gray-800 font-medium"><span id="used_ssd">-</span>/<span id="quota_ssd">-</span>GB</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div id="ssd_progress" class="bg-purple-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    $(document).ready(function() {
+        loadUserProfile();
+    });
+
+    async function loadUserProfile() {
+        try {
+            const result = await apiRequest('/api/users/current');
+            if (result && result.code === 200) {
+                const user = result.data;
+                updateUserInfo(user);
+                updatePermissions(user);
+                updateResourceQuotas(user);
+            }
+        } catch (error) {
+            console.error('加载用户信息失败:', error);
+            showToast('加载用户信息失败', 'error');
+        }
+    }
+
+    function updateUserInfo(user) {
+        $('#username').val(user.username);
+        $('#email').val(user.email);
+        $('#created_time').val(new Date(user.created_time).toLocaleString('zh-CN'));
+    }
+
+    function updatePermissions(user) {
+        // 更新权限标签
+        $('#can_create_vm').text(user.can_create_vm ? '已开启' : '已关闭')
+            .removeClass('bg-green-100 text-green-800 bg-red-100 text-red-800')
+            .addClass(user.can_create_vm ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800');
+        
+        $('#can_edit_vm').text(user.can_edit_vm ? '已开启' : '已关闭')
+            .removeClass('bg-green-100 text-green-800 bg-red-100 text-red-800')
+            .addClass(user.can_edit_vm ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800');
+        
+        $('#can_delete_vm').text(user.can_delete_vm ? '已开启' : '已关闭')
+            .removeClass('bg-green-100 text-green-800 bg-red-100 text-red-800')
+            .addClass(user.can_delete_vm ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800');
+        
+        // 更新分配的主机
+        const hostsContainer = $('#assigned_hosts');
+        if (user.assigned_hosts && user.assigned_hosts.length > 0) {
+            hostsContainer.empty();
+            user.assigned_hosts.forEach(host => {
+                hostsContainer.append(`
+                    <div class="flex items-center gap-2 text-sm text-gray-600">
+                        <span class="iconify text-blue-500" data-icon="mdi:server" data-width="14"></span>
+                        ${host}
+                    </div>
+                `);
+            });
+        } else {
+            hostsContainer.html('<span class="text-xs text-gray-500">未分配主机</span>');
+        }
+    }
+
+    function updateResourceQuotas(user) {
+        // 更新资源配额显示
+        $('#used_cpu').text(user.used_cpu || 0);
+        $('#quota_cpu').text(user.quota_cpu || 0);
+        $('#used_ram').text(user.used_ram || 0);
+        $('#quota_ram').text(user.quota_ram || 0);
+        $('#used_ssd').text(user.used_ssd || 0);
+        $('#quota_ssd').text(user.quota_ssd || 0);
+
+        // 更新进度条
+        const cpuPercent = user.quota_cpu > 0 ? (user.used_cpu / user.quota_cpu * 100) : 0;
+        const ramPercent = user.quota_ram > 0 ? (user.used_ram / user.quota_ram * 100) : 0;
+        const ssdPercent = user.quota_ssd > 0 ? (user.used_ssd / user.quota_ssd * 100) : 0;
+
+        $('#cpu_progress').css('width', cpuPercent + '%');
+        $('#ram_progress').css('width', ramPercent + '%');
+        $('#ssd_progress').css('width', ssdPercent + '%');
+
+        // 根据使用率改变颜色
+        if (cpuPercent > 90) $('#cpu_progress').removeClass('bg-blue-600').addClass('bg-red-600');
+        if (ramPercent > 90) $('#ram_progress').removeClass('bg-green-600').addClass('bg-red-600');
+        if (ssdPercent > 90) $('#ssd_progress').removeClass('bg-purple-600').addClass('bg-red-600');
+    }
+
+    // 修改密码表单提交
+    $('#changePasswordForm').on('submit', async function(e) {
+        e.preventDefault();
+        
+        const oldPassword = $('#old_password').val();
+        const newPassword = $('#new_password').val();
+        const confirmPassword = $('#confirm_password').val();
+        
+        if (newPassword !== confirmPassword) {
+            showToast('新密码与确认密码不一致', 'error');
+            return;
+        }
+        
+        if (newPassword.length < 6) {
+            showToast('新密码长度不能少于6位', 'error');
+            return;
+        }
+        
+        try {
+            const submitBtn = $('#changePasswordBtn');
+            submitBtn.prop('disabled', true);
+            submitBtn.html('<span class="iconify animate-spin" data-icon="mdi:loading" data-width="16"></span> 修改中...');
+            
+            const result = await apiRequest('/api/users/change-password', 'POST', {
+                old_password: oldPassword,
+                new_password: newPassword,
+                confirm_password: confirmPassword
+            });
+            
+            if (result.code === 200) {
+                showToast('密码修改成功', 'success');
+                $('#changePasswordForm')[0].reset();
+            } else {
+                showToast(result.msg || '密码修改失败', 'error');
+            }
+        } catch (error) {
+            console.error('修改密码失败:', error);
+            showToast('密码修改失败，请重试', 'error');
+        } finally {
+            const submitBtn = $('#changePasswordBtn');
+            submitBtn.prop('disabled', false);
+            submitBtn.html('<span class="iconify" data-icon="mdi:lock-reset" data-width="16"></span> 修改密码');
+        }
+    });
+</script>
+{% endblock %}

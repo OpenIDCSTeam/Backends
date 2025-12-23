@@ -362,7 +362,13 @@
             document.getElementById('editQuotaTraffic').value = user.quota_traffic;
             
             // 渲染主机列表
-            const assignedHosts = JSON.parse(user.assigned_hosts || '[]');
+            let assignedHosts = [];
+            try {
+                assignedHosts = JSON.parse(user.assigned_hosts || '[]');
+            } catch (error) {
+                console.error('解析assigned_hosts失败:', error, user.assigned_hosts);
+                assignedHosts = [];
+            }
             const container = document.getElementById('assignedHostsContainer');
             if (Array.isArray(allHosts)) {
                 container.innerHTML = allHosts.map(host => `

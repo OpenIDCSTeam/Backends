@@ -19,19 +19,22 @@ from MainObject.Config.NCConfig import NCConfig
 from MainObject.Config.PortData import PortData
 from MainObject.Config.WebProxy import WebProxy
 from MainObject.Public.HWStatus import HWStatus
+from HostModule.UserAuth import UserAuth, check_host_access, check_vm_permission, check_resource_quota
 
 
 class RestManager:
     """REST API管理器 - 封装所有主机和虚拟机管理的API接口"""
 
-    def __init__(self, hs_manage):
+    def __init__(self, hs_manage, db=None):
         """
         初始化RestManager
         
         Args:
             hs_manage: 主机管理对象，用于实际的主机和虚拟机操作
+            db: 数据库实例，用于用户权限检查
         """
         self.hs_manage = hs_manage
+        self.db = db
 
     # ========================================================================
     # 认证装饰器和响应函数
@@ -72,6 +75,67 @@ class RestManager:
     def api_response(self, code=200, msg='success', data=None):
         """统一API响应格式"""
         return jsonify({'code': code, 'msg': msg, 'data': data})
+
+    def _get_current_user(self):
+        """获取当前用户信息"""
+        # 检查Bearer Token
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            # Token登录，返回管理员权限
+            return {
+                'id': 1,
+                'username': 'admin',
+                'is_admin': True,
+                'is_token_login': True
+            }
+        
+        # 检查Session登录
+        if self.db and session.get('logged_in'):
+            user_id = session.get('user_id')
+            user_data = self.db.get_user_by_id(user_id)
+            if user_data:
+                user_data['is_token_login'] = False
+                return user_data
+        
+        return None
+
+    def _check_host_permission(self, hs_name):
+        """检查主机访问权限"""
+        user_data = self._get_current_user()
+        if not user_data:
+            return False, self.api_response(401, '未授权访问')
+        
+        # 管理员或Token登录有所有权限
+        if user_data.get('is_admin') or user_data.get('is_token_login'):
+            return True, user_data
+        
+        # 检查主机访问权限
+        if not check_host_access(hs_name, user_data):
+            return False, self.api_response(403, '没有访问该主机的权限')
+        
+        return True, user_data
+
+    def _check_vm_permission(self, action, hs_name):
+        """检查虚拟机操作权限"""
+        has_host_perm, user_data_or_response = self._check_host_permission(hs_name)
+        if not has_host_perm:
+            return False, user_data_or_response
+        
+        user_data = user_data_or_response
+        
+        # 检查虚拟机操作权限
+        has_perm, error_msg = check_vm_permission(action, user_data)
+        if not has_perm:
+            return False, self.api_response(403, error_msg)
+        
+        return True, user_data
+
+    def _check_resource_quota(self, user_data, **resources):
+        """检查资源配额"""
+        has_quota, error_msg = check_resource_quota(user_data, **resources)
+        if not has_quota:
+            return False, self.api_response(403, error_msg)
+        return True, None
 
     # ========================================================================
     # 系统管理API - /api/system/<option>
@@ -552,11 +616,42 @@ class RestManager:
     # ####################################################################################
     def create_vm(self, hs_name):
         """创建虚拟机"""
+        # 检查主机访问权限
+        has_host_perm, user_data_or_response = self._check_host_permission(hs_name)
+        if not has_host_perm:
+            return user_data_or_response
+        
+        user_data = user_data_or_response
+        
+        # 检查创建虚拟机权限
+        has_vm_perm, user_data_or_response = self._check_vm_permission('create', hs_name)
+        if not has_vm_perm:
+            return user_data_or_response
+        
+        user_data = user_data_or_response
+        
         server = self.hs_manage.get_host(hs_name)
         if not server:
             return self.api_response(404, '主机不存在')
 
         data = request.get_json() or {}
+        
+        # 检查资源配额（非管理员用户）
+        if not (user_data.get('is_admin') or user_data.get('is_token_login')):
+            # 计算需要的资源
+            cpu_needed = int(data.get('cpu_num', 0))
+            ram_needed = int(data.get('ram_num', 0))
+            ssd_needed = int(data.get('hdd_num', 0))
+            
+            has_quota, error_response = self._check_resource_quota(
+                user_data,
+                cpu=cpu_needed,
+                ram=ram_needed,
+                ssd=ssd_needed
+            )
+            if not has_quota:
+                return error_response
+        
         # 处理网卡配置
         nic_all = {}
         nic_data = data.pop('nic_all', {})
@@ -568,7 +663,18 @@ class RestManager:
         if vm_config.vc_pass == '':
             vm_config.vc_pass = ''.join(
                 random.sample(string.ascii_letters + string.digits, 8))
+        
         result = server.VMCreate(vm_config)
+        
+        # 如果创建成功且不是管理员，更新用户资源使用量
+        if result and result.success and not (user_data.get('is_admin') or user_data.get('is_token_login')):
+            self.db.update_user_resource_usage(
+                user_data['id'],
+                used_cpu=user_data.get('used_cpu', 0) + cpu_needed,
+                used_ram=user_data.get('used_ram', 0) + ram_needed,
+                used_ssd=user_data.get('used_ssd', 0) + ssd_needed
+            )
+        
         self.hs_manage.all_save()
         return self.api_response(200 if result and result.success else 400, result.message)
 
@@ -579,17 +685,56 @@ class RestManager:
     # ####################################################################################
     def update_vm(self, hs_name, vm_uuid):
         """修改虚拟机配置"""
+        # 检查主机访问权限
+        has_host_perm, user_data_or_response = self._check_host_permission(hs_name)
+        if not has_host_perm:
+            return user_data_or_response
+        
+        user_data = user_data_or_response
+        
+        # 检查修改虚拟机权限
+        has_vm_perm, user_data_or_response = self._check_vm_permission('modify', hs_name)
+        if not has_vm_perm:
+            return user_data_or_response
+        
+        user_data = user_data_or_response
+        
         server = self.hs_manage.get_host(hs_name)
         if not server:
             return self.api_response(404, '主机不存在')
 
         # 获取旧的虚拟机配置
         old_vm_config = None
+        old_resource_usage = {'cpu': 0, 'ram': 0, 'ssd': 0}
         if hasattr(server, 'vm_saving') and vm_uuid in server.vm_saving:
             old_vm_config = server.vm_saving[vm_uuid]
+            if hasattr(old_vm_config, '__dict__'):
+                old_resource_usage = {
+                    'cpu': getattr(old_vm_config, 'cpu_num', 0),
+                    'ram': getattr(old_vm_config, 'ram_num', 0), 
+                    'ssd': getattr(old_vm_config, 'hdd_num', 0)
+                }
 
         data = request.get_json() or {}
         data['vm_uuid'] = vm_uuid
+        
+        # 检查资源配额（非管理员用户）
+        if not (user_data.get('is_admin') or user_data.get('is_token_login')):
+            # 计算资源变化
+            cpu_change = int(data.get('cpu_num', 0)) - old_resource_usage['cpu']
+            ram_change = int(data.get('ram_num', 0)) - old_resource_usage['ram']
+            ssd_change = int(data.get('hdd_num', 0)) - old_resource_usage['ssd']
+            
+            # 如果资源增加，检查配额
+            if cpu_change > 0 or ram_change > 0 or ssd_change > 0:
+                has_quota, error_response = self._check_resource_quota(
+                    user_data,
+                    cpu=max(0, cpu_change),
+                    ram=max(0, ram_change),
+                    ssd=max(0, ssd_change)
+                )
+                if not has_quota:
+                    return error_response
 
         # 处理网卡配置
         nic_all = {}
@@ -599,8 +744,20 @@ class RestManager:
 
         vm_config = VMConfig(**data, nic_all=nic_all)
 
-        # old_vm_config = VMConfig(**old_vm_config)
         result = server.VMUpdate(vm_config, old_vm_config)
+        
+        # 如果更新成功且不是管理员，更新用户资源使用量
+        if result and result.success and not (user_data.get('is_admin') or user_data.get('is_token_login')):
+            cpu_change = int(data.get('cpu_num', 0)) - old_resource_usage['cpu']
+            ram_change = int(data.get('ram_num', 0)) - old_resource_usage['ram']
+            ssd_change = int(data.get('hdd_num', 0)) - old_resource_usage['ssd']
+            
+            self.db.update_user_resource_usage(
+                user_data['id'],
+                used_cpu=user_data.get('used_cpu', 0) + cpu_change,
+                used_ram=user_data.get('used_ram', 0) + ram_change,
+                used_ssd=user_data.get('used_ssd', 0) + ssd_change
+            )
 
         if result and result.success:
             self.hs_manage.all_save()
@@ -615,11 +772,45 @@ class RestManager:
     # ####################################################################################
     def delete_vm(self, hs_name, vm_uuid):
         """删除虚拟机"""
+        # 检查主机访问权限
+        has_host_perm, user_data_or_response = self._check_host_permission(hs_name)
+        if not has_host_perm:
+            return user_data_or_response
+        
+        user_data = user_data_or_response
+        
+        # 检查删除虚拟机权限
+        has_vm_perm, user_data_or_response = self._check_vm_permission('delete', hs_name)
+        if not has_vm_perm:
+            return user_data_or_response
+        
+        user_data = user_data_or_response
+        
         server = self.hs_manage.get_host(hs_name)
         if not server:
             return self.api_response(404, '主机不存在')
 
+        # 获取虚拟机配置以便释放资源
+        vm_resource_usage = {'cpu': 0, 'ram': 0, 'ssd': 0}
+        if hasattr(server, 'vm_saving') and vm_uuid in server.vm_saving:
+            vm_config = server.vm_saving[vm_uuid]
+            if hasattr(vm_config, '__dict__'):
+                vm_resource_usage = {
+                    'cpu': getattr(vm_config, 'cpu_num', 0),
+                    'ram': getattr(vm_config, 'ram_num', 0),
+                    'ssd': getattr(vm_config, 'hdd_num', 0)
+                }
+
         result = server.VMDelete(vm_uuid)
+        
+        # 如果删除成功且不是管理员，释放用户资源使用量
+        if result and result.success and not (user_data.get('is_admin') or user_data.get('is_token_login')):
+            self.db.update_user_resource_usage(
+                user_data['id'],
+                used_cpu=user_data.get('used_cpu', 0) - vm_resource_usage['cpu'],
+                used_ram=user_data.get('used_ram', 0) - vm_resource_usage['ram'],
+                used_ssd=user_data.get('used_ssd', 0) - vm_resource_usage['ssd']
+            )
 
         if result and result.success:
             self.hs_manage.all_save()

@@ -71,6 +71,7 @@
                                 仪表盘
                             </div>
                         </a>
+                        {% if session.get('is_admin') or session.get('is_token_login') %}
                         <a href="/hosts" class="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-medium smooth-transition">
                             <div class="flex items-center gap-2">
                                 <span class="iconify" data-icon="mdi:server" data-width="20"></span>
@@ -89,20 +90,20 @@
 <!--                                任务管理-->
 <!--                            </div>-->
 <!--                        </a>-->
-                        {% if session.get('is_admin') or session.get('is_token_login') %}
                         <a href="/users" class="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-medium smooth-transition">
                             <div class="flex items-center gap-2">
                                 <span class="iconify" data-icon="mdi:account-group" data-width="20"></span>
                                 用户管理
                             </div>
                         </a>
-                        {% endif %}
                         <a href="/settings" class="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-medium smooth-transition">
                             <div class="flex items-center gap-2">
                                 <span class="iconify" data-icon="mdi:cog" data-width="20"></span>
                                 系统设置
                             </div>
                         </a>
+                        {% else %}
+                        {% endif %}
                     </div>
                 </div>
                 <div class="flex items-center space-x-4">

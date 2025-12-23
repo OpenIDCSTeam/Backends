@@ -263,3 +263,50 @@ class EmailService:
         except Exception as e:
             logger.error(f"发送邮件异常: {e}")
             return False
+    
+    def send_password_reset_email(self, to_email: str, username: str, reset_url: str) -> bool:
+        """
+        发送密码重置邮件
+        :param to_email: 收件人邮箱
+        :param username: 用户名
+        :param reset_url: 重置链接
+        :return: 是否成功
+        """
+        if not self.api_key or not self.from_email:
+            logger.warning("邮件服务未配置")
+            return False
+        
+        try:
+            import requests
+            
+            response = requests.post(
+                "https://api.resend.com/emails",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "from": self.from_email,
+                    "to": [to_email],
+                    "subject": "OpenIDCS - 密码重置",
+                    "html": f"""
+                    <h2>密码重置请求</h2>
+                    <p>您好 {username}，</p>
+                    <p>我们收到了您的密码重置请求。</p>
+                    <p>请点击下面的链接重置您的密码：</p>
+                    <p><a href="{reset_url}">{reset_url}</a></p>
+                    <p>如果您没有请求重置密码，请忽略此邮件。</p>
+                    <p>此链接24小时内有效。</p>
+                    """
+                }
+            )
+            
+            if response.status_code == 200:
+                logger.info(f"密码重置邮件已发送到 {to_email}")
+                return True
+            else:
+                logger.error(f"发送密码重置邮件失败: {response.text}")
+                return False
+        except Exception as e:
+            logger.error(f"发送密码重置邮件异常: {e}")
+            return False
