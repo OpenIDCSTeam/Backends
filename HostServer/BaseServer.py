@@ -862,3 +862,57 @@ class BaseServer:
     # 查找显卡 ######################################################################
     def GPUShows(self) -> dict[str, str]:
         pass
+
+    # 转移用户 ######################################################################
+    def Transfer(self, vm_name: str, new_owner: str, keep_access: bool = False) -> ZMessage:
+        """
+        移交虚拟机所有权
+        
+        :param vm_name: 虚拟机UUID
+        :param new_owner: 新所有者用户名
+        :param keep_access: 是否保留原所有者的访问权限
+        :return: 操作结果消息
+        """
+        # 检查虚拟机是否存在
+        if vm_name not in self.vm_saving:
+            return ZMessage(
+                success=False, 
+                action="Transfer", 
+                message="虚拟机不存在"
+            )
+        
+        vm_config = self.vm_saving[vm_name]
+        owners = vm_config.own_all.copy()
+
+        # 检查新所有者是否已经在所有者列表中
+        if new_owner == owners[0]:
+            return ZMessage(
+                success=False,
+                action="Transfer", 
+                message="用户已经是虚拟机所有者"
+            )
+        
+        # 获取当前主所有者
+        current_primary_owner = owners[0]
+        
+        # 移交所有权：将新所有者移到第一位
+        owners.remove(new_owner) if new_owner in owners else None
+        owners.insert(0, new_owner)
+        
+        # 如果不保留原所有者权限，从列表中移除原主所有者
+        if not keep_access and current_primary_owner in owners:
+            owners.remove(current_primary_owner)
+        
+        # 更新所有者列表
+        vm_config.own_all = owners
+        
+        # 保存配置
+        self.data_set()
+        
+        logger.info(f"[{self.hs_config.server_name}] 虚拟机 {vm_name} 所有权从 {current_primary_owner} 移交给 {new_owner}，保留权限: {keep_access}")
+        
+        return ZMessage(
+            success=True,
+            action="Transfer",
+            message=f"虚拟机所有权已成功移交给 {new_owner}"
+        )

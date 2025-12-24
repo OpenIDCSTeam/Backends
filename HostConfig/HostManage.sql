@@ -140,6 +140,8 @@ CREATE TABLE IF NOT EXISTS web_users
     quota_gpu         INTEGER   DEFAULT 0,                 -- GPU显存配额(GB)
     quota_nat_ports   INTEGER   DEFAULT 0,                 -- NAT端口数配额
     quota_web_proxy   INTEGER   DEFAULT 0,                 -- WEB代理数量配额
+    quota_nat_ips     INTEGER   DEFAULT 0,                 -- 内网IP数量配额
+    quota_pub_ips     INTEGER   DEFAULT 0,                 -- 公网IP数量配额
     quota_bandwidth_up    INTEGER DEFAULT 0,                 -- 最大上行带宽(Mbps)
     quota_bandwidth_down  INTEGER DEFAULT 0,                 -- 最大下行带宽(Mbps)
     quota_traffic     INTEGER   DEFAULT 0,                 -- 每月最大流量(GB)
@@ -151,6 +153,8 @@ CREATE TABLE IF NOT EXISTS web_users
     used_gpu          INTEGER   DEFAULT 0,                 -- 已使用GPU显存(GB)
     used_nat_ports    INTEGER   DEFAULT 0,                 -- 已使用NAT端口数
     used_web_proxy    INTEGER   DEFAULT 0,                 -- 已使用WEB代理数
+    used_nat_ips      INTEGER   DEFAULT 0,                 -- 已使用内网IP数
+    used_pub_ips      INTEGER   DEFAULT 0,                 -- 已使用公网IP数
     used_bandwidth_up    INTEGER   DEFAULT 0,                 -- 已使用上行带宽(Mbps)
     used_bandwidth_down  INTEGER   DEFAULT 0,                 -- 已使用下行带宽(Mbps)
     used_traffic      INTEGER   DEFAULT 0,                 -- 本月已使用流量(GB)
@@ -175,3 +179,4 @@ CREATE INDEX IF NOT EXISTS idx_hs_logger_name ON hs_logger (hs_name);
 CREATE INDEX IF NOT EXISTS idx_hs_logger_time ON hs_logger (created_at);
 CREATE INDEX IF NOT EXISTS idx_web_users_username ON web_users (username);
 CREATE INDEX IF NOT EXISTS idx_web_users_email ON web_users (email);
+

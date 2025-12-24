@@ -462,6 +462,17 @@
             </div>
         `;
 
+        // 获取用户配额信息
+        try {
+            const userResult = await apiRequest('/api/users/current');
+            if (userResult && userResult.code === 200) {
+                window.currentUser = userResult.data;
+                updateUserQuotaDisplay();
+            }
+        } catch (error) {
+            console.error('获取用户信息失败:', error);
+        }
+
         const result = await apiRequest(`/api/client/detail/${hostName}`);
         if (result && result.code === 200) {
             const vms = result.data;
@@ -611,6 +622,131 @@
         `;
     }
 
+    // 更新用户配额显示
+    function updateUserQuotaDisplay() {
+        if (!window.currentUser) return;
+        
+        const user = window.currentUser;
+        
+        // 更新页面上的配额信息显示区域（如果存在的话）
+        const quotaInfo = document.getElementById('quotaInfo');
+        if (quotaInfo) {
+            quotaInfo.innerHTML = `
+                <div class="text-sm text-gray-600">
+                    <span>CPU: ${user.used_cpu}/${user.quota_cpu}核</span> |
+                    <span>内存: ${(user.used_ram/1024).toFixed(1)}/${(user.quota_ram/1024).toFixed(1)}GB</span> |
+                    <span>硬盘: ${(user.used_ssd/1024).toFixed(1)}/${(user.quota_ssd/1024).toFixed(1)}GB</span> |
+                    <span>内网IP: ${user.used_nat_ips}/${user.quota_nat_ips}</span> |
+                    <span>公网IP: ${user.used_pub_ips}/${user.quota_pub_ips}</span>
+                </div>
+            `;
+        }
+        
+        // 更新IP配额信息显示
+        const ipQuotaInfo = document.getElementById('ipQuotaInfo');
+        if (ipQuotaInfo) {
+            const availableNatIps = user.quota_nat_ips - user.used_nat_ips;
+            const availablePubIps = user.quota_pub_ips - user.used_pub_ips;
+            
+            let statusHtml = '';
+            if (availableNatIps <= 0 && availablePubIps <= 0) {
+                statusHtml = '<span class="text-red-800 font-medium">⚠️ 无可用IP配额</span>';
+            } else {
+                const statusTexts = [];
+                if (availableNatIps > 0) {
+                    statusTexts.push(`内网IP可用 ${availableNatIps} 个`);
+                }
+                if (availablePubIps > 0) {
+                    statusTexts.push(`公网IP可用 ${availablePubIps} 个`);
+                }
+                statusHtml = `<span class="text-green-800">✅ ${statusTexts.join('，')}</span>`;
+            }
+            
+            ipQuotaInfo.innerHTML = `
+                <div class="text-sm">
+                    <strong>IP配额状态:</strong> ${statusHtml}<br>
+                    <span class="text-xs text-blue-700">已使用: 内网 ${user.used_nat_ips}/${user.quota_nat_ips}，公网 ${user.used_pub_ips}/${user.quota_pub_ips}</span>
+                </div>
+            `;
+        }
+    }
+
+    // 检查资源配额
+    function checkResourceQuota() {
+        if (!window.currentUser) return { canCreate: true, errors: [] };
+        
+        const user = window.currentUser;
+        const errors = [];
+        
+        // 检查基本资源配额
+        if (user.quota_cpu <= 0 || user.used_cpu >= user.quota_cpu) {
+            errors.push('CPU配额不足');
+        }
+        if (user.quota_ram <= 0 || user.used_ram >= user.quota_ram) {
+            errors.push('内存配额不足');
+        }
+        if (user.quota_ssd <= 0 || user.used_ssd >= user.quota_ssd) {
+            errors.push('硬盘配额不足');
+        }
+        if (user.quota_traffic <= 0 || user.used_traffic >= user.quota_traffic) {
+            errors.push('流量配额不足');
+        }
+        if (user.quota_upload_bw <= 0 || user.used_upload_bw >= user.quota_upload_bw) {
+            errors.push('上行带宽配额不足');
+        }
+        if (user.quota_download_bw <= 0 || user.used_download_bw >= user.quota_download_bw) {
+            errors.push('下行带宽配额不足');
+        }
+        if (user.quota_nat <= 0 || user.used_nat >= user.quota_nat) {
+            errors.push('NAT端口配额不足');
+        }
+        if (user.quota_web <= 0 || user.used_web >= user.quota_web) {
+            errors.push('Web代理配额不足');
+        }
+        
+        // 检查IP配额
+        const availableNatIps = user.quota_nat_ips - user.used_nat_ips;
+        const availablePubIps = user.quota_pub_ips - user.used_pub_ips;
+        
+        if (availableNatIps <= 0 && availablePubIps <= 0) {
+            errors.push('无可用IP配额');
+        }
+        
+        return {
+            canCreate: errors.length === 0,
+            errors: errors,
+            availableNatIps: availableNatIps,
+            availablePubIps: availablePubIps
+        };
+    }
+
+    // 检查网卡数量限制
+    function checkNicLimit() {
+        if (!window.currentUser) return { canAdd: true, message: '' };
+        
+        const user = window.currentUser;
+        const currentNics = document.querySelectorAll('#nicConfigs > div').length;
+        const availableNatIps = user.quota_nat_ips - user.used_nat_ips;
+        const availablePubIps = user.quota_pub_ips - user.used_pub_ips;
+        
+        // 计算当前已使用的各类型IP数量
+        let currentNatIps = 0;
+        let currentPubIps = 0;
+        document.querySelectorAll('#nicConfigs select').forEach(select => {
+            if (select.value === 'nat') currentNatIps++;
+            else if (select.value === 'pub') currentPubIps++;
+        });
+        
+        if (currentNatIps >= availableNatIps && currentPubIps >= availablePubIps) {
+            return {
+                canAdd: false,
+                message: 'IP配额已用完，无法添加更多网卡'
+            };
+        }
+        
+        return { canAdd: true, message: '' };
+    }
+
     // 格式化内存显示
     function formatMemory(mb) {
         if (!mb) return '0 MB';
@@ -627,6 +763,18 @@
 
     // 打开添加虚拟机模态框
     function openAddVMModal() {
+        // 检查资源配额
+        const quotaCheck = checkResourceQuota();
+        if (!quotaCheck.canCreate) {
+            Swal.fire({
+                icon: 'error',
+                title: '配额不足',
+                text: `无法创建虚拟机：${quotaCheck.errors.join('，')}`,
+                confirmButtonText: '确定'
+            });
+            return;
+        }
+        
         document.getElementById('vmModalTitle').innerHTML = `
             <span class="iconify text-blue-600" data-icon="mdi:cube-outline" data-width="24"></span>
             创建虚拟机
@@ -640,7 +788,13 @@
         
         document.getElementById('nicConfigs').innerHTML = '';
         nicCounter = 0;
-        addNicConfig();
+        
+        // 根据IP配额自动添加默认网卡
+        if (quotaCheck.availableNatIps > 0) {
+            addNicConfig('ethernet0', 'nat');
+        } else if (quotaCheck.availablePubIps > 0) {
+            addNicConfig('ethernet0', 'pub');
+        }
         
         // 自动生成UUID和密码
         generateVmUuid();
@@ -650,6 +804,17 @@
         setDefaultValues();
         
         document.getElementById('vmModal').showModal();
+        
+        // 模态框显示后更新配额信息
+        setTimeout(() => {
+            updateUserQuotaDisplay();
+            
+            // 更新所有现有网卡的类型选项
+            document.querySelectorAll('#nicConfigs > div').forEach((nicDiv, index) => {
+                const nicId = nicDiv.id.replace('nic_', '');
+                updateNicTypeOptions(nicId);
+            });
+        }, 100);
     }
 
     // 添加网卡配置
@@ -665,19 +830,56 @@
     }
 
     function addNicConfig(nicName = '', nicType = 'nat', nicIp = '', nicIp6 = '') {
+        // 检查网卡数量限制
+        const nicCheck = checkNicLimit();
+        if (!nicCheck.canAdd) {
+            Swal.fire({
+                icon: 'warning',
+                title: '无法添加网卡',
+                text: nicCheck.message,
+                confirmButtonText: '确定'
+            });
+            return;
+        }
+        
         nicCounter++;
         // 如果没有指定网卡名称，自动生成ethernet0, ethernet1等
         if (!nicName) {
             nicName = `ethernet${nicCounter - 1}`;
         }
+        
+        // 检查可用IP配额来设置默认网卡类型
+        const user = window.currentUser;
+        let defaultType = nicType;
+        if (user) {
+            const availableNatIps = user.quota_nat_ips - user.used_nat_ips;
+            const availablePubIps = user.quota_pub_ips - user.used_pub_ips;
+            
+            // 计算当前已使用的各类型IP数量
+            let currentNatIps = 0;
+            let currentPubIps = 0;
+            document.querySelectorAll('#nicConfigs select').forEach(select => {
+                if (select.value === 'nat') currentNatIps++;
+                else if (select.value === 'pub') currentPubIps++;
+            });
+            
+            // 如果没有指定类型或当前类型不可用，选择可用的类型
+            if (nicType === 'nat' && currentNatIps >= availableNatIps && availablePubIps > 0) {
+                defaultType = 'pub';
+            } else if (nicType === 'pub' && currentPubIps >= availablePubIps && availableNatIps > 0) {
+                defaultType = 'nat';
+            }
+        }
+        
         const container = document.getElementById('nicConfigs');
         const nicHtml = `
             <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg" id="nic_${nicCounter}">
                 <input type="text" name="nic_name_${nicCounter}" value="${nicName}" placeholder="网卡名称 如: ethernet0"
                     class="inline-block px-2 py-1 text-sm border border-gray-300 rounded" style="width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;">
-                <select name="nic_type_${nicCounter}" class="px-2 py-1 text-sm border border-gray-300 rounded">
-                    <option value="nat" ${nicType === 'nat' ? 'selected' : ''}>内网</option>
-                    <option value="pub" ${nicType === 'pub' ? 'selected' : ''}>公网</option>
+                <select name="nic_type_${nicCounter}" class="px-2 py-1 text-sm border border-gray-300 rounded" onchange="updateNicTypeOptions(${nicCounter})">
+                    <option value="nat" ${defaultType === 'nat' ? 'selected' : ''}>内网</option>
+                    <option value="pub" ${defaultType === 'pub' ? 'selected' : ''}>公网</option>
+                </select>
                 <input type="text" name="nic_ip_${nicCounter}" value="${nicIp}" placeholder="IPv4地址"
                     class="inline-block px-2 py-1 text-sm border border-gray-300 rounded" style="width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;">
                 <input type="text" name="nic_ip6_${nicCounter}" value="${nicIp6}" placeholder="IPv6地址"
@@ -688,6 +890,44 @@
             </div>
         `;
         container.insertAdjacentHTML('beforeend', nicHtml);
+    }
+
+    // 更新网卡类型选项（根据配额动态启用/禁用）
+    function updateNicTypeOptions(nicId) {
+        const user = window.currentUser;
+        if (!user) return;
+        
+        const select = document.querySelector(`#nic_${nicId} select`);
+        const availableNatIps = user.quota_nat_ips - user.used_nat_ips;
+        const availablePubIps = user.quota_pub_ips - user.used_pub_ips;
+        
+        // 计算当前已使用的各类型IP数量
+        let currentNatIps = 0;
+        let currentPubIps = 0;
+        document.querySelectorAll('#nicConfigs select').forEach(s => {
+            if (s.value === 'nat') currentNatIps++;
+            else if (s.value === 'pub') currentPubIps++;
+        });
+        
+        // 更新选项可用性
+        const natOption = select.querySelector('option[value="nat"]');
+        const pubOption = select.querySelector('option[value="pub"]');
+        
+        if (currentNatIps >= availableNatIps && select.value !== 'nat') {
+            natOption.disabled = true;
+            natOption.textContent = '内网 (配额不足)';
+        } else {
+            natOption.disabled = false;
+            natOption.textContent = '内网';
+        }
+        
+        if (currentPubIps >= availablePubIps && select.value !== 'pub') {
+            pubOption.disabled = true;
+            pubOption.textContent = '公网 (配额不足)';
+        } else {
+            pubOption.disabled = false;
+            pubOption.textContent = '公网';
+        }
     }
 
     // 移除网卡配置

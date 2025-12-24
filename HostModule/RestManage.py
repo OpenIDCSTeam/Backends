@@ -76,6 +76,60 @@ class RestManager:
         """统一API响应格式"""
         return jsonify({'code': code, 'msg': msg, 'data': data})
 
+    def _calculate_user_ip_usage(self, username):
+        """计算用户的IP使用量"""
+        if not username or not self.db:
+            return {'used_nat_ips': 0, 'used_pub_ips': 0}
+        
+        # 如果是admin用户，返回0（不受配额限制）
+        if username == 'admin':
+            return {'used_nat_ips': 0, 'used_pub_ips': 0}
+        
+        # 获取用户信息
+        user_data = self.db.get_user_by_username(username)
+        if not user_data:
+            return {'used_nat_ips': 0, 'used_pub_ips': 0}
+        
+        # 初始化计数器
+        used_nat_ips = 0
+        used_pub_ips = 0
+        
+        # 遍历所有主机的虚拟机，计算该用户的IP使用量
+        for hs_name, server in self.hs_manage.engine.items():
+            if not server:
+                continue
+                
+            # 重新加载虚拟机配置
+            try:
+                server.data_get()
+            except Exception as e:
+                logger.error(f"[IP统计] 主机 {hs_name} 加载配置失败: {e}")
+                continue
+            
+            # 遍历该主机下的所有虚拟机
+            for vm_uuid, vm_config in server.vm_saving.items():
+                if not vm_config:
+                    continue
+                
+                # 检查虚拟机的所有者列表
+                owners = getattr(vm_config, 'own_all', [])
+                if username in owners:
+                    # 只有主用户（第一个所有者）才占用IP配额
+                    if owners[0] == username:
+                        # 计算该虚拟机的IP数量
+                        nic_all = getattr(vm_config, 'nic_all', {})
+                        for nic_name, nic_config in nic_all.items():
+                            nic_type = getattr(nic_config, 'nic_type', 'nat')
+                            if nic_type == 'nat':
+                                used_nat_ips += 1
+                            elif nic_type == 'pub':
+                                used_pub_ips += 1
+        
+        return {
+            'used_nat_ips': used_nat_ips,
+            'used_pub_ips': used_pub_ips
+        }
+
     def _get_current_user(self):
         """获取当前用户信息"""
         # 检查Bearer Token
@@ -188,7 +242,7 @@ class RestManager:
             return False, self.api_response(403, error_msg)
         return True, None
     
-    def _validate_vm_resources(self, data):
+    def _validate_vm_resources(self, data, user_data=None):
         """验证虚拟机资源配置"""
         # CPU验证：最低1核，默认2核
         cpu_num = int(data.get('cpu_num', 2))
@@ -208,8 +262,12 @@ class RestManager:
             return self.api_response(400, 'GPU显存不能少于1GB')
         data['gpu_mem'] = gpu_mem
         
-        # 硬盘验证：不低于镜像最低要求
+        # 硬盘验证：最低10G
         hdd_num = int(data.get('hdd_num', 8192))  # 默认8G
+        if hdd_num < 10240:  # 最低10G
+            return self.api_response(400, '硬盘大小不能少于10GB')
+        data['hdd_num'] = hdd_num
+        
         # 检查镜像要求（如果提供了镜像）
         iso_all = data.get('iso_all', {})
         if iso_all:
@@ -227,7 +285,6 @@ class RestManager:
                                 return self.api_response(400, f'硬盘大小不能少于镜像最低要求{match.group(0)}')
                     except:
                         pass  # 如果解析失败，跳过镜像要求检查
-        data['hdd_num'] = hdd_num
         
         # NAT数量验证：最低1，默认10
         nat_num = int(data.get('nat_num', 10))
@@ -240,6 +297,148 @@ class RestManager:
         if web_num < 0:
             return self.api_response(400, 'Web代理数量不能少于0')
         data['web_num'] = web_num
+        
+        # 流量验证：最低0
+        flu_num = int(data.get('flu_num', 0))
+        if flu_num < 0:
+            return self.api_response(400, '流量不能少于0')
+        data['flu_num'] = flu_num
+        
+        # 带宽验证：最低0
+        speed_u = int(data.get('speed_u', 0))
+        speed_d = int(data.get('speed_d', 0))
+        if speed_u < 0:
+            return self.api_response(400, '上行带宽不能少于0')
+        if speed_d < 0:
+            return self.api_response(400, '下行带宽不能少于0')
+        data['speed_u'] = speed_u
+        data['speed_d'] = speed_d
+        
+        # 如果提供了用户数据，进行配额检查
+        if user_data and not (user_data.get('is_admin') or user_data.get('is_token_login')):
+            # 检查CPU配额
+            quota_cpu = user_data.get('quota_cpu', 0)
+            used_cpu = user_data.get('used_cpu', 0)
+            if quota_cpu <= 0:
+                return self.api_response(400, 'CPU配额为0，不允许创建虚拟机')
+            if cpu_num > (quota_cpu - used_cpu):
+                return self.api_response(400, f'CPU配额不足，需要{cpu_num}核，可用{quota_cpu - used_cpu}核')
+            
+            # 检查内存配额
+            quota_ram = user_data.get('quota_ram', 0)
+            used_ram = user_data.get('used_ram', 0)
+            if quota_ram <= 0:
+                return self.api_response(400, '内存配额为0，不允许创建虚拟机')
+            if ram_num > (quota_ram - used_ram):
+                return self.api_response(400, f'内存配额不足，需要{ram_num//1024}GB，可用{(quota_ram - used_ram)//1024}GB')
+            
+            # 检查硬盘配额
+            quota_ssd = user_data.get('quota_ssd', 0)
+            used_ssd = user_data.get('used_ssd', 0)
+            if quota_ssd <= 0:
+                return self.api_response(400, '硬盘配额为0，不允许创建虚拟机')
+            if hdd_num > (quota_ssd - used_ssd):
+                return self.api_response(400, f'硬盘配额不足，需要{hdd_num//1024}GB，可用{(quota_ssd - used_ssd)//1024}GB')
+            
+            # 检查GPU配额（如果使用GPU）
+            if gpu_mem > 0:
+                quota_gpu = user_data.get('quota_gpu', 0)
+                used_gpu = user_data.get('used_gpu', 0)
+                if quota_gpu <= 0:
+                    return self.api_response(400, 'GPU配额为0，不允许创建虚拟机')
+                if gpu_mem > (quota_gpu - used_gpu):
+                    return self.api_response(400, f'GPU显存配额不足，需要{gpu_mem//1024}GB，可用{(quota_gpu - used_gpu)//1024}GB')
+            
+            # 检查流量配额
+            quota_traffic = user_data.get('quota_traffic', 0)
+            used_traffic = user_data.get('used_traffic', 0)
+            if quota_traffic <= 0:
+                return self.api_response(400, '流量配额为0，不允许创建虚拟机')
+            if flu_num > (quota_traffic - used_traffic):
+                return self.api_response(400, f'流量配额不足，需要{flu_num}GB，可用{quota_traffic - used_traffic}GB')
+            
+            # 检查上行带宽配额
+            quota_upload_bw = user_data.get('quota_bandwidth_up', 0)
+            used_upload_bw = user_data.get('used_bandwidth_up', 0)
+            if quota_upload_bw <= 0:
+                return self.api_response(400, '上行带宽配额为0，不允许创建虚拟机')
+            if speed_u > (quota_upload_bw - used_upload_bw):
+                return self.api_response(400, f'上行带宽配额不足，需要{speed_u}Mbps，可用{quota_upload_bw - used_upload_bw}Mbps')
+            
+            # 检查下行带宽配额
+            quota_download_bw = user_data.get('quota_bandwidth_down', 0)
+            used_download_bw = user_data.get('used_bandwidth_down', 0)
+            if quota_download_bw <= 0:
+                return self.api_response(400, '下行带宽配额为0，不允许创建虚拟机')
+            if speed_d > (quota_download_bw - used_download_bw):
+                return self.api_response(400, f'下行带宽配额不足，需要{speed_d}Mbps，可用{quota_download_bw - used_download_bw}Mbps')
+            
+            # 检查NAT端口配额
+            quota_nat = user_data.get('quota_nat_ports', 0)
+            used_nat = user_data.get('used_nat_ports', 0)
+            if quota_nat <= 0:
+                return self.api_response(400, 'NAT端口配额为0，不允许创建虚拟机')
+            if nat_num > (quota_nat - used_nat):
+                return self.api_response(400, f'NAT端口配额不足，需要{nat_num}个，可用{quota_nat - used_nat}个')
+            
+            # 检查Web代理配额
+            quota_web = user_data.get('quota_web_proxy', 0)
+            used_web = user_data.get('used_web_proxy', 0)
+            if quota_web <= 0:
+                return self.api_response(400, 'Web代理配额为0，不允许创建虚拟机')
+            if web_num > (quota_web - used_web):
+                return self.api_response(400, f'Web代理配额不足，需要{web_num}个，可用{quota_web - used_web}个')
+            
+            # 检查IP配额
+            quota_nat_ips = user_data.get('quota_nat_ips', 0)
+            quota_pub_ips = user_data.get('quota_pub_ips', 0)
+            
+            # 使用_calculate_user_ip_usage获取准确的IP使用量
+            username = user_data.get('username', '')
+            ip_usage = self._calculate_user_ip_usage(username)
+            used_nat_ips = ip_usage.get('used_nat_ips', 0)
+            used_pub_ips = ip_usage.get('used_pub_ips', 0)
+            
+            # 计算需要的IP数量
+            nic_all = data.get('nic_all', {})
+            nat_ips_needed = 0
+            pub_ips_needed = 0
+            for nic_name, nic_conf in nic_all.items():
+                nic_type = nic_conf.get('nic_type', 'nat')
+                if nic_type == 'nat':
+                    nat_ips_needed += 1
+                elif nic_type == 'pub':
+                    pub_ips_needed += 1
+            
+            # 如果没有配置网卡，根据配额默认创建
+            if nat_ips_needed == 0 and pub_ips_needed == 0:
+                available_nat_ips = quota_nat_ips - used_nat_ips
+                available_pub_ips = quota_pub_ips - used_pub_ips
+                
+                if available_nat_ips <= 0 and available_pub_ips <= 0:
+                    return self.api_response(400, '无可用IP配额，不允许创建虚拟机')
+                
+                # 优先使用内网IP，如果没有则使用公网IP
+                if available_nat_ips > 0:
+                    nat_ips_needed = 1
+                    data['nic_all'] = {'nic0': {'nic_type': 'nat'}}
+                elif available_pub_ips > 0:
+                    pub_ips_needed = 1
+                    data['nic_all'] = {'nic0': {'nic_type': 'pub'}}
+            else:
+                # 检查内网IP配额
+                if nat_ips_needed > 0:
+                    if quota_nat_ips <= 0:
+                        return self.api_response(400, '内网IP配额为0，不允许创建虚拟机')
+                    if nat_ips_needed > (quota_nat_ips - used_nat_ips):
+                        return self.api_response(400, f'内网IP配额不足，需要{nat_ips_needed}个，可用{quota_nat_ips - used_nat_ips}个')
+                
+                # 检查公网IP配额
+                if pub_ips_needed > 0:
+                    if quota_pub_ips <= 0:
+                        return self.api_response(400, '公网IP配额为0，不允许创建虚拟机')
+                    if pub_ips_needed > (quota_pub_ips - used_pub_ips):
+                        return self.api_response(400, f'公网IP配额不足，需要{pub_ips_needed}个，可用{quota_pub_ips - used_pub_ips}个')
         
         return None  # 验证通过
 
@@ -785,34 +984,10 @@ class RestManager:
 
         data = request.get_json() or {}
         
-        # 验证和设置资源限制
-        validation_result = self._validate_vm_resources(data)
+        # 验证和设置资源限制（包含配额检查）
+        validation_result = self._validate_vm_resources(data, user_data)
         if validation_result:
             return validation_result
-        
-        # 检查资源配额（非管理员用户）
-        if not (user_data.get('is_admin') or user_data.get('is_token_login')):
-            # 计算需要的资源
-            cpu_needed = int(data.get('cpu_num', 0))
-            ram_needed = int(data.get('ram_num', 0))
-            ssd_needed = int(data.get('hdd_num', 0))
-            gpu_needed = int(data.get('gpu_mem', 0))
-            traffic_needed = int(data.get('flu_num', 0))
-            bandwidth_up_needed = int(data.get('speed_u', 0))
-            bandwidth_down_needed = int(data.get('speed_d', 0))
-            
-            has_quota, error_response = self._check_resource_quota(
-                user_data,
-                cpu=cpu_needed,
-                ram=ram_needed,
-                ssd=ssd_needed,
-                gpu=gpu_needed,
-                traffic=traffic_needed,
-                bandwidth_up=bandwidth_up_needed,
-                bandwidth_down=bandwidth_down_needed
-            )
-            if not has_quota:
-                return error_response
         
         # 获取system_maps进行镜像名称映射
         system_maps = {}
@@ -878,6 +1053,28 @@ class RestManager:
             # 获取虚拟机的第一个所有者
             first_owner = vm_config.own_all[0] if vm_config.own_all else None
             
+            # 计算资源使用量
+            cpu_needed = int(data.get('cpu_num', 0))
+            ram_needed = int(data.get('ram_num', 0))
+            ssd_needed = int(data.get('hdd_num', 0))
+            gpu_needed = int(data.get('gpu_mem', 0))
+            traffic_needed = int(data.get('flu_num', 0))
+            nat_ports_needed = int(data.get('nat_num', 0))
+            web_proxy_needed = int(data.get('web_num', 0))
+            bandwidth_up_needed = int(data.get('speed_u', 0))
+            bandwidth_down_needed = int(data.get('speed_d', 0))
+            
+            # 计算IP数量
+            nic_all = data.get('nic_all', {})
+            nat_ips_count = 0
+            pub_ips_count = 0
+            for nic_name, nic_conf in nic_all.items():
+                nic_type = nic_conf.get('nic_type', 'nat')
+                if nic_type == 'nat':
+                    nat_ips_count += 1
+                elif nic_type == 'pub':
+                    pub_ips_count += 1
+            
             # 只有第一个所有者才占用配额（跳过admin用户）
             if first_owner and first_owner != 'admin':
                 owner_user = self.db.get_user_by_username(first_owner)
@@ -889,10 +1086,11 @@ class RestManager:
                         used_ssd=owner_user.get('used_ssd', 0) + ssd_needed,
                         used_gpu=owner_user.get('used_gpu', 0) + gpu_needed,
                         used_traffic=owner_user.get('used_traffic', 0) + traffic_needed,
-                        used_nat_ports=owner_user.get('used_nat_ports', 0) + int(data.get('nat_num', 0)),
-                        used_web_proxy=owner_user.get('used_web_proxy', 0) + int(data.get('web_num', 0)),
-                        used_bandwidth_up=owner_user.get('used_bandwidth_up', 0) + int(data.get('speed_u', 0)),
-                        used_bandwidth_down=owner_user.get('used_bandwidth_down', 0) + int(data.get('speed_d', 0))
+                        used_nat_ports=owner_user.get('used_nat_ports', 0) + nat_ports_needed,
+                        used_web_proxy=owner_user.get('used_web_proxy', 0) + web_proxy_needed,
+                        used_bandwidth_up=owner_user.get('used_bandwidth_up', 0) + bandwidth_up_needed,
+                        used_bandwidth_down=owner_user.get('used_bandwidth_down', 0) + bandwidth_down_needed
+                        # 注意：IP使用量通过_calculate_user_ip_usage函数实时计算，无需在数据库中维护
                     )
         
         self.hs_manage.all_save()
@@ -930,7 +1128,7 @@ class RestManager:
 
         # 获取旧的虚拟机配置
         old_vm_config = None
-        old_resource_usage = {'cpu': 0, 'ram': 0, 'ssd': 0, 'gpu': 0, 'traffic': 0, 'nat_ports': 0, 'web_proxy': 0}
+        old_resource_usage = {'cpu': 0, 'ram': 0, 'ssd': 0, 'gpu': 0, 'traffic': 0, 'nat_ports': 0, 'web_proxy': 0, 'bandwidth_up': 0, 'bandwidth_down': 0, 'nat_ips': 0, 'pub_ips': 0}
         vm_owners = []
         if hasattr(server, 'vm_saving') and vm_uuid in server.vm_saving:
             old_vm_config = server.vm_saving[vm_uuid]
@@ -942,8 +1140,20 @@ class RestManager:
                     'gpu': getattr(old_vm_config, 'gpu_mem', 0),
                     'traffic': getattr(old_vm_config, 'flu_num', 0),
                     'nat_ports': getattr(old_vm_config, 'nat_num', 0),
-                    'web_proxy': getattr(old_vm_config, 'web_num', 0)
+                    'web_proxy': getattr(old_vm_config, 'web_num', 0),
+                    'bandwidth_up': getattr(old_vm_config, 'speed_u', 0),
+                    'bandwidth_down': getattr(old_vm_config, 'speed_d', 0),
+                    'nat_ips': 0,
+                    'pub_ips': 0
                 }
+                # 计算旧配置的IP数量
+                old_nic_all = getattr(old_vm_config, 'nic_all', {})
+                for nic_name, nic_conf in old_nic_all.items():
+                    nic_type = getattr(nic_conf, 'nic_type', 'nat')
+                    if nic_type == 'nat':
+                        old_resource_usage['nat_ips'] += 1
+                    elif nic_type == 'pub':
+                        old_resource_usage['pub_ips'] += 1
                 # 获取虚拟机的所有所有者
                 vm_owners = getattr(old_vm_config, 'own_all', [])
 
@@ -958,14 +1168,42 @@ class RestManager:
             ssd_change = int(data.get('hdd_num', 0)) - old_resource_usage['ssd']
             gpu_change = int(data.get('gpu_mem', 0)) - old_resource_usage['gpu']
             traffic_change = int(data.get('flu_num', 0)) - old_resource_usage['traffic']
+            nat_ports_change = int(data.get('nat_num', 0)) - old_resource_usage.get('nat_ports', 0)
+            web_proxy_change = int(data.get('web_num', 0)) - old_resource_usage.get('web_proxy', 0)
+            bandwidth_up_change = int(data.get('speed_u', 0)) - old_resource_usage.get('bandwidth_up', 0)
+            bandwidth_down_change = int(data.get('speed_d', 0)) - old_resource_usage.get('bandwidth_down', 0)
+            
+            # 计算IP数量变化
+            nic_all = data.get('nic_all', {})
+            new_nat_ips = 0
+            new_pub_ips = 0
+            for nic_name, nic_conf in nic_all.items():
+                nic_type = nic_conf.get('nic_type', 'nat')
+                if nic_type == 'nat':
+                    new_nat_ips += 1
+                elif nic_type == 'pub':
+                    new_pub_ips += 1
+            
+            nat_ips_change = new_nat_ips - old_resource_usage.get('nat_ips', 0)
+            pub_ips_change = new_pub_ips - old_resource_usage.get('pub_ips', 0)
             
             # 如果资源增加，检查配额
-            if cpu_change > 0 or ram_change > 0 or ssd_change > 0:
+            if any(change > 0 for change in [cpu_change, ram_change, ssd_change, gpu_change, traffic_change, 
+                                             nat_ports_change, web_proxy_change, bandwidth_up_change, bandwidth_down_change,
+                                             nat_ips_change, pub_ips_change]):
                 has_quota, error_response = self._check_resource_quota(
                     user_data,
                     cpu=max(0, cpu_change),
                     ram=max(0, ram_change),
-                    ssd=max(0, ssd_change)
+                    ssd=max(0, ssd_change),
+                    gpu=max(0, gpu_change),
+                    traffic=max(0, traffic_change),
+                    nat_ports=max(0, nat_ports_change),
+                    web_proxy=max(0, web_proxy_change),
+                    bandwidth_up=max(0, bandwidth_up_change),
+                    bandwidth_down=max(0, bandwidth_down_change),
+                    nat_ips=max(0, nat_ips_change),
+                    pub_ips=max(0, pub_ips_change)
                 )
                 if not has_quota:
                     return error_response
@@ -989,6 +1227,22 @@ class RestManager:
             traffic_change = int(data.get('flu_num', 0)) - old_resource_usage['traffic']
             nat_ports_change = int(data.get('nat_num', 0)) - old_resource_usage.get('nat_ports', 0)
             web_proxy_change = int(data.get('web_num', 0)) - old_resource_usage.get('web_proxy', 0)
+            bandwidth_up_change = int(data.get('speed_u', 0)) - old_resource_usage.get('bandwidth_up', 0)
+            bandwidth_down_change = int(data.get('speed_d', 0)) - old_resource_usage.get('bandwidth_down', 0)
+            
+            # 计算IP数量变化
+            nic_all = data.get('nic_all', {})
+            new_nat_ips = 0
+            new_pub_ips = 0
+            for nic_name, nic_conf in nic_all.items():
+                nic_type = nic_conf.get('nic_type', 'nat')
+                if nic_type == 'nat':
+                    new_nat_ips += 1
+                elif nic_type == 'pub':
+                    new_pub_ips += 1
+            
+            nat_ips_change = new_nat_ips - old_resource_usage.get('nat_ips', 0)
+            pub_ips_change = new_pub_ips - old_resource_usage.get('pub_ips', 0)
             
             # 只更新第一个所有者的配额（跳过admin用户）
             first_owner = vm_owners[0] if vm_owners else None
@@ -1004,7 +1258,10 @@ class RestManager:
                         used_gpu=owner_user.get('used_gpu', 0) + gpu_change,
                         used_traffic=owner_user.get('used_traffic', 0) + traffic_change,
                         used_nat_ports=owner_user.get('used_nat_ports', 0) + nat_ports_change,
-                        used_web_proxy=owner_user.get('used_web_proxy', 0) + web_proxy_change
+                        used_web_proxy=owner_user.get('used_web_proxy', 0) + web_proxy_change,
+                        used_bandwidth_up=owner_user.get('used_bandwidth_up', 0) + bandwidth_up_change,
+                        used_bandwidth_down=owner_user.get('used_bandwidth_down', 0) + bandwidth_down_change
+                        # 注意：IP使用量通过_calculate_user_ip_usage函数实时计算，无需在数据库中维护
                     )
 
         if result and result.success:
@@ -1044,7 +1301,7 @@ class RestManager:
             return self.api_response(404, '主机不存在')
 
         # 获取虚拟机配置以便释放资源
-        vm_resource_usage = {'cpu': 0, 'ram': 0, 'ssd': 0, 'gpu': 0, 'traffic': 0, 'nat_ports': 0, 'web_proxy': 0, 'bandwidth_up': 0, 'bandwidth_down': 0}
+        vm_resource_usage = {'cpu': 0, 'ram': 0, 'ssd': 0, 'gpu': 0, 'traffic': 0, 'nat_ports': 0, 'web_proxy': 0, 'bandwidth_up': 0, 'bandwidth_down': 0, 'nat_ips': 0, 'pub_ips': 0}
         vm_owners = []
         if hasattr(server, 'vm_saving') and vm_uuid in server.vm_saving:
             vm_config = server.vm_saving[vm_uuid]
@@ -1058,8 +1315,18 @@ class RestManager:
                     'nat_ports': getattr(vm_config, 'nat_num', 0),
                     'web_proxy': getattr(vm_config, 'web_num', 0),
                     'bandwidth_up': getattr(vm_config, 'speed_u', 0),
-                    'bandwidth_down': getattr(vm_config, 'speed_d', 0)
+                    'bandwidth_down': getattr(vm_config, 'speed_d', 0),
+                    'nat_ips': 0,
+                    'pub_ips': 0
                 }
+                # 计算IP数量
+                nic_all = getattr(vm_config, 'nic_all', {})
+                for nic_name, nic_conf in nic_all.items():
+                    nic_type = getattr(nic_conf, 'nic_type', 'nat')
+                    if nic_type == 'nat':
+                        vm_resource_usage['nat_ips'] += 1
+                    elif nic_type == 'pub':
+                        vm_resource_usage['pub_ips'] += 1
                 # 获取虚拟机的所有所有者
                 vm_owners = getattr(vm_config, 'own_all', [])
 
@@ -1095,6 +1362,7 @@ class RestManager:
                         used_web_proxy=owner_user.get('used_web_proxy', 0) - vm_resource_usage['web_proxy'],
                         used_bandwidth_up=owner_user.get('used_bandwidth_up', 0) - vm_resource_usage['bandwidth_up'],
                         used_bandwidth_down=owner_user.get('used_bandwidth_down', 0) - vm_resource_usage['bandwidth_down']
+                        # 注意：IP使用量通过_calculate_user_ip_usage函数实时计算，无需在数据库中维护
                     )
 
         if result and result.success:
@@ -1219,6 +1487,158 @@ class RestManager:
         
         self.hs_manage.all_save()
         return self.api_response(200, '删除成功')
+
+    # 移交虚拟机所有权 ########################################################################
+    # :param hs_name: 主机名称
+    # :param vm_uuid: 虚拟机UUID
+    # :return: 移交所有权结果的API响应
+    # ####################################################################################
+    def transfer_vm_ownership(self, hs_name, vm_uuid):
+        """移交虚拟机所有权"""
+        data = request.get_json() or {}
+        new_owner = data.get('new_owner', '').strip()
+        keep_access = data.get('keep_access', False)
+        confirm_transfer = data.get('confirm_transfer', False)
+        
+        # 参数验证
+        if not new_owner:
+            return self.api_response(400, '新所有者用户名不能为空')
+        
+        if not confirm_transfer:
+            return self.api_response(400, '必须确认移交所有权')
+        
+        # 获取当前用户信息 - 从session中获取认证用户
+        current_username = session.get('username', '')
+        
+        # 检查主机是否存在
+        server = self.hs_manage.get_host(hs_name)
+        if not server:
+            return self.api_response(404, '主机不存在')
+
+        # 检查虚拟机是否存在
+        vm_config = server.vm_saving.get(vm_uuid)
+        if not vm_config:
+            return self.api_response(404, '虚拟机不存在')
+
+        # 检查当前用户是否是主所有者（第一个所有者）
+        owners = getattr(vm_config, 'own_all', [])
+        if not owners or owners[0] != current_username:
+            return self.api_response(403, '只有主所有者可以移交虚拟机所有权')
+        
+# 检查新用户是否存在
+        new_user = self.db.get_user_by_username(new_owner)
+        if not new_user and new_owner != 'admin':
+            return self.api_response(404, f'用户 "{new_owner}" 不存在')
+
+        # 检查新所有者是否具有该主机的访问权限（admin用户除外）
+        if new_owner != 'admin':
+            if not check_host_access(hs_name, new_user):
+                return self.api_response(403, f'移交失败：新所有者 "{new_owner}" 没有访问主机 "{hs_name}" 的权限')
+
+        # 检查新所有者的资源配额
+        resource_usage = {
+            'cpu': getattr(vm_config, 'cpu_num', 0),
+            'ram': getattr(vm_config, 'ram_num', 0),
+            'ssd': getattr(vm_config, 'hdd_num', 0),
+            'gpu': getattr(vm_config, 'gpu_mem', 0),
+            'traffic': getattr(vm_config, 'flu_num', 0),
+            'nat_ports': getattr(vm_config, 'nat_num', 0),
+            'web_proxy': getattr(vm_config, 'web_num', 0),
+            'bandwidth_up': getattr(vm_config, 'speed_u', 0),
+            'bandwidth_down': getattr(vm_config, 'speed_d', 0),
+            'nat_ips': 0,
+            'pub_ips': 0
+        }
+        
+        # 计算IP数量
+        nic_all = getattr(vm_config, 'nic_all', {})
+        for nic_name, nic_conf in nic_all.items():
+            nic_type = getattr(nic_conf, 'nic_type', 'nat')
+            if nic_type == 'nat':
+                resource_usage['nat_ips'] += 1
+            elif nic_type == 'pub':
+                resource_usage['pub_ips'] += 1
+        
+        # 检查新所有者配额是否足够（管理员用户不受限制）
+        if new_owner != 'admin':
+            has_quota, quota_error_msg = self._check_resource_quota(new_user, **resource_usage)
+            if not has_quota:
+                return self.api_response(400, f'移交失败：新所有者资源配额不足 - {quota_error_msg}')
+        
+        # 调用Transfer函数移交所有权
+        result = server.Transfer(vm_uuid, new_owner, keep_access)
+        if not result.success:
+            return self.api_response(500, f'移交失败: {result.message}')
+        
+        # 保存配置
+        self.hs_manage.all_save()
+        
+        # 处理资源配额变更
+        try:
+            # 如果不保留原所有者权限，需要调整资源配额
+            if not keep_access:
+                old_owner_user = self.db.get_user_by_username(current_username)
+                new_owner_user = self.db.get_user_by_username(new_owner)
+                
+                if old_owner_user and new_owner_user:
+                    # 获取虚拟机资源使用情况
+                    resource_usage = {
+                        'cpu': getattr(vm_config, 'cpu_num', 0),
+                        'ram': getattr(vm_config, 'ram_num', 0),
+                        'ssd': getattr(vm_config, 'hdd_num', 0),
+                        'gpu': getattr(vm_config, 'gpu_mem', 0),
+                        'traffic': getattr(vm_config, 'flu_num', 0),
+                        'nat_ports': getattr(vm_config, 'nat_num', 0),
+                        'web_proxy': getattr(vm_config, 'web_num', 0),
+                        'bandwidth_up': getattr(vm_config, 'speed_u', 0),
+                        'bandwidth_down': getattr(vm_config, 'speed_d', 0),
+                        'nat_ips': 0,
+                        'pub_ips': 0
+                    }
+                    
+                    # 计算IP数量
+                    nic_all = getattr(vm_config, 'nic_all', {})
+                    for nic_name, nic_conf in nic_all.items():
+                        nic_type = getattr(nic_conf, 'nic_type', 'nat')
+                        if nic_type == 'nat':
+                            resource_usage['nat_ips'] += 1
+                        elif nic_type == 'pub':
+                            resource_usage['pub_ips'] += 1
+                    
+                    # 从原所有者配额中扣除
+                    self.db.update_user_resource_usage(
+                        old_owner_user['id'],
+                        used_cpu=old_owner_user.get('used_cpu', 0) - resource_usage['cpu'],
+                        used_ram=old_owner_user.get('used_ram', 0) - resource_usage['ram'],
+                        used_ssd=old_owner_user.get('used_ssd', 0) - resource_usage['ssd'],
+                        used_gpu=old_owner_user.get('used_gpu', 0) - resource_usage['gpu'],
+                        used_traffic=old_owner_user.get('used_traffic', 0) - resource_usage['traffic'],
+                        used_nat_ports=old_owner_user.get('used_nat_ports', 0) - resource_usage['nat_ports'],
+                        used_web_proxy=old_owner_user.get('used_web_proxy', 0) - resource_usage['web_proxy'],
+                        used_bandwidth_up=old_owner_user.get('used_bandwidth_up', 0) - resource_usage['bandwidth_up'],
+                        used_bandwidth_down=old_owner_user.get('used_bandwidth_down', 0) - resource_usage['bandwidth_down']
+                        # 注意：IP使用量通过_calculate_user_ip_usage函数实时计算，无需在数据库中维护
+                    )
+                    
+                    # 添加到新所有者配额中
+                    self.db.update_user_resource_usage(
+                        new_owner_user['id'],
+                        used_cpu=new_owner_user.get('used_cpu', 0) + resource_usage['cpu'],
+                        used_ram=new_owner_user.get('used_ram', 0) + resource_usage['ram'],
+                        used_ssd=new_owner_user.get('used_ssd', 0) + resource_usage['ssd'],
+                        used_gpu=new_owner_user.get('used_gpu', 0) + resource_usage['gpu'],
+                        used_traffic=new_owner_user.get('used_traffic', 0) + resource_usage['traffic'],
+                        used_nat_ports=new_owner_user.get('used_nat_ports', 0) + resource_usage['nat_ports'],
+                        used_web_proxy=new_owner_user.get('used_web_proxy', 0) + resource_usage['web_proxy'],
+                        used_bandwidth_up=new_owner_user.get('used_bandwidth_up', 0) + resource_usage['bandwidth_up'],
+                        used_bandwidth_down=new_owner_user.get('used_bandwidth_down', 0) + resource_usage['bandwidth_down']
+                        # 注意：IP使用量通过_calculate_user_ip_usage函数实时计算，无需在数据库中维护
+                    )
+        except Exception as e:
+            logger.error(f"更新资源配额失败: {str(e)}")
+            # 不影响主要功能，记录错误即可
+        
+        return self.api_response(200, f'虚拟机所有权已成功移交给 {new_owner}')
 
     # 虚拟机密码修改 ########################################################################
     # :param hs_name: 主机名称
@@ -1666,6 +2086,35 @@ class RestManager:
             return self.api_response(404, '虚拟机不存在')
 
         data = request.get_json() or {}
+        nic_type = data.get('nic_type', 'nat')
+
+        # 检查用户IP配额
+        from flask import session
+        from HostModule.UserAuth import check_resource_quota
+        from HostModule.DataManage import HostDatabase
+        
+        db = HostDatabase()
+        user_id = session.get('user_id')
+        if user_id:
+            user_data = db.get_user_by_id(user_id)
+            if user_data:
+                # 使用_calculate_user_ip_usage获取准确的IP使用量
+                username = user_data.get('username', '')
+                ip_usage = self._calculate_user_ip_usage(username)
+                
+                # 更新用户数据中的IP使用量
+                user_data['used_nat_ips'] = ip_usage.get('used_nat_ips', 0)
+                user_data['used_pub_ips'] = ip_usage.get('used_pub_ips', 0)
+                
+                # 根据网卡类型检查配额
+                if nic_type == 'nat':
+                    can_use, error_msg = check_resource_quota(user_data, nat_ips=1)
+                    if not can_use:
+                        return self.api_response(400, error_msg)
+                elif nic_type == 'pub':
+                    can_use, error_msg = check_resource_quota(user_data, pub_ips=1)
+                    if not can_use:
+                        return self.api_response(400, error_msg)
 
         # 从数据库读取vm_conf
         server.data_get()
@@ -1716,6 +2165,12 @@ class RestManager:
         
         if result and result.success:
             self.hs_manage.all_save()
+            
+            # 更新用户IP使用量 - 由于数据库中没有used_nat_ips和used_pub_ips字段，
+            # IP使用量通过_calculate_user_ip_usage函数实时计算，无需在数据库中维护
+            # 注意：IP配额检查会在操作时通过_calculate_user_ip_usage实时获取准确的使用量
+            logger.info(f"网卡添加成功，IP使用量将通过实时计算更新")
+            
             return self.api_response(200, f'网卡 {nic_name} 添加成功')
         
         return self.api_response(400, result.message if result else '添加网卡失败')
@@ -1748,6 +2203,10 @@ class RestManager:
         if not vm_config:
             return self.api_response(404, '虚拟机不存在')
 
+        # 删除网卡前，先记录网卡类型
+        nic_config = vm_config.nic_all.get(nic_name)
+        nic_type = nic_config.nic_type if nic_config else 'nat'
+        
         # 拷贝并修改vm_conf
         vm_config_dict = vm_config.__save__()
         old_vm_config = VMConfig(**vm_config_dict)
@@ -1763,6 +2222,11 @@ class RestManager:
             save_success = self.hs_manage.all_save()
             if not save_success:
                 logger.warning(f"删除网卡 {nic_name} 后保存数据失败")
+            
+            # 更新用户IP使用量 - 由于数据库中没有used_nat_ips和used_pub_ips字段，
+            # IP使用量通过_calculate_user_ip_usage函数实时计算，无需在数据库中维护
+            logger.info(f"网卡删除成功，IP使用量将通过实时计算更新")
+            
             return self.api_response(200, f'网卡 {nic_name} 已删除')
         
         return self.api_response(400, result.message if result else '删除网卡失败')

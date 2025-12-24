@@ -16,6 +16,22 @@
     .swal2-container {
         z-index: 10000 !important;
     }
+    
+    /* 自定义确认对话框样式 */
+    .transform {
+        transform-origin: center;
+    }
+    .scale-95 {
+        transform: scale(0.95);
+        opacity: 0.9;
+    }
+    .scale-100 {
+        transform: scale(1);
+        opacity: 1;
+    }
+    .transition-all {
+        transition: all 0.15s ease-in-out;
+    }
 </style>
 
 <!-- 面包屑导航 -->
@@ -29,6 +45,9 @@
     </div>
 </div>
 
+<!-- 隐藏的当前用户信息 -->
+<div id="currentUserContainer" style="display: none;" data-current-user="{{ username if username else '' }}"></div>
+
 <!-- 虚拟机头部信息 -->
 <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">
     <div class="flex items-center justify-between">
@@ -40,22 +59,36 @@
             <div>
                 <h1 class="text-lg font-semibold text-gray-800">{{ vm_uuid }}</h1>
                 <p id="vmOsName" class="text-sm text-gray-500">加载中...</p>
-                    <div class="flex items-center gap-2 mt-1">
-                        <span class="text-xs text-gray-400">系统密码:</span>
-                        <input type="password" id="vmOsPass" readonly 
-                               class="text-xs text-gray-600 bg-transparent border-none p-0 w-24" 
-                               value="********">
-                        <button type="button" onclick="togglePasswordVisibility()" 
-                                class="text-gray-400 hover:text-gray-600 transition-colors" 
-                                title="查看/隐藏密码">
-                            <span id="eyeIcon" class="iconify" data-icon="mdi:eye-outline" data-width="16"></span>
-                        </button>
-                        <button type="button" onclick="copyPassword()" 
-                                class="text-gray-400 hover:text-gray-600 transition-colors" 
-                                title="复制密码">
-                            <span class="iconify" data-icon="mdi:content-copy" data-width="16"></span>
-                        </button>
-                    </div>
+                <div class="flex items-center gap-2 mt-1">
+                    <span class="text-xs text-gray-400">系统密码:</span>
+                    <input type="password" id="vmOsPass" readonly
+                           class="text-xs text-gray-600 bg-transparent border-none p-0 w-24"
+                           value="********">
+                    <button type="button" onclick="togglePasswordVisibility()"
+                            class="text-gray-400 hover:text-gray-600 transition-colors"
+                            title="查看/隐藏密码">
+                        <span id="eyeIcon" class="iconify" data-icon="mdi:eye-outline" data-width="16"></span>
+                    </button>
+                    <button type="button" onclick="copyPassword()"
+                            class="text-gray-400 hover:text-gray-600 transition-colors"
+                            title="复制密码">
+                        <span class="iconify" data-icon="mdi:content-copy" data-width="16"></span>
+                    </button>
+                    <span class="text-xs text-gray-400 ml-4">VNC密码:</span>
+                    <input type="password" id="vmVncPass" readonly
+                           class="text-xs text-gray-600 bg-transparent border-none p-0 w-24"
+                           value="********">
+                    <button type="button" onclick="toggleVncPasswordVisibility()"
+                            class="text-gray-400 hover:text-gray-600 transition-colors"
+                            title="查看/隐藏VNC密码">
+                        <span id="vncEyeIcon" class="iconify" data-icon="mdi:eye-outline" data-width="16"></span>
+                    </button>
+                    <button type="button" onclick="copyVncPassword()"
+                            class="text-gray-400 hover:text-gray-600 transition-colors"
+                            title="复制VNC密码">
+                        <span class="iconify" data-icon="mdi:content-copy" data-width="16"></span>
+                    </button>
+                </div>
             </div>
         </div>
         <div class="flex items-center gap-3">
@@ -548,12 +581,12 @@
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-base font-semibold text-gray-800 flex items-center gap-2">
                     <span class="iconify text-gray-500" data-icon="mdi:account-multiple" data-width="20"></span>
-                    虚拟机所有者管理
+                    虚拟机分享管理
                 </h2>
-                <button onclick="showAddOwnerModal()"
+                <button id="addOwnerBtn" onclick="showAddOwnerModal()"
                         class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
                     <span class="iconify" data-icon="mdi:account-plus" data-width="18"></span>
-                    添加所有者
+                    添加使用者
                 </button>
             </div>
             <div id="ownersList">
@@ -629,10 +662,12 @@
             <div>
                 <label class="block text-sm font-medium text-gray-600 mb-1">网卡类型 *</label>
                 <select id="ipNicType" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        onchange="updateNicTypeHint()">
                     <option value="nat">内网(NAT)</option>
                     <option value="pub">公网(Public)</option>
                 </select>
+                <p id="nicTypeHint" class="text-xs text-gray-500 mt-1">选择网卡类型后可查看配额状态</p>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-600 mb-1">IPv4地址</label>
@@ -651,13 +686,20 @@
                 <label class="block text-sm font-medium text-gray-600 mb-1">网关</label>
                 <input type="text" id="ipGateway"
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                       placeholder="留空自动分配，例如: 192.168.1.1">
+                       placeholder="例如: 192.168.1.1">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-600 mb-1">子网掩码</label>
                 <input type="text" id="ipNetmask" value="255.255.255.0"
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                        placeholder="默认: 255.255.255.0">
+            </div>
+            <!-- IP配额信息 -->
+            <div id="ipQuotaInfo" class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                <h5 class="text-sm font-semibold text-gray-700 mb-2">IP配额信息</h5>
+                <div id="quotaDetails" class="text-xs text-gray-600 space-y-1">
+                    <!-- 配额信息将通过JavaScript动态加载 -->
+                </div>
             </div>
             <div class="modal-action">
                 <button type="button" onclick="closeIPModal()"
@@ -770,31 +812,31 @@
                 <label for="proxySSLEnabled" class="text-sm font-medium text-gray-700">启用 HTTPS (SSL/TLS)</label>
             </div>
 
-<!--            <div id="sslOptions" style="display: none;" class="space-y-4 p-4 bg-gray-50 rounded-lg">-->
-<!--                <div>-->
-<!--                    <label class="block text-sm font-medium text-gray-600 mb-1">SSL证书类型</label>-->
-<!--                    <select id="proxySSLType"-->
-<!--                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">-->
-<!--                        <option value="auto">自动申请证书 (Let's Encrypt)</option>-->
-<!--                        <option value="self-signed">自签名证书</option>-->
-<!--                        <option value="custom">自定义证书</option>-->
-<!--                    </select>-->
-<!--                </div>-->
-<!--                <div id="customCertFields" style="display: none;" class="space-y-4">-->
-<!--                    <div>-->
-<!--                        <label class="block text-sm font-medium text-gray-600 mb-1">SSL证书内容</label>-->
-<!--                        <textarea id="proxySSLCert" rows="3"-->
-<!--                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"-->
-<!--                                  placeholder="-&#45;&#45;&#45;&#45;BEGIN CERTIFICATE-&#45;&#45;&#45;&#45;"></textarea>-->
-<!--                    </div>-->
-<!--                    <div>-->
-<!--                        <label class="block text-sm font-medium text-gray-600 mb-1">SSL私钥内容</label>-->
-<!--                        <textarea id="proxySSLKey" rows="3"-->
-<!--                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"-->
-<!--                                  placeholder="-&#45;&#45;&#45;&#45;BEGIN PRIVATE KEY-&#45;&#45;&#45;&#45;"></textarea>-->
-<!--                    </div>-->
-<!--                </div>-->
-<!--            </div>-->
+            <!--            <div id="sslOptions" style="display: none;" class="space-y-4 p-4 bg-gray-50 rounded-lg">-->
+            <!--                <div>-->
+            <!--                    <label class="block text-sm font-medium text-gray-600 mb-1">SSL证书类型</label>-->
+            <!--                    <select id="proxySSLType"-->
+            <!--                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">-->
+            <!--                        <option value="auto">自动申请证书 (Let's Encrypt)</option>-->
+            <!--                        <option value="self-signed">自签名证书</option>-->
+            <!--                        <option value="custom">自定义证书</option>-->
+            <!--                    </select>-->
+            <!--                </div>-->
+            <!--                <div id="customCertFields" style="display: none;" class="space-y-4">-->
+            <!--                    <div>-->
+            <!--                        <label class="block text-sm font-medium text-gray-600 mb-1">SSL证书内容</label>-->
+            <!--                        <textarea id="proxySSLCert" rows="3"-->
+            <!--                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"-->
+            <!--                                  placeholder="-&#45;&#45;&#45;&#45;BEGIN CERTIFICATE-&#45;&#45;&#45;&#45;"></textarea>-->
+            <!--                    </div>-->
+            <!--                    <div>-->
+            <!--                        <label class="block text-sm font-medium text-gray-600 mb-1">SSL私钥内容</label>-->
+            <!--                        <textarea id="proxySSLKey" rows="3"-->
+            <!--                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"-->
+            <!--                                  placeholder="-&#45;&#45;&#45;&#45;BEGIN PRIVATE KEY-&#45;&#45;&#45;&#45;"></textarea>-->
+            <!--                    </div>-->
+            <!--                </div>-->
+            <!--            </div>-->
 
             <div>
                 <label class="block text-sm font-medium text-gray-600 mb-1">描述</label>
@@ -879,7 +921,7 @@
             移交数据盘
         </h3>
         <p class="py-4">确定要移交数据盘 "<span id="transferHddName" class="font-medium"></span>" 吗？</p>
-        
+
         <!-- 目标虚拟机输入 -->
         <div class="mb-4">
             <label class="block text-sm font-medium text-gray-600 mb-1">目标虚拟机UUID *</label>
@@ -888,7 +930,7 @@
                    placeholder="输入目标虚拟机UUID">
             <p class="text-xs text-gray-500 mt-1">数据盘将从当前虚拟机移交到目标虚拟机</p>
         </div>
-        
+
         <!-- 重要提示 -->
         <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p class="text-sm text-blue-700 flex items-start gap-2">
@@ -896,11 +938,11 @@
                 <span>目标机器不会自动挂载接收的硬盘</span>
             </p>
         </div>
-        
+
         <!-- 确认勾选 -->
         <div class="space-y-3 mb-6">
             <label class="flex items-start gap-2 cursor-pointer bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <input type="checkbox" id="transferConfirmCheck" 
+                <input type="checkbox" id="transferConfirmCheck"
                        class="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                        onchange="toggleTransferConfirmButton()">
                 <span class="text-sm text-gray-700">
@@ -908,7 +950,7 @@
                 </span>
             </label>
         </div>
-        
+
         <div class="modal-action">
             <button onclick="closeTransferHDDConfirmModal()"
                     class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
@@ -934,18 +976,19 @@
             <span class="iconify" data-icon="mdi:harddisk-plus" data-width="24"></span>
             挂载数据盘
         </h3>
-        <p class="py-4">确定要挂载数据盘到虚拟机 "<span id="mountVmName" class="font-medium">{{ vm_uuid }}</span>" 吗？</p>
-        
+        <p class="py-4">确定要挂载数据盘到虚拟机 "<span id="mountVmName" class="font-medium">{{ vm_uuid }}</span>" 吗？
+        </p>
+
         <!-- 磁盘信息显示 -->
         <div class="mb-4 bg-purple-50 border border-purple-200 rounded-lg p-3">
             <p class="text-sm text-gray-700 mb-1">磁盘名称：</p>
             <code id="mountHddName" class="text-sm font-mono text-purple-700"></code>
         </div>
-        
+
         <!-- 确认勾选 -->
         <div class="space-y-3 mb-6">
             <label class="flex items-start gap-2 cursor-pointer bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <input type="checkbox" id="mountConfirmCheck" 
+                <input type="checkbox" id="mountConfirmCheck"
                        class="mt-1 w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                        onchange="toggleMountConfirmButton()">
                 <span class="text-sm text-gray-700">
@@ -953,7 +996,7 @@
                 </span>
             </label>
         </div>
-        
+
         <div class="modal-action">
             <button onclick="closeMountHDDConfirmModal()"
                     class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
@@ -980,11 +1023,11 @@
             卸载数据盘
         </h3>
         <p class="py-4">确定要卸载数据盘 "<span id="unmountHddName" class="font-medium"></span>" 吗？</p>
-        
+
         <!-- 确认勾选 -->
         <div class="space-y-3 mb-6">
             <label class="flex items-start gap-2 cursor-pointer bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <input type="checkbox" id="unmountConfirmCheck" 
+                <input type="checkbox" id="unmountConfirmCheck"
                        class="mt-1 w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
                        onchange="toggleUnmountConfirmButton()">
                 <span class="text-sm text-gray-700">
@@ -992,7 +1035,7 @@
                 </span>
             </label>
         </div>
-        
+
         <div class="modal-action">
             <button onclick="closeUnmountHDDConfirmModal()"
                     class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
@@ -1019,16 +1062,16 @@
             删除数据盘
         </h3>
         <p class="py-4">确定要删除数据盘 "<span id="deleteHddName" class="font-medium"></span>" 吗？</p>
-        
+
         <!-- 警告信息 -->
         <div class="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
             <p class="text-sm text-red-700">⚠️ 此操作不可恢复，磁盘数据将被永久删除！</p>
         </div>
-        
+
         <!-- 确认勾选 -->
         <div class="space-y-3 mb-6">
             <label class="flex items-start gap-2 cursor-pointer bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <input type="checkbox" id="deleteConfirmCheck" 
+                <input type="checkbox" id="deleteConfirmCheck"
                        class="mt-1 w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
                        onchange="toggleDeleteConfirmButton()">
                 <span class="text-sm text-gray-700">
@@ -1036,7 +1079,7 @@
                 </span>
             </label>
         </div>
-        
+
         <div class="modal-action">
             <button onclick="closeDeleteHDDConfirmModal()"
                     class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
@@ -1085,11 +1128,11 @@
                        placeholder="例如: 系统安装盘">
                 <p class="text-xs text-gray-500 mt-1">可选，用于说明此ISO的用途</p>
             </div>
-            
+
             <!-- 确认勾选 -->
             <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                 <label class="flex items-start gap-2 cursor-pointer">
-                    <input type="checkbox" id="isoMountConfirmCheck" 
+                    <input type="checkbox" id="isoMountConfirmCheck"
                            class="mt-1 w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                            onchange="toggleIsoMountConfirmButton()">
                     <span class="text-sm text-gray-700">
@@ -1097,7 +1140,7 @@
                     </span>
                 </label>
             </div>
-            
+
             <div class="modal-action">
                 <button type="button" onclick="closeISOModal()"
                         class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
@@ -1125,11 +1168,11 @@
             卸载ISO镜像
         </h3>
         <p class="py-4">确定要卸载ISO镜像 "<span id="unmountIsoName" class="font-medium"></span>" 吗？</p>
-        
+
         <!-- 确认勾选 -->
         <div class="space-y-3 mb-6">
             <label class="flex items-start gap-2 cursor-pointer bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <input type="checkbox" id="unmountIsoConfirmCheck" 
+                <input type="checkbox" id="unmountIsoConfirmCheck"
                        class="mt-1 w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
                        onchange="toggleUnmountIsoConfirmButton()">
                 <span class="text-sm text-gray-700">
@@ -1137,7 +1180,7 @@
                 </span>
             </label>
         </div>
-        
+
         <div class="modal-action">
             <button onclick="closeUnmountISOConfirmModal()"
                     class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
@@ -1171,11 +1214,11 @@
                        placeholder="例如: 系统更新前备份">
                 <p class="text-xs text-gray-500 mt-1">请输入备份的说明信息</p>
             </div>
-            
+
             <!-- 确认勾选 -->
             <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                 <label class="flex items-start gap-2 cursor-pointer">
-                    <input type="checkbox" id="backupConfirmCheck" 
+                    <input type="checkbox" id="backupConfirmCheck"
                            class="mt-1 w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                            onchange="toggleBackupConfirmButton()">
                     <span class="text-sm text-gray-700">
@@ -1183,7 +1226,7 @@
                     </span>
                 </label>
             </div>
-            
+
             <div class="modal-action">
                 <button type="button" onclick="closeCreateBackupModal()"
                         class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
@@ -1208,7 +1251,7 @@
     <div class="modal-box max-w-lg">
         <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
             <span class="iconify text-blue-600" data-icon="mdi:account-plus" data-width="24"></span>
-            添加虚拟机所有者
+            添加分享人
         </h3>
         <form id="addOwnerForm" class="space-y-4">
             <div>
@@ -1218,7 +1261,7 @@
                        placeholder="请输入用户名">
                 <p class="text-xs text-gray-500 mt-1">添加后该用户将共享此虚拟机的资源配额</p>
             </div>
-            
+
             <div class="modal-action">
                 <button type="button" onclick="closeAddOwnerModal()"
                         class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
@@ -1228,6 +1271,95 @@
                         class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
                     <span class="iconify" data-icon="mdi:check" data-width="18"></span>
                     添加
+                </button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>关闭</button>
+    </form>
+</dialog>
+
+<!-- 移交所有者模态框 -->
+<dialog id="transferOwnershipModal" class="modal">
+    <div class="modal-box max-w-lg">
+        <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+            <span class="iconify text-orange-600" data-icon="mdi:swap-horizontal" data-width="24"></span>
+            移交虚拟机所有权
+        </h3>
+        <form id="transferOwnershipForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">新所有者用户名 *</label>
+                <input type="text" id="newOwnerUsername" required
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                       placeholder="请输入新所有者的用户名">
+                <p class="text-xs text-gray-500 mt-1">移交后该用户将成为虚拟机的所有者，占用资源配额，您将不再占用此虚拟机资源配额</p>
+            </div>
+
+            <div class="space-y-2">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="keepAccessCheckbox"
+                           class="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500">
+                    <span class="text-sm text-gray-700">继续保留这个虚拟机的访问权限</span>
+                </label>
+                <div class="ml-6 space-y-2">
+                    <div class="flex items-start space-x-2">
+                        <svg class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                  clip-rule="evenodd"/>
+                        </svg>
+                        <p class="text-sm text-blue-600">勾选将继续保留此虚拟机的访问权限，但不再是所有者</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="confirmTransferCheckbox" required
+                           class="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500">
+                    <span class="text-sm text-gray-700">我确认移交此虚拟机所有者权限</span>
+                </label>
+                <div class="ml-6 space-y-2">
+                    <div class="flex items-start space-x-2">
+                        <svg class="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                  clip-rule="evenodd"/>
+                        </svg>
+                        <p class="text-sm text-red-600 font-medium">此操作将立即执行且<strong>不可撤销</strong>，请谨慎确认所有者转移
+                        </p>
+                    </div>
+                    <div class="flex items-start space-x-2">
+                        <svg class="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                  clip-rule="evenodd"/>
+                        </svg>
+                        <p class="text-sm text-orange-600">新的所有者必须拥有足够的<strong>可用资源配额</strong>才能完成移交
+                        </p>
+                    </div>
+                    <div class="flex items-start space-x-2">
+                        <svg class="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                  clip-rule="evenodd"/>
+                        </svg>
+                        <p class="text-sm text-orange-600">新的所有者必须拥有对应主机的<strong>访问权限</strong>才能完成移交
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-action">
+                <button type="button" onclick="closeTransferOwnershipModal()"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                    取消
+                </button>
+                <button type="submit" id="transferOwnershipBtn"
+                        class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span class="iconify" data-icon="mdi:swap-horizontal" data-width="18"></span>
+                    移交所有权
                 </button>
             </div>
         </form>
@@ -1278,26 +1410,26 @@
         </h3>
         <p class="py-4">为虚拟机 "<span id="restoreVmName" class="font-medium">{{ vm_uuid }}</span>" 还原备份
         </p>
-        
+
         <!-- 备份信息显示 -->
         <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p class="text-sm text-gray-700 mb-1">备份名称：</p>
             <code id="restoreBackupName" class="text-sm font-mono text-blue-700"></code>
         </div>
-        
+
         <!-- 确认勾选 -->
         <div class="space-y-3 mb-6">
             <label class="flex items-start gap-2 cursor-pointer bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <input type="checkbox" id="restoreConfirmCheck1" 
+                <input type="checkbox" id="restoreConfirmCheck1"
                        class="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                        onchange="toggleRestoreConfirmButton()">
                 <span class="text-sm text-gray-700">
                     我已确认停止当前虚拟机进行操作
                 </span>
             </label>
-            
+
             <label class="flex items-start gap-2 cursor-pointer bg-red-50 border border-red-200 rounded-lg p-3">
-                <input type="checkbox" id="restoreConfirmCheck2" 
+                <input type="checkbox" id="restoreConfirmCheck2"
                        class="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                        onchange="toggleRestoreConfirmButton()">
                 <span class="text-sm text-gray-700">
@@ -1305,7 +1437,7 @@
                 </span>
             </label>
         </div>
-        
+
         <div class="modal-action">
             <button onclick="closeRestoreBackupModal()"
                     class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
@@ -1333,28 +1465,28 @@
         </h3>
         <p class="py-4">为虚拟机 "<span id="reinstallVmName" class="font-medium">{{ vm_uuid }}</span>" 重装系统
         </p>
-        
+
         <!-- 系统选择 -->
         <div class="mb-4">
             <label class="block text-sm font-medium text-gray-600 mb-2">选择操作系统：</label>
-            <select id="reinstallOsSelect" 
+            <select id="reinstallOsSelect"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
                 <option value="">请选择操作系统</option>
                 <!-- 操作系统选项将从主机的system_maps动态加载 -->
             </select>
         </div>
-        
+
         <!-- 确认勾选 -->
         <div class="mb-6">
             <label class="flex items-start gap-2 cursor-pointer">
-<input type="checkbox" id="reinstallConfirmCheck" 
+                <input type="checkbox" id="reinstallConfirmCheck"
                        class="mt-1 w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500">
                 <span class="text-sm text-gray-700">
                     我已备份数据，确认重装系统将清空系统盘数据
                 </span>
             </label>
         </div>
-        
+
         <div class="modal-action">
             <button onclick="closeReinstallModal()"
                     class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
@@ -1388,7 +1520,7 @@
                            class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                            placeholder="至少8位，包含字母、数字、特殊符号中的两种"
                            oninput="onPasswordInput()">
-                    <button type="button" onclick="generateNewPassword()" 
+                    <button type="button" onclick="generateNewPassword()"
                             class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-1 whitespace-nowrap">
                         <span class="iconify" data-icon="mdi:refresh" data-width="18"></span>
                         随机
@@ -1397,10 +1529,10 @@
                 <p id="newPasswordError" class="text-xs text-red-600 mt-1" style="display: none;"></p>
                 <p class="text-xs text-gray-500 mt-1">密码长度不得低于8位，且至少包含字母、数字、特殊符号中的两种</p>
             </div>
-            
+
             <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                 <label class="flex items-start gap-2 cursor-pointer">
-                    <input type="checkbox" id="confirmForceShutdownPassword" 
+                    <input type="checkbox" id="confirmForceShutdownPassword"
                            class="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                            onchange="togglePasswordConfirmButton()">
                     <span class="text-sm text-gray-700">
@@ -1415,7 +1547,8 @@
                     取消
                 </button>
                 <button type="submit" id="confirmPasswordChange"
-                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled>
                     <span class="iconify" data-icon="mdi:check" data-width="18"></span>
                     确认修改
                 </button>
@@ -1520,7 +1653,7 @@
                                        class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                        placeholder="设置系统登录密码"
                                        oninput="syncOsPassToVncPass()">
-                                <button type="button" onclick="generateEditOsPass()" 
+                                <button type="button" onclick="generateEditOsPass()"
                                         class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-1 whitespace-nowrap min-w-[80px]">
                                     <span class="iconify" data-icon="mdi:refresh" data-width="18"></span>
                                     随机
@@ -1604,7 +1737,7 @@
     function getNicTypeDisplay(nicType) {
         const typeMap = {
             'nat': '内网',
-            'pub': '外网', 
+            'pub': '外网',
             'bridged': '桥接',
             'host-only': '仅主机'
         };
@@ -1616,7 +1749,7 @@
         const passInput = document.getElementById('vmOsPass');
         const eyeIcon = document.getElementById('eyeIcon');
         const actualPassword = $(passInput).data('password') || '';
-        
+
         if (passInput.type === 'password') {
             // 当前是隐藏状态，切换为显示
             passInput.type = 'text';
@@ -1634,7 +1767,7 @@
     function copyPassword() {
         const passInput = document.getElementById('vmOsPass');
         const password = $(passInput).data('password') || passInput.value;
-        
+
         if (!password) {
             showToast('没有可复制的密码', 'warning');
             return;
@@ -1661,7 +1794,7 @@
         textarea.style.opacity = '0';
         document.body.appendChild(textarea);
         textarea.select();
-        
+
         try {
             document.execCommand('copy');
             showToast('密码已复制到剪贴板', 'success');
@@ -1669,7 +1802,69 @@
             console.error('复制失败:', err);
             showToast('复制失败，请手动复制', 'error');
         }
-        
+
+        document.body.removeChild(textarea);
+    }
+
+    // 切换VNC密码可见性
+    function toggleVncPasswordVisibility() {
+        const passInput = document.getElementById('vmVncPass');
+        const eyeIcon = document.getElementById('vncEyeIcon');
+        const actualPassword = $(passInput).data('password') || '';
+
+        if (passInput.type === 'password') {
+            // 当前是隐藏状态，切换为显示
+            passInput.type = 'text';
+            passInput.value = actualPassword || '(无密码)';
+            eyeIcon.setAttribute('data-icon', 'mdi:eye-off-outline');
+        } else {
+            // 当前是显示状态，切换为隐藏
+            passInput.type = 'password';
+            passInput.value = '********';
+            eyeIcon.setAttribute('data-icon', 'mdi:eye-outline');
+        }
+    }
+
+    // 复制VNC密码到剪贴板
+    function copyVncPassword() {
+        const passInput = document.getElementById('vmVncPass');
+        const password = $(passInput).data('password') || passInput.value;
+
+        if (!password) {
+            showToast('没有可复制的VNC密码', 'warning');
+            return;
+        }
+
+        // 使用现代剪贴板API
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(password).then(() => {
+                showToast('VNC密码已复制到剪贴板', 'success');
+            }).catch(err => {
+                console.error('复制失败:', err);
+                fallbackCopyVncPassword(password);
+            });
+        } else {
+            fallbackCopyVncPassword(password);
+        }
+    }
+
+    // 备用复制VNC密码方法（兼容旧浏览器）
+    function fallbackCopyVncPassword(password) {
+        const textarea = document.createElement('textarea');
+        textarea.value = password;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+
+        try {
+            document.execCommand('copy');
+            showToast('VNC密码已复制到剪贴板', 'success');
+        } catch (err) {
+            console.error('复制失败:', err);
+            showToast('复制失败，请手动复制', 'error');
+        }
+
         document.body.removeChild(textarea);
     }
 
@@ -1682,6 +1877,9 @@
         loadHDDList();
         loadISOList();
         loadBackupList();
+        
+        // 初始化自定义确认对话框
+        initConfirmDialog();
 
         // 表单提交处理
         $('#addNATForm').on('submit', function (e) {
@@ -1728,6 +1926,17 @@
         $('#addOwnerForm').on('submit', function (e) {
             e.preventDefault();
             submitAddOwner();
+        });
+
+        // 移交所有权表单提交处理
+        $('#transferOwnershipForm').on('submit', function (e) {
+            e.preventDefault();
+            submitTransferOwnership();
+        });
+
+        // 移交所有权表单输入监听
+        $('#newOwnerUsername, #confirmTransferCheckbox').on('input change', function () {
+            toggleTransferOwnershipButton();
         });
 
         // 编辑虚拟机表单提交处理
@@ -1832,9 +2041,9 @@
         document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('tab-active'));
 
         const tabMap = {
-            'info': 'infoTab', 
-            'nat': 'natTab', 
-            'ip': 'ipTab', 
+            'info': 'infoTab',
+            'nat': 'natTab',
+            'ip': 'ipTab',
             'proxy': 'proxyTab',
             'hdd': 'hddTab',
             'iso': 'isoTab',
@@ -1845,7 +2054,7 @@
         if (selectedPane) selectedPane.style.display = 'block';
 
         event.target.classList.add('tab-active');
-        
+
         // 切换到owners tab时加载所有者列表
         if (tabName === 'owners') {
             loadOwnersList();
@@ -1894,7 +2103,7 @@
         if (result && result.code === 200) {
             vmData = result.data;
             renderVMInfo(vmData);
-            
+
             // 初始化操作系统选项（用于编辑时）
             const config = vmData.config || {};
             updateOsOptions(config.os_name || '');
@@ -1958,6 +2167,13 @@
         // 如果没有密码，显示8位星号；如果有密码，也显示8位星号（隐藏状态）
         $('#vmOsPass').val('********');
         $('#vmOsPass').attr('type', 'password');
+
+        // 更新VNC密码
+        const vncPass = config.vc_pass || '';
+        $('#vmVncPass').data('password', vncPass); // 存储实际VNC密码
+        // 如果没有密码，显示8位星号；如果有密码，也显示8位星号（隐藏状态）
+        $('#vmVncPass').val('********');
+        $('#vmVncPass').attr('type', 'password');
 
         // 更新资源配置 - CPU
         $('#vmCpu').text((config.cpu_num || 0) + ' 核');
@@ -2095,15 +2311,15 @@
                 $('#vmIPv6').text(firstNic.ip6_addr);
             }
 
-        // 更新网卡选择下拉框
-        let nicOptions = '';
-        for (const nicName of Object.keys(nicAll)) {
-            nicOptions += `<option value="${nicName}">${nicName}</option>`;
-        }
-        $('#ipNic').html(nicOptions);
+            // 更新网卡选择下拉框
+            let nicOptions = '';
+            for (const nicName of Object.keys(nicAll)) {
+                nicOptions += `<option value="${nicName}">${nicName}</option>`;
+            }
+            $('#ipNic').html(nicOptions);
 
-        // 绘制历史数据图表
-        drawHistoryCharts(statusList);
+            // 绘制历史数据图表
+            drawHistoryCharts(statusList);
         } else {
             $('#nicList').html('<p class="text-sm text-gray-500">暂无网卡配置</p>');
         }
@@ -2267,7 +2483,7 @@
         });
 
         // API请求
-    const apiPromise = apiRequest(`/api/client/powers/${hostName}/${vmUuid}`, 'POST', {action});
+        const apiPromise = apiRequest(`/api/client/powers/${hostName}/${vmUuid}`, 'POST', {action});
 
         try {
             // 使用Promise.race处理超时
@@ -2364,7 +2580,7 @@
 
         // 检查是否可以启用按钮：复选框已勾选 且 密码为空或密码有效
         const isCheckboxChecked = confirmCheck.checked;
-        
+
         let isPasswordValid = false;
         if (!password) {
             // 密码为空时，认为有效（用户不修改密码）
@@ -2372,7 +2588,7 @@
         } else {
             // 密码不为空时，手动验证密码是否有效（不调用validatePasswordInput避免循环）
             let errors = [];
-            
+
             // 检查长度
             if (password.length < 8) {
                 errors.push('密码长度不得低于8位');
@@ -2387,7 +2603,7 @@
             if (typeCount < 2) {
                 errors.push('必须至少包含字母、数字、特殊符号中的两种');
             }
-            
+
             isPasswordValid = errors.length === 0;
         }
 
@@ -2452,7 +2668,7 @@
         const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
         const numbers = '0123456789';
         const allChars = letters + numbers;
-        
+
         let password = '';
         // 确保至少包含一个字母、一个数字
         password += letters.charAt(Math.floor(Math.random() * letters.length));
@@ -2461,7 +2677,7 @@
         for (let i = 2; i < length; i++) {
             password += allChars.charAt(Math.floor(Math.random() * allChars.length));
         }
-        
+
         // 打乱顺序
         return password.split('').sort(() => Math.random() - 0.5).join('');
     }
@@ -2517,10 +2733,10 @@
     }
 
     // 修改密码表单提交
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const changePasswordForm = document.getElementById('changePasswordForm');
         if (changePasswordForm) {
-            changePasswordForm.addEventListener('submit', async function(e) {
+            changePasswordForm.addEventListener('submit', async function (e) {
                 e.preventDefault();
 
                 const newPassword = document.getElementById('newPassword').value;
@@ -2596,10 +2812,10 @@
 
             // 填充表单数据
             document.getElementById('editVmUuid').value = vmUuid;
-            
+
             // 先更新操作系统选项，并传递当前系统名称以正确选中
             updateOsOptions(config.os_name || '');
-            
+
             document.getElementById('editOsPass').value = config.os_pass || '';
             document.getElementById('editVcPass').value = config.vc_pass || '';
             // VNC端口如果为空则生成随机端口
@@ -2652,20 +2868,20 @@
     function addEditNicConfig() {
         editNicCounter++;
         const container = document.getElementById('editNicConfigs');
-        
+
         // 自动生成网卡名称：ethernet0, ethernet1, ethernet2...
         const existingNics = Array.from(container.querySelectorAll('[id^="edit_nic_"]')).map(div => {
             const nameInput = div.querySelector(`[name^="edit_nic_name_"]`);
             return nameInput ? nameInput.value.trim() : '';
         }).filter(name => name);
-        
+
         let nicIndex = 0;
         let nicName = `ethernet${nicIndex}`;
         while (existingNics.includes(nicName)) {
             nicIndex++;
             nicName = `ethernet${nicIndex}`;
         }
-        
+
         const nicHtml = `
             <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg" id="edit_nic_${editNicCounter}">
                 <input type="text" style="width: 100px" name="edit_nic_name_${editNicCounter}" value="${nicName}" placeholder="网卡名称"
@@ -2701,7 +2917,7 @@
             const nicType = container.querySelector(`[name^="edit_nic_type_"]`).value;
             const nicIp = container.querySelector(`[name^="edit_nic_ip_"]`).value.trim();
             const nicIp6 = container.querySelector(`[name^="edit_nic_ip6_"]`)?.value.trim() || '';
-            
+
             // 验证：如果有网卡名称，则IPv4地址必填
             if (nicName) {
                 if (!nicIp) {
@@ -2871,12 +3087,12 @@
         // 填充IP地址选项
         const ipSelect = $('#natInternalIP');
         ipSelect.html('<option value="">请选择IP地址</option>');
-        
+
         // 从vmData中获取IP地址列表
         if (vmData && vmData.config) {
             const config = vmData.config;
             const ipList = [];
-            
+
             // 从ip_all获取IP地址
             if (config.ip_all && Array.isArray(config.ip_all)) {
                 config.ip_all.forEach(ip => {
@@ -2885,7 +3101,7 @@
                     }
                 });
             }
-            
+
             // 从nic_all获取IP地址
             if (config.nic_all && typeof config.nic_all === 'object') {
                 Object.values(config.nic_all).forEach(nic => {
@@ -2897,14 +3113,14 @@
                     }
                 });
             }
-            
+
             // 去重并添加到下拉框
             const uniqueIPs = [...new Set(ipList)];
             uniqueIPs.forEach((ip, index) => {
                 ipSelect.append(`<option value="${ip}" ${index === 0 ? 'selected' : ''}>${ip}</option>`);
             });
         }
-        
+
         document.getElementById('addNATModal').showModal();
     }
 
@@ -2997,12 +3213,92 @@
     function showAddIPModal() {
         $('#addIPForm')[0].reset();
         $('#ipNetmask').val('255.255.255.0'); // 设置默认掩码
+
+        // 加载用户IP配额信息
+        loadUserIPQuota();
+
         document.getElementById('addIPModal').showModal();
+    }
+
+    // 加载用户IP配额信息
+    async function loadUserIPQuota() {
+        try {
+            const result = await apiRequest('/api/users/current');
+            if (result && result.code === 200) {
+                const user = result.data;
+                const quotaDetails = document.getElementById('quotaDetails');
+
+                quotaDetails.innerHTML = `
+                    <div class="flex justify-between">
+                        <span>内网IP配额:</span>
+                        <span class="font-mono">${user.used_nat_ips || 0}/${user.quota_nat_ips || 0}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>公网IP配额:</span>
+                        <span class="font-mono">${user.used_pub_ips || 0}/${user.quota_pub_ips || 0}</span>
+                    </div>
+                `;
+
+                // 根据配额情况更新网卡类型选项
+                const ipNicType = document.getElementById('ipNicType');
+                const natOption = ipNicType.querySelector('option[value="nat"]');
+                const pubOption = ipNicType.querySelector('option[value="pub"]');
+
+                // 检查内网IP配额
+                if ((user.used_nat_ips || 0) >= (user.quota_nat_ips || 0)) {
+                    natOption.disabled = true;
+                    natOption.textContent = '内网(NAT) - 配额已用完';
+                } else {
+                    natOption.disabled = false;
+                    natOption.textContent = '内网(NAT)';
+                }
+
+                // 检查公网IP配额
+                if ((user.used_pub_ips || 0) >= (user.quota_pub_ips || 0)) {
+                    pubOption.disabled = true;
+                    pubOption.textContent = '公网(Public) - 配额已用完';
+                } else {
+                    pubOption.disabled = false;
+                    pubOption.textContent = '公网(Public)';
+                }
+
+                // 如果当前选中的类型配额已用完，选择可用的类型
+                if (ipNicType.value === 'nat' && natOption.disabled) {
+                    ipNicType.value = 'pub';
+                } else if (ipNicType.value === 'pub' && pubOption.disabled) {
+                    ipNicType.value = 'nat';
+                }
+            }
+        } catch (error) {
+            console.error('加载用户配额失败:', error);
+            document.getElementById('quotaDetails').innerHTML = '<div class="text-red-500">配额信息加载失败</div>';
+        }
     }
 
     function closeIPModal() {
         document.getElementById('addIPModal').close();
         $('#addIPForm')[0].reset();
+    }
+
+    // 更新网卡类型提示
+    function updateNicTypeHint() {
+        const ipNicType = document.getElementById('ipNicType');
+        const nicTypeHint = document.getElementById('nicTypeHint');
+        const selectedOption = ipNicType.options[ipNicType.selectedIndex];
+
+        if (selectedOption.disabled) {
+            nicTypeHint.textContent = selectedOption.textContent;
+            nicTypeHint.className = 'text-xs text-red-500 mt-1';
+        } else {
+            const type = ipNicType.value;
+            if (type === 'nat') {
+                nicTypeHint.textContent = '内网IP，用于虚拟机内部网络通信';
+                nicTypeHint.className = 'text-xs text-gray-500 mt-1';
+            } else if (type === 'pub') {
+                nicTypeHint.textContent = '公网IP，用于外部网络访问';
+                nicTypeHint.className = 'text-xs text-gray-500 mt-1';
+            }
+        }
     }
 
     async function submitIPAddress() {
@@ -3031,7 +3327,7 @@
         });
 
         const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}/ip_addresses`, 'POST', data);
-        
+
         if (result && result.code === 200) {
             // 添加成功
             Swal.fire({
@@ -3107,7 +3403,7 @@
         });
 
         const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}/ip_addresses/${nicName}`, 'PUT', data);
-        
+
         if (result && result.code === 200) {
             // 更新成功
             Swal.fire({
@@ -3162,7 +3458,7 @@
         });
 
         const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}/ip_addresses/${nicName}`, 'DELETE');
-        
+
         if (result && result.code === 200) {
             // 删除成功
             Swal.fire({
@@ -3245,12 +3541,12 @@
     function loadVMNetworkInterfaces() {
         const ipSelect = $('#proxyBackendIP');
         ipSelect.html('<option value="">请选择网卡地址</option>');
-        
+
         // 从vmData中获取IP地址列表
         if (vmData && vmData.config) {
             const config = vmData.config;
             const ipList = [];
-            
+
             // 从ip_all获取IP地址
             if (config.ip_all && Array.isArray(config.ip_all)) {
                 config.ip_all.forEach(ip => {
@@ -3259,7 +3555,7 @@
                     }
                 });
             }
-            
+
             // 从nic_all获取IP地址
             if (config.nic_all && typeof config.nic_all === 'object') {
                 Object.values(config.nic_all).forEach(nic => {
@@ -3268,7 +3564,7 @@
                     }
                 });
             }
-            
+
             // 去重并添加到下拉框
             const uniqueIPs = [...new Set(ipList)];
             uniqueIPs.forEach((ip, index) => {
@@ -3351,10 +3647,10 @@
             const sizeGB = (hdd.hdd_size / 1024).toFixed(1);
             const typeText = hdd.hdd_type === 1 ? 'SSD' : 'HDD';
             const isMounted = hdd.hdd_flag === 1;
-            const mountStatusBadge = isMounted 
+            const mountStatusBadge = isMounted
                 ? '<span class="px-2 py-0.5 text-xs font-medium text-green-700 bg-green-100 rounded">已挂载</span>'
                 : '<span class="px-2 py-0.5 text-xs font-medium text-gray-700 bg-gray-100 rounded">未挂载</span>';
-            
+
             // 根据挂载状态显示不同的操作按钮
             let actionButtons = '';
             if (isMounted) {
@@ -3381,7 +3677,7 @@
                     </button>
                 `;
             }
-            
+
             html += `
                 <div class="bg-white border border-gray-200 rounded-lg p-4 hover:border-purple-300 hover:shadow-md transition-all">
                     <div class="flex items-center justify-between mb-3">
@@ -3428,7 +3724,7 @@
         const value = input.value;
         const errorElement = document.getElementById('hddNameError');
         const regex = /^[a-zA-Z0-9_]+$/; // 只允许字母、数字和下划线
-        
+
         if (value && !regex.test(value)) {
             errorElement.textContent = '磁盘名称只能包含数字、字母和下划线';
             errorElement.style.display = 'block';
@@ -3443,7 +3739,7 @@
         const hddName = $('#hddName').val();
         const hddSize = parseInt($('#hddSize').val());
         const hddType = parseInt($('#hddType').val());
-        
+
         // 验证磁盘名称
         const regex = /^[a-zA-Z0-9_]+$/;
         if (!regex.test(hddName)) {
@@ -3455,10 +3751,10 @@
             });
             return;
         }
-        
+
         // 关闭添加模态框
         closeHDDModal();
-        
+
         // 显示挂载确认模态框
         showMountHDDConfirmModal(hddName, hddSize, hddType);
     }
@@ -3468,36 +3764,36 @@
         const vmName = vmData?.name || vmUuid;
         document.getElementById('mountVmName').textContent = vmName;
         document.getElementById('mountHddName').textContent = hddName;
-        
+
         // 重置确认勾选框
         document.getElementById('mountConfirmCheck').checked = false;
         document.getElementById('executeMountBtn').disabled = true;
-        
+
         // 保存磁盘信息到全局变量
-        window.currentMountHddData = { hdd_name: hddName, hdd_size: hddSize, hdd_type: hddType };
-        
+        window.currentMountHddData = {hdd_name: hddName, hdd_size: hddSize, hdd_type: hddType};
+
         // 显示模态框
         document.getElementById('mountHDDConfirmModal').showModal();
     }
-    
+
     function closeMountHDDConfirmModal() {
         document.getElementById('mountHDDConfirmModal').close();
         window.currentMountHddData = null;
     }
-    
+
     function toggleMountConfirmButton() {
         const check = document.getElementById('mountConfirmCheck');
         const confirmBtn = document.getElementById('executeMountBtn');
         confirmBtn.disabled = !check.checked;
     }
-    
+
     async function executeMountHDD() {
         const data = window.currentMountHddData;
         if (!data) return;
-        
+
         // 关闭模态框
         closeMountHDDConfirmModal();
-        
+
         // 显示进度提示
         Swal.fire({
             title: '正在挂载数据盘',
@@ -3536,36 +3832,36 @@
     // 显示卸载确认模态框
     function showUnmountHDDConfirmModal(hddName) {
         document.getElementById('unmountHddName').textContent = hddName;
-        
+
         // 重置确认勾选框
         document.getElementById('unmountConfirmCheck').checked = false;
         document.getElementById('executeUnmountBtn').disabled = true;
-        
+
         // 保存磁盘名称到全局变量
         window.currentUnmountHddName = hddName;
-        
+
         // 显示模态框
         document.getElementById('unmountHDDConfirmModal').showModal();
     }
-    
+
     function closeUnmountHDDConfirmModal() {
         document.getElementById('unmountHDDConfirmModal').close();
         window.currentUnmountHddName = null;
     }
-    
+
     function toggleUnmountConfirmButton() {
         const check = document.getElementById('unmountConfirmCheck');
         const confirmBtn = document.getElementById('executeUnmountBtn');
         confirmBtn.disabled = !check.checked;
     }
-    
+
     async function executeUnmountHDD() {
         const hddName = window.currentUnmountHddName;
         if (!hddName) return;
-        
+
         // 关闭模态框
         closeUnmountHDDConfirmModal();
-        
+
         // 显示进度提示
         Swal.fire({
             title: '正在卸载数据盘',
@@ -3605,34 +3901,34 @@
     function showTransferHDDConfirmModal(hddName) {
         document.getElementById('transferHddName').textContent = hddName;
         document.getElementById('transferTargetVM').value = '';
-        
+
         // 重置确认勾选框
         document.getElementById('transferConfirmCheck').checked = false;
         document.getElementById('executeTransferBtn').disabled = true;
-        
+
         // 保存磁盘名称到全局变量
         window.currentTransferHddName = hddName;
-        
+
         // 显示模态框
         document.getElementById('transferHDDConfirmModal').showModal();
     }
-    
+
     function closeTransferHDDConfirmModal() {
         document.getElementById('transferHDDConfirmModal').close();
         document.getElementById('transferTargetVM').value = '';
         window.currentTransferHddName = null;
     }
-    
+
     function toggleTransferConfirmButton() {
         const check = document.getElementById('transferConfirmCheck');
         const confirmBtn = document.getElementById('executeTransferBtn');
         confirmBtn.disabled = !check.checked;
     }
-    
+
     async function executeTransferHDD() {
         const hddName = window.currentTransferHddName;
         const targetVM = document.getElementById('transferTargetVM').value;
-        
+
         if (!hddName || !targetVM) {
             Swal.fire({
                 title: '请输入目标虚拟机',
@@ -3642,10 +3938,10 @@
             });
             return;
         }
-        
+
         // 关闭模态框
         closeTransferHDDConfirmModal();
-        
+
         // 显示进度提示
         Swal.fire({
             title: '正在移交数据盘',
@@ -3690,36 +3986,36 @@
     // 显示删除确认模态框
     function showDeleteHDDConfirmModal(hddName) {
         document.getElementById('deleteHddName').textContent = hddName;
-        
+
         // 重置确认勾选框
         document.getElementById('deleteConfirmCheck').checked = false;
         document.getElementById('executeDeleteBtn').disabled = true;
-        
+
         // 保存磁盘名称到全局变量
         window.currentDeleteHddName = hddName;
-        
+
         // 显示模态框
         document.getElementById('deleteHDDConfirmModal').showModal();
     }
-    
+
     function closeDeleteHDDConfirmModal() {
         document.getElementById('deleteHDDConfirmModal').close();
         window.currentDeleteHddName = null;
     }
-    
+
     function toggleDeleteConfirmButton() {
         const check = document.getElementById('deleteConfirmCheck');
         const confirmBtn = document.getElementById('executeDeleteBtn');
         confirmBtn.disabled = !check.checked;
     }
-    
+
     async function executeDeleteHDD() {
         const hddName = window.currentDeleteHddName;
         if (!hddName) return;
-        
+
         // 关闭模态框
         closeDeleteHDDConfirmModal();
-        
+
         // 显示进度提示
         Swal.fire({
             title: '正在删除数据盘',
@@ -3814,18 +4110,18 @@
         $('#addISOForm')[0].reset();
         $('#isoMountConfirmCheck').prop('checked', false);
         toggleIsoMountConfirmButton();
-        
+
         // 加载可用的ISO镜像列表
         const result = await apiRequest(`/api/client/os-images/${hostName}`);
         if (result && result.code === 200 && result.data) {
             const imagesMaps = result.data.images_maps || {};
-            const selectHtml = '<option value="">请选择ISO镜像文件</option>' + 
-                Object.entries(imagesMaps).map(([displayName, fileName]) => 
+            const selectHtml = '<option value="">请选择ISO镜像文件</option>' +
+                Object.entries(imagesMaps).map(([displayName, fileName]) =>
                     `<option value="${fileName}">${displayName} (${fileName})</option>`
                 ).join('');
             $('#isoFileSelect').html(selectHtml);
         }
-        
+
         document.getElementById('addISOModal').showModal();
     }
 
@@ -3874,7 +4170,7 @@
         });
 
         const result = await apiRequest(`/api/client/iso/mount/${hostName}/${vmUuid}`, 'POST', data);
-        
+
         if (result && result.code === 200) {
             Swal.fire({
                 title: '挂载成功',
@@ -3933,7 +4229,7 @@
         });
 
         const result = await apiRequest(`/api/client/iso/unmount/${hostName}/${vmUuid}/${isoNameToUnmount}`, 'DELETE');
-        
+
         if (result && result.code === 200) {
             Swal.fire({
                 title: '卸载成功',
@@ -4028,7 +4324,7 @@
         document.getElementById('createBackupModal').close();
         $('#createBackupForm')[0].reset();
     }
-    
+
     function toggleBackupConfirmButton() {
         const confirmCheck = document.getElementById('backupConfirmCheck');
         const confirmBtn = document.getElementById('confirmBackupBtn');
@@ -4042,7 +4338,7 @@
 
         // 关闭模态框
         closeCreateBackupModal();
-        
+
         // 显示进度提示
         Swal.fire({
             title: '正在创建备份',
@@ -4081,38 +4377,38 @@
         const vmName = vmData?.name || vmUuid;
         document.getElementById('restoreVmName').textContent = vmName;
         document.getElementById('restoreBackupName').textContent = backupName;
-        
+
         // 重置确认勾选框
         document.getElementById('restoreConfirmCheck1').checked = false;
         document.getElementById('restoreConfirmCheck2').checked = false;
         document.getElementById('executeRestoreBtn').disabled = true;
-        
+
         // 保存备份名称到全局变量，供executeRestore使用
         window.currentRestoreBackupName = backupName;
-        
+
         // 显示模态框
         document.getElementById('restoreBackupModal').showModal();
     }
-    
+
     function closeRestoreBackupModal() {
         document.getElementById('restoreBackupModal').close();
         window.currentRestoreBackupName = null;
     }
-    
+
     function toggleRestoreConfirmButton() {
         const check1 = document.getElementById('restoreConfirmCheck1');
         const check2 = document.getElementById('restoreConfirmCheck2');
         const confirmBtn = document.getElementById('executeRestoreBtn');
         confirmBtn.disabled = !(check1.checked && check2.checked);
     }
-    
+
     async function executeRestore() {
         const backupName = window.currentRestoreBackupName;
         if (!backupName) return;
-        
+
         // 关闭模态框
         closeRestoreBackupModal();
-        
+
         // 显示进度提示
         Swal.fire({
             title: '正在还原备份',
@@ -4166,14 +4462,58 @@
         if (result && result.code === 200 && result.data && result.data.owners) {
             renderOwnersList(result.data.owners);
         } else {
-            $('#ownersList').html('<p class="text-center text-gray-500 py-8 text-sm">暂无所有者</p>');
+            $('#ownersList').html('<p class="text-center text-gray-500 py-8 text-sm">暂无使用者</p>');
         }
     }
 
     function renderOwnersList(owners) {
         if (!owners || owners.length === 0) {
-            $('#ownersList').html('<p class="text-center text-gray-500 py-8 text-sm">暂无所有者</p>');
+            $('#ownersList').html('<p class="text-center text-gray-500 py-8 text-sm">暂无使用者</p>');
             return;
+        }
+
+// 获取当前用户名 - 多种方法尝试
+        let currentUsername = '';
+
+        // 方法1：从隐藏容器获取
+        const currentUserContainer = document.getElementById('currentUserContainer');
+        if (currentUserContainer) {
+            currentUsername = currentUserContainer.dataset.currentUser || '';
+        }
+
+        // 方法2：如果方法1失败，尝试从页面其他地方获取
+        if (!currentUsername) {
+            // 检查页面中是否有其他存储用户名的地方
+            const usernameElements = document.querySelectorAll('[data-username], .current-user, .username');
+            if (usernameElements.length > 0) {
+                currentUsername = usernameElements[0].textContent || usernameElements[0].dataset.username || '';
+            }
+        }
+
+        // 方法3：如果都失败，使用默认值（这在开发环境中可能有用）
+        if (!currentUsername) {
+            currentUsername = 'admin'; // 临时测试用
+        }
+
+        const isCurrentUserPrimaryOwner = owners.length > 0 && owners[0].username === currentUsername;
+
+// 调试信息
+        console.log('=== 所有者管理调试信息 ===');
+        console.log('当前用户容器:', currentUserContainer);
+        console.log('当前用户名:', currentUsername);
+        console.log('所有者列表:', owners);
+        console.log('第一个所有者:', owners.length > 0 ? owners[0].username : 'none');
+        console.log('当前用户是否为主所有者:', isCurrentUserPrimaryOwner);
+        console.log('==========================');
+
+        // 控制添加使用者按钮的显示
+        const addOwnerBtn = document.getElementById('addOwnerBtn');
+        if (addOwnerBtn) {
+            if (isCurrentUserPrimaryOwner) {
+                addOwnerBtn.style.display = 'flex';
+            } else {
+                addOwnerBtn.style.display = 'none';
+            }
         }
 
         let html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">';
@@ -4183,7 +4523,7 @@
             const roleClass = isAdmin ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700';
             const roleText = isAdmin ? '管理员' : '普通用户';
             const isFirstOwner = index === 0;
-            
+
             html += `
                 <div class="bg-white border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all">
                     <div class="flex items-center justify-between mb-3">
@@ -4192,11 +4532,18 @@
                             <span class="font-medium text-gray-800">${owner.username}</span>
                             ${isFirstOwner ? '<span class="text-xs text-gray-500 ml-1">(主所有者)</span>' : ''}
                         </div>
-                        ${!isFirstOwner ? `
-                        <button onclick="removeOwner('${owner.username}')" class="p-1 text-red-500 hover:bg-red-50 rounded" title="移除">
-                            <span class="iconify" data-icon="mdi:account-remove" data-width="18"></span>
-                        </button>
-                        ` : ''}
+<div class="flex items-center gap-1">
+                            ${isFirstOwner && isCurrentUserPrimaryOwner ? `
+                            <button onclick="showTransferOwnershipModal()" class="p-1 text-orange-500 hover:bg-orange-50 rounded" title="移交所有权">
+                                <span class="iconify" data-icon="mdi:swap-horizontal" data-width="18"></span>
+                            </button>
+                            ` : ''}
+                            ${!isFirstOwner && isCurrentUserPrimaryOwner ? `
+                            <button onclick="removeOwner('${owner.username}')" class="p-1 text-red-500 hover:bg-red-50 rounded" title="移除">
+                                <span class="iconify" data-icon="mdi:account-remove" data-width="18"></span>
+                            </button>
+                            ` : ''}
+                        </div>
                     </div>
                     <div class="space-y-2">
                         ${owner.email ? `
@@ -4231,7 +4578,7 @@
 
     async function submitAddOwner() {
         const username = $('#ownerUsername').val().trim();
-        
+
         if (!username) {
             showToast('请输入用户名', 'error');
             return;
@@ -4248,14 +4595,79 @@
     }
 
     async function removeOwner(username) {
-        if (!confirm(`确定要移除所有者 "${username}" 吗？`)) return;
+        // 显示自定义确认对话框
+        showConfirmDialog(`确定要移除所有者 "${username}" 吗？`, async () => {
+            const result = await apiRequest(`/api/client/owners/${hostName}/${vmUuid}`, 'DELETE', {username: username});
+            if (result && result.code === 200) {
+                showToast('所有者已移除', 'success');
+                loadOwnersList();
+            } else {
+                showToast(result?.msg || '移除失败', 'error');
+            }
+        });
+    }
 
-        const result = await apiRequest(`/api/client/owners/${hostName}/${vmUuid}`, 'DELETE', {username: username});
-        if (result && result.code === 200) {
-            showToast('所有者已移除', 'success');
-            loadOwnersList();
-        } else {
-            showToast(result?.msg || '移除失败', 'error');
+    function showTransferOwnershipModal() {
+        $('#transferOwnershipForm')[0].reset();
+        // 初始化按钮状态
+        document.getElementById('transferOwnershipBtn').disabled = true;
+        document.getElementById('addOwnerModal').close();
+        document.getElementById('transferOwnershipModal').showModal();
+    }
+
+    function closeTransferOwnershipModal() {
+        document.getElementById('transferOwnershipModal').close();
+        $('#transferOwnershipForm')[0].reset();
+        // 重置按钮状态
+        document.getElementById('transferOwnershipBtn').disabled = true;
+    }
+
+    function toggleTransferOwnershipButton() {
+        const newOwner = document.getElementById('newOwnerUsername').value.trim();
+        const confirmCheckbox = document.getElementById('confirmTransferCheckbox').checked;
+        const transferBtn = document.getElementById('transferOwnershipBtn');
+
+        // 只有输入了新所有者用户名且勾选了确认框才能提交
+        transferBtn.disabled = !newOwner || !confirmCheckbox;
+    }
+
+    async function submitTransferOwnership() {
+        const newOwner = document.getElementById('newOwnerUsername').value.trim();
+        const keepAccess = document.getElementById('keepAccessCheckbox').checked;
+        const confirmTransfer = document.getElementById('confirmTransferCheckbox').checked;
+
+        if (!newOwner) {
+            showToast('请输入新所有者用户名', 'error');
+            return;
+        }
+
+        if (!confirmTransfer) {
+            showToast('请确认移交所有权', 'error');
+            return;
+        }
+
+
+        try {
+            const result = await apiRequest(`/api/client/owners/${hostName}/${vmUuid}/transfer`, 'POST', {
+                new_owner: newOwner,
+                keep_access: keepAccess,
+                confirm_transfer: confirmTransfer
+            });
+
+            if (result && result.code === 200) {
+                showToast('所有权移交成功', 'success');
+                closeTransferOwnershipModal();
+                loadOwnersList();
+                // 刷新页面以更新权限
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                showToast(result?.msg || '移交失败', 'error');
+            }
+        } catch (error) {
+            showToast('移交失败，请稍后重试', 'error');
+            console.error('移交所有权错误:', error);
         }
     }
 
@@ -4316,45 +4728,45 @@
         }
     }
 
-// ==================== 重装系统相关函数 ====================
-function showReinstallModal() {
+    // ==================== 重装系统相关函数 ====================
+    function showReinstallModal() {
         // 获取当前系统信息并设置为默认值
         const currentOs = vmData?.config?.os_name || '';
-        
+
         // 先更新操作系统选项，并传递当前系统名称以正确选中
         updateReinstallOsOptions(currentOs);
-        
+
         // 设置虚拟机名称显示
         const vmName = vmData?.name || vmUuid;
         document.getElementById('reinstallVmName').textContent = vmName;
-        
+
         // 重置确认勾选框
         document.getElementById('reinstallConfirmCheck').checked = false;
         document.getElementById('executeReinstallBtn').disabled = true;
-        
+
         // 显示模态框
         document.getElementById('reinstallModal').showModal();
     }
-    
+
     function closeReinstallModal() {
         document.getElementById('reinstallModal').close();
     }
-    
+
     // 监听确认勾选框状态变化
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const confirmCheck = document.getElementById('reinstallConfirmCheck');
         const executeBtn = document.getElementById('executeReinstallBtn');
-        
+
         if (confirmCheck && executeBtn) {
-            confirmCheck.addEventListener('change', function() {
+            confirmCheck.addEventListener('change', function () {
                 executeBtn.disabled = !this.checked;
             });
         }
     });
-    
+
     async function executeReinstall() {
         const selectedOs = document.getElementById('reinstallOsSelect').value;
-        
+
         if (!selectedOs) {
             Swal.fire({
                 title: '请选择操作系统',
@@ -4364,26 +4776,26 @@ function showReinstallModal() {
             });
             return;
         }
-        
+
         // 先保存到数据库
         const saveResult = await saveOsToDatabase(selectedOs);
         if (!saveResult) {
             return; // 保存失败，不再继续
         }
-        
+
         // 保存成功后调用重装系统函数
         reinstallSystem();
     }
-    
+
     async function saveOsToDatabase(osName) {
         try {
             // 构建更新数据
             const updateData = {
                 os_name: osName
             };
-            
+
             const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}`, 'PUT', updateData);
-            
+
             if (result && result.code === 200) {
                 Swal.fire({
                     title: '系统设置已保存',
@@ -4414,10 +4826,10 @@ function showReinstallModal() {
         }
     }
 
-async function reinstallSystem() {
+    async function reinstallSystem() {
         // 关闭重装模态框
         closeReinstallModal();
-        
+
         // 显示正在重装的提示
         Swal.fire({
             title: '正在重装系统',
@@ -4427,7 +4839,7 @@ async function reinstallSystem() {
             allowEscapeKey: false,
             showConfirmButton: false
         });
-        
+
         const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}/reinstall`, 'POST');
         if (result && result.code === 200) {
             Swal.fire({
@@ -4459,7 +4871,7 @@ async function reinstallSystem() {
 
         // 准备数据 - 提取最近的历史数据
         const chartData = prepareChartData(statusList);
-        
+
         // 绘制各个图表
         drawEChart('cpuChart', chartData.cpu, chartData.labels, 'CPU使用率', '%', '#3B82F6');
         drawEChart('memChart', chartData.mem, chartData.labels, '内存使用率', '%', '#10B981');
@@ -4485,31 +4897,31 @@ async function reinstallSystem() {
 
         // 取最近的数据点
         const recentData = statusList.slice(-maxPoints);
-        
+
         // 获取当前时间
         const now = new Date();
-        
+
         recentData.forEach((status, index) => {
             // CPU使用率
             data.cpu.push(status.cpu_usage || 0);
-            
+
             // 内存使用率 (百分比)
             const memUsagePercent = status.mem_total > 0 ? (status.mem_usage / status.mem_total * 100) : 0;
             data.mem.push(memUsagePercent);
-            
+
             // 硬盘使用率 (百分比)
             const hddUsagePercent = status.hdd_total > 0 ? (status.hdd_usage / status.hdd_total * 100) : 0;
             data.hdd.push(hddUsagePercent);
-            
+
             // GPU使用率 (MB)
             data.gpu.push(status.gpu_total || 0);
-            
+
             // 上行带宽
             data.netU.push(status.network_u || 0);
-            
+
             // 下行带宽
             data.netD.push(status.network_d || 0);
-            
+
             // 时间标签 - 每1分钟一个数据点，从当前时间往前推
             const timeOffset = (recentData.length - 1 - index) * 1; // 分钟偏移
             const time = new Date(now.getTime() - timeOffset * 60000);
@@ -4559,7 +4971,7 @@ async function reinstallSystem() {
             },
             tooltip: {
                 trigger: 'axis',
-                formatter: function(params) {
+                formatter: function (params) {
                     const param = params[0];
                     return `${param.axisValue}<br/>${param.marker}${param.seriesName}: ${param.value.toFixed(2)} ${unit}`;
                 },
@@ -4586,11 +4998,11 @@ async function reinstallSystem() {
                     color: '#6B7280',
                     rotate: 0,
                     interval: 'auto',
-                    formatter: function(value, index) {
+                    formatter: function (value, index) {
                         // 智能显示标签
                         const dataCount = labels.length;
                         let showInterval = 1;
-                        
+
                         if (dataCount > 144) {
                             showInterval = 60; // 每60分钟
                         } else if (dataCount > 72) {
@@ -4600,7 +5012,7 @@ async function reinstallSystem() {
                         } else if (dataCount > 12) {
                             showInterval = 10; // 每10分钟
                         }
-                        
+
                         if (index % showInterval === 0 || index === dataCount - 1) {
                             return value;
                         }
@@ -4701,9 +5113,103 @@ async function reinstallSystem() {
         chart.setOption(option);
 
         // 响应式调整
-        window.addEventListener('resize', function() {
+        window.addEventListener('resize', function () {
             chart.resize();
         });
     }
+
+    // 自定义确认对话框功能
+    let confirmCallback = null;
+
+    function initConfirmDialog() {
+        const cancelBtn = document.getElementById('confirmCancel');
+        const okBtn = document.getElementById('confirmOk');
+        const dialog = document.getElementById('confirmDialog');
+        
+        // 取消按钮事件
+        cancelBtn.addEventListener('click', () => {
+            hideConfirmDialog();
+        });
+        
+        // 确认按钮事件
+        okBtn.addEventListener('click', () => {
+            if (confirmCallback) {
+                confirmCallback();
+            }
+            hideConfirmDialog();
+        });
+        
+        // 点击背景关闭（可选）
+        dialog.addEventListener('click', (e) => {
+            if (e.target === dialog) {
+                hideConfirmDialog();
+            }
+        });
+        
+        // ESC键关闭
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !dialog.classList.contains('hidden')) {
+                hideConfirmDialog();
+            }
+        });
+    }
+    
+    function showConfirmDialog(message, callback) {
+        const dialog = document.getElementById('confirmDialog');
+        const messageElement = document.getElementById('confirmMessage');
+        
+        messageElement.textContent = message;
+        confirmCallback = callback;
+        dialog.classList.remove('hidden');
+        
+        // 添加动画效果
+        setTimeout(() => {
+            dialog.querySelector('.bg-white').classList.add('scale-100');
+            dialog.querySelector('.bg-white').classList.remove('scale-95');
+        }, 10);
+    }
+    
+    function hideConfirmDialog() {
+        const dialog = document.getElementById('confirmDialog');
+        
+        // 添加动画效果
+        dialog.querySelector('.bg-white').classList.add('scale-95');
+        dialog.querySelector('.bg-white').classList.remove('scale-100');
+        
+        setTimeout(() => {
+            dialog.classList.add('hidden');
+            confirmCallback = null;
+        }, 150);
+    }
 </script>
+
+<!-- 自定义确认对话框 -->
+<div id="confirmDialog" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4 transform transition-all">
+        <div class="flex items-center mb-4">
+            <div class="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <span class="iconify text-red-600" data-icon="mdi:alert-circle" data-width="24"></span>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-lg font-semibold text-gray-900">确认移除</h3>
+                <p class="text-sm text-gray-500">此操作不可恢复</p>
+            </div>
+        </div>
+        
+        <div class="mb-6">
+            <p id="confirmMessage" class="text-gray-700">确定要移除此使用者吗？</p>
+        </div>
+        
+        <div class="flex gap-3 justify-end">
+            <button id="confirmCancel" 
+                    class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+                取消
+            </button>
+            <button id="confirmOk" 
+                    class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+                确认移除
+            </button>
+        </div>
+    </div>
+</div>
 {% endblock %}

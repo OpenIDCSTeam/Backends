@@ -7,7 +7,7 @@ import threading
 import traceback
 import json
 from functools import wraps
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, g
 
 from loguru import logger
 from HostModule.HostManage import HostManage
@@ -98,6 +98,11 @@ def login():
         if not user_data['is_active']:
             return api_response_wrapper(403, '用户已被禁用')
         
+        # 检查邮箱验证状态
+        system_settings = db.get_system_settings()
+        if system_settings.get('email_verification_enabled') == '1' and not user_data['email_verified']:
+            return api_response_wrapper(403, '请先验证邮箱后再登录')
+        
         # 设置session
         UserAuth.set_user_session(user_data, is_token_login=False)
         
@@ -110,19 +115,36 @@ def login():
         # Token登录
         token = data.get('token', '')
         if token and token == hs_manage.bearer:
-            # 创建一个虚拟的管理员用户数据
-            admin_user_data = {
-                'id': 1,
-                'username': 'admin',
-                'is_admin': 1
-            }
-            UserAuth.set_user_session(admin_user_data, is_token_login=True)
-            return api_response_wrapper(200, '登录成功', {'redirect': '/admin'})
+            # 获取真实的admin用户信息
+            admin_user_data = db.get_user_by_username('admin')
+            if admin_user_data:
+                # 确保admin用户是启用状态
+                if not admin_user_data.get('is_active', 1):
+                    return api_response_wrapper(403, 'Admin用户已被禁用')
+                
+                # 设置session，标记为token登录
+                UserAuth.set_user_session(admin_user_data, is_token_login=True)
+                
+                # 更新最后登录时间
+                db.update_user_last_login(admin_user_data['id'])
+                
+                return api_response_wrapper(200, '登录成功', {'redirect': '/admin'})
+            else:
+                # 如果admin用户不存在，创建临时的admin session（兼容原有逻辑）
+                temp_admin_data = {
+                    'id': 1,
+                    'username': 'admin',
+                    'is_admin': 1,
+                    'is_active': 1,
+                    'assigned_hosts': []
+                }
+                UserAuth.set_user_session(temp_admin_data, is_token_login=True)
+                return api_response_wrapper(200, '登录成功', {'redirect': '/admin'})
         
         return api_response_wrapper(401, 'Token错误')
 
 
-@app.route('/exitd')
+@app.route('/logout')
 def logout():
     """退出登录"""
     session.clear()
@@ -313,6 +335,53 @@ def verify_email():
     else:
         return '验证失败，请重试'
 
+@app.route('/verify-email-change')
+def verify_email_change():
+    """验证邮箱变更"""
+    try:
+        token = request.args.get('token', '')
+        if not token:
+            return '无效的验证链接'
+        
+        # 解析token中的邮箱地址
+        import base64
+        try:
+            if ':' not in token:
+                return '验证链接格式错误'
+            
+            email_base64, random_value = token.split(':', 1)
+            
+            # 解码base64邮箱
+            email_bytes = base64.urlsafe_b64decode(email_base64 + '=' * (-len(email_base64) % 4))
+            new_email = email_bytes.decode()
+        except:
+            return '验证链接格式错误'
+        
+ # 直接根据verify_token字段查找用户
+        user_data = db.get_user_by_verify_token(token)
+        if not user_data:
+            return '验证链接无效或已过期'
+        if not new_email:
+            return '新邮箱地址无效'
+        
+        # 再次检查邮箱是否已被其他用户使用
+        existing_user = db.get_user_by_email(new_email)
+        if existing_user and existing_user['id'] != user_data['id']:
+            return '该邮箱已被其他用户使用'
+        
+        # 更新用户邮箱
+        success = db.update_user(user_data['id'], email=new_email)
+        if success:
+            # 清除验证token
+            db.set_user_verify_token(user_data['id'], '')
+            return redirect(url_for('profile_page') + '?email_changed=1')
+        else:
+            return '邮箱更新失败，请重试'
+            
+    except Exception as e:
+        logger.error(f"验证邮箱变更失败: {e}")
+        return '验证失败，请重试'
+
 @app.route('/api/users/change-password', methods=['POST'])
 @require_login
 def change_password():
@@ -323,11 +392,10 @@ def change_password():
             return jsonify({'code': 401, 'msg': '未登录'})
         
         data = request.get_json()
-        old_password = data.get('old_password')
         new_password = data.get('new_password')
         confirm_password = data.get('confirm_password')
         
-        if not old_password or not new_password or not confirm_password:
+        if not new_password or not confirm_password:
             return jsonify({'code': 400, 'msg': '请填写完整信息'})
         
         if new_password != confirm_password:
@@ -335,11 +403,6 @@ def change_password():
         
         if len(new_password) < 6:
             return jsonify({'code': 400, 'msg': '新密码长度不能少于6位'})
-        
-        # 验证旧密码
-        user_data = db.get_user_by_id(user_id)
-        if not user_data or not UserAuth.verify_password(old_password, user_data['password']):
-            return jsonify({'code': 400, 'msg': '旧密码不正确'})
         
         # 更新密码
         success = db.update_user_password(user_id, UserAuth.hash_password(new_password))
@@ -353,7 +416,85 @@ def change_password():
         return jsonify({'code': 500, 'msg': '密码修改失败'})
 
 
+@app.route('/api/users/change-email', methods=['POST'])
+@require_login
+def change_email():
+    """修改邮箱"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'code': 401, 'msg': '未登录'})
+        
+        data = request.get_json()
+        new_email = data.get('new_email')
+        
+        if not new_email:
+            return jsonify({'code': 400, 'msg': '请输入新邮箱地址'})
+        
+        # 验证邮箱格式
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, new_email):
+            return jsonify({'code': 400, 'msg': '请输入有效的邮箱地址'})
+        
+        # 检查邮箱是否已被其他用户使用
+        existing_user = db.get_user_by_email(new_email)
+        if existing_user and existing_user['id'] != user_id:
+            return jsonify({'code': 400, 'msg': '该邮箱已被其他用户使用'})
+        
+        # 获取当前用户信息用于生成token
+        current_user = db.get_user_by_id(user_id)
+        if not current_user:
+            return jsonify({'code': 404, 'msg': '用户不存在'})
+        
+        # 生成包含base64邮箱和随机值的验证token
+        import hashlib
+        import time
+        import base64
+        
+        # 生成随机值
+        import secrets
+        random_value = secrets.token_urlsafe(32)
+        
+        # 将邮箱地址进行base64编码作为token前半部分
+        email_base64 = base64.urlsafe_b64encode(new_email.encode()).decode().rstrip('=')
+        
+        # 组合token: base64邮箱 + 随机值
+        token = f"{email_base64}:{random_value}"
+        
+        # 将完整的token存储到verify_token字段
+        db.set_user_verify_token(user_id, token)
+        
+        # 发送验证邮件
+        settings = db.get_system_settings()
+        if settings.get('resend_apikey') and settings.get('resend_email'):
+            email_service = EmailService(
+                api_key=settings.get('resend_apikey', ''),
+                from_email=settings.get('resend_email', '')
+            )
+            
+            # 生成验证链接，包含token
+            verify_url = f"{request.host_url}verify-email-change?token={token}"
+            
+            # 获取用户名
+            username = current_user.get('username', '用户')
+            
+            # 发送邮件
+            if email_service.send_email_change_verification_email(new_email, username, verify_url):
+                return jsonify({'code': 200, 'msg': '验证邮件已发送，请查收并点击验证链接完成邮箱修改'})
+            else:
+                return jsonify({'code': 500, 'msg': '验证邮件发送失败，请重试'})
+        else:
+            return jsonify({'code': 500, 'msg': '邮件服务未启用'})
+            
+    except Exception as e:
+        logger.error(f"邮箱修改失败: {e}")
+        return jsonify({'code': 500, 'msg': '邮箱修改失败，请重试'})
+        return jsonify({'code': 500, 'msg': '邮箱修改失败'})
+
+
 @app.route('/api/system/forgot-password', methods=['POST'])
+@app.route('/api/forgot-password', methods=['POST'])
 def forgot_password():
     """找回密码"""
     try:
@@ -765,6 +906,13 @@ def api_remove_vm_owner(hs_name, vm_uuid):
     return rest_manager.remove_vm_owner(hs_name, vm_uuid)
 
 
+@app.route('/api/client/owners/<hs_name>/<vm_uuid>/transfer', methods=['POST'])
+@require_auth
+def api_transfer_vm_ownership(hs_name, vm_uuid):
+    """移交虚拟机所有权"""
+    return rest_manager.transfer_vm_ownership(hs_name, vm_uuid)
+
+
 # 电源控制 ########################################################################
 @app.route('/api/client/powers/<hs_name>/<vm_uuid>', methods=['POST'])
 @require_auth
@@ -1025,29 +1173,53 @@ def api_recalculate_quotas():
 def api_get_current_user():
     """获取当前用户信息"""
     try:
-        # 检查Bearer Token
-        auth_header = request.headers.get('Authorization', '')
-        if auth_header.startswith('Bearer '):
-            # Token登录，返回管理员用户信息
-            return api_response_wrapper(200, '获取成功', {
-                'id': 1,
-                'username': 'admin',
-                'is_admin': True,
-                'is_token_login': True,
-                'used_cpu': 0,
-                'used_ram': 0,
-                'used_ssd': 0,
-                'quota_cpu': 999999,
-                'quota_ram': 999999,
-                'quota_ssd': 999999,
-                'assigned_hosts': []
-            })
+        # # 检查Bearer Token
+        # auth_header = request.headers.get('Authorization', '')
+        # if auth_header.startswith('Bearer '):
+        #     # Token登录，返回管理员用户信息
+        #     return api_response_wrapper(200, '获取成功', {
+        #         'id': 1,
+        #         'username': 'admin',
+        #         'is_admin': True,
+        #         'is_token_login': True,
+        #         'used_cpu': 0,
+        #         'used_ram': 0,
+        #         'used_ssd': 0,
+        #         'quota_cpu': 999999,
+        #         'quota_ram': 999999,
+        #         'quota_ssd': 999999,
+        #         # 添加流量、带宽、NAT、WEB配额
+        #         'used_traffic': 0,
+        #         'quota_traffic': 999999,
+        #         'used_upload_bw': 0,
+        #         'quota_upload_bw': 1000,
+        #         'used_download_bw': 0,
+        #         'quota_download_bw': 1000,
+        #         'used_nat': 0,
+        #         'quota_nat': 100,
+        #         'used_web': 0,
+        #         'quota_web': 50,
+        #         # 添加IP配额
+        #         'used_nat_ips': 0,
+        #         'quota_nat_ips': 10,
+        #         'used_pub_ips': 0,
+        #         'quota_pub_ips': 10,
+        #         'assigned_hosts': []
+        #     })
         
         # 检查Session登录
         if session.get('logged_in'):
             user_id = session.get('user_id')
             user_data = db.get_user_by_id(user_id)
             if user_data:
+                # 计算IP使用量
+                if rest_manager and hs_manage:
+                    ip_usage = rest_manager._calculate_user_ip_usage(user_data.get('username', ''))
+                    
+                    # 添加IP使用量信息到用户数据
+                    user_data['used_nat_ips'] = ip_usage['used_nat_ips']
+                    user_data['used_pub_ips'] = ip_usage['used_pub_ips']
+                
                 # 移除敏感信息
                 user_data.pop('password', None)
                 user_data.pop('verify_token', None)
@@ -1232,6 +1404,41 @@ def api_delete_user(user_id):
 # ============================================================================
 # 系统设置API
 # ============================================================================
+
+@app.route('/api/system/test-email', methods=['POST'])
+@require_admin
+def test_email():
+    """测试邮件发送"""
+    try:
+        data = request.get_json()
+        test_email = data.get('test_email')
+        resend_email = data.get('resend_email')
+        resend_apikey = data.get('resend_apikey')
+        
+        if not test_email or not resend_email or not resend_apikey:
+            return jsonify({'code': 400, 'msg': '请提供完整的邮件配置信息'})
+        
+        # 验证邮箱格式
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, test_email) or not re.match(email_pattern, resend_email):
+            return jsonify({'code': 400, 'msg': '邮箱地址格式不正确'})
+        
+        # 发送测试邮件
+        email_service = EmailService(
+            api_key=resend_apikey,
+            from_email=resend_email
+        )
+        
+        success = email_service.send_test_email(test_email)
+        if success:
+            return jsonify({'code': 200, 'msg': '测试邮件发送成功'})
+        else:
+            return jsonify({'code': 500, 'msg': '测试邮件发送失败'})
+            
+    except Exception as e:
+        logger.error(f"测试邮件发送失败: {e}")
+        return jsonify({'code': 500, 'msg': '测试邮件发送失败'})
 
 @app.route('/api/system/settings', methods=['GET'])
 @require_admin

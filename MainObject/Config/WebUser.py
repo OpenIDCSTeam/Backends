@@ -30,6 +30,8 @@ class WebUser:
         quota_gpu: int = 0,
         quota_nat_ports: int = 0,
         quota_web_proxy: int = 0,
+        quota_nat_ips: int = 0,
+        quota_pub_ips: int = 0,
         quota_bandwidth_up: int = 0,
         quota_bandwidth_down: int = 0,
         quota_traffic: int = 0,
@@ -40,6 +42,8 @@ class WebUser:
         used_gpu: int = 0,
         used_nat_ports: int = 0,
         used_web_proxy: int = 0,
+        used_nat_ips: int = 0,
+        used_pub_ips: int = 0,
         used_traffic: int = 0,
         # 分配的主机
         assigned_hosts: List[str] = None,
@@ -70,6 +74,8 @@ class WebUser:
         self.quota_gpu = quota_gpu
         self.quota_nat_ports = quota_nat_ports
         self.quota_web_proxy = quota_web_proxy
+        self.quota_nat_ips = quota_nat_ips
+        self.quota_pub_ips = quota_pub_ips
         self.quota_bandwidth_up = quota_bandwidth_up
         self.quota_bandwidth_down = quota_bandwidth_down
         self.quota_traffic = quota_traffic
@@ -81,6 +87,8 @@ class WebUser:
         self.used_gpu = used_gpu
         self.used_nat_ports = used_nat_ports
         self.used_web_proxy = used_web_proxy
+        self.used_nat_ips = used_nat_ips
+        self.used_pub_ips = used_pub_ips
         self.used_traffic = used_traffic
 
         # 分配的主机

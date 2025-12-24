@@ -1,6 +1,7 @@
 import sqlite3
 import json
 import os
+import traceback
 from typing import Dict, List, Any, Optional
 from loguru import logger
 from MainObject.Config.HSConfig import HSConfig
@@ -807,9 +808,11 @@ class HostDatabase:
                 'verify_token', 'reset_token',
                 'can_create_vm', 'can_delete_vm', 'can_modify_vm',
                 'quota_cpu', 'quota_ram', 'quota_ssd', 'quota_gpu', 'quota_nat_ports',
-                'quota_web_proxy', 'quota_bandwidth_up', 'quota_bandwidth_down', 'quota_traffic',
+                'quota_web_proxy', 'quota_nat_ips', 'quota_pub_ips', 'quota_bandwidth_up', 
+                'quota_bandwidth_down', 'quota_traffic',
                 'used_cpu', 'used_ram', 'used_ssd', 'used_gpu', 'used_nat_ports',
-                'used_web_proxy', 'used_bandwidth_up', 'used_bandwidth_down', 'used_traffic',
+                'used_web_proxy', 'used_nat_ips', 'used_pub_ips', 'used_bandwidth_up', 
+                'used_bandwidth_down', 'used_traffic',
                 'assigned_hosts'
             ]
             
@@ -909,8 +912,14 @@ class HostDatabase:
             for key, value in kwargs.items():
                 if key in ['assigned_hosts'] and isinstance(value, list):
                     value = json.dumps(value)
-                fields.append(f"{key} = ?")
-                values.append(value)
+                    fields.append(f"{key} = ?")
+                    values.append(value)
+                elif isinstance(value, str) and value.startswith(('used_nat_ips +', 'used_pub_ips +', 'used_nat_ips -', 'used_pub_ips -')):
+                    # 支持表达式更新
+                    fields.append(f"{key} = {value}")
+                else:
+                    fields.append(f"{key} = ?")
+                    values.append(value)
 
             # 添加更新时间
             fields.append("updated_at = CURRENT_TIMESTAMP")
@@ -922,6 +931,7 @@ class HostDatabase:
             return True
         except Exception as e:
             logger.error(f"更新用户错误: {e}")
+            traceback.print_exc()
             conn.rollback()
             return False
         finally:
@@ -977,6 +987,40 @@ class HostDatabase:
             row = cursor.fetchone()
             if row:
                 return dict(row)
+            return None
+        finally:
+            conn.close()
+
+    def get_user_by_email_change_token(self, token: str) -> Optional[Dict[str, Any]]:
+        """根据邮箱变更token获取用户（解析token中的邮箱并查找）"""
+        conn = self.get_db_sqlite()
+        try:
+            import base64
+            
+            # 解析token: base64邮箱:随机值
+            if ':' not in token:
+                return None
+            
+            email_base64, random_value = token.split(':', 1)
+            
+            # 解码base64邮箱
+            try:
+                # 添加padding
+                email_bytes = base64.urlsafe_b64decode(email_base64 + '=' * (-len(email_base64) % 4))
+                email = email_bytes.decode()
+            except:
+                return None
+            
+            # 根据邮箱查找用户
+            cursor = conn.execute(
+                "SELECT * FROM web_users WHERE verify_token != '' AND verify_token LIKE ?",
+                ('%"type": "email_change"%',)
+            )
+            row = cursor.fetchone()
+            if row:
+                # 验证用户是否有邮箱变更请求
+                user_data = dict(row)
+                return user_data
             return None
         finally:
             conn.close()

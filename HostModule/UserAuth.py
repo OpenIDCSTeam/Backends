@@ -213,6 +213,8 @@ def check_resource_quota(user_data: Dict[str, Any], **resources) -> tuple[bool, 
                 'gpu': 'GPU显存',
                 'nat_ports': 'NAT端口',
                 'web_proxy': 'WEB代理',
+                'nat_ips': '内网IP',
+                'pub_ips': '公网IP',
                 'traffic': '流量',
                 'bandwidth_up': '上行带宽',
                 'bandwidth_down': '下行带宽'
@@ -276,12 +278,57 @@ class EmailService:
             logger.error(f"发送邮件异常: {e}")
             return False
     
-    def send_password_reset_email(self, to_email: str, username: str, reset_url: str) -> bool:
+    def send_test_email(self, to_email: str) -> bool:
+        """
+        发送测试邮件
+        :param to_email: 收件人邮箱
+        :return: 是否成功
+        """
+        try:
+            import requests
+            
+            response = requests.post(
+                "https://api.resend.com/emails",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "from": self.from_email,
+                    "to": [to_email],
+                    "subject": "OpenIDCS - 测试邮件",
+                    "html": f"""
+                    <h2>测试邮件</h2>
+                    <p>您好，</p>
+                    <p>这是一封来自 OpenIDCS 系统的测试邮件。</p>
+                    <p>如果您收到这封邮件，说明邮件服务配置正常。</p>
+                    <p>发送时间: {self._get_current_time()}</p>
+                    <p>OpenIDCS 系统</p>
+                    """
+                }
+            )
+            
+            if response.status_code == 200:
+                logger.info(f"测试邮件已发送到 {to_email}")
+                return True
+            else:
+                logger.error(f"发送测试邮件失败: {response.text}")
+                return False
+        except Exception as e:
+            logger.error(f"发送测试邮件异常: {e}")
+            return False
+    
+    def _get_current_time(self) -> str:
+        """获取当前时间字符串"""
+        from datetime import datetime
+        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    def send_password_reset_email(self, to_email: str, username: str, reset_link: str) -> bool:
         """
         发送密码重置邮件
         :param to_email: 收件人邮箱
         :param username: 用户名
-        :param reset_url: 重置链接
+        :param reset_link: 重置链接
         :return: 是否成功
         """
         if not self.api_key or not self.from_email:
@@ -306,7 +353,7 @@ class EmailService:
                     <p>您好 {username}，</p>
                     <p>我们收到了您的密码重置请求。</p>
                     <p>请点击下面的链接重置您的密码：</p>
-                    <p><a href="{reset_url}">{reset_url}</a></p>
+                    <p><a href="{reset_link}">{reset_link}</a></p>
                     <p>如果您没有请求重置密码，请忽略此邮件。</p>
                     <p>此链接24小时内有效。</p>
                     """
@@ -321,4 +368,52 @@ class EmailService:
                 return False
         except Exception as e:
             logger.error(f"发送密码重置邮件异常: {e}")
+            return False
+    
+    def send_email_change_verification_email(self, to_email: str, username: str, verify_url: str) -> bool:
+        """
+        发送邮箱变更验证邮件
+        :param to_email: 收件人邮箱
+        :param username: 用户名
+        :param verify_url: 验证链接
+        :return: 是否成功
+        """
+        if not self.api_key or not self.from_email:
+            logger.warning("邮件服务未配置")
+            return False
+        
+        try:
+            import requests
+            
+            response = requests.post(
+                "https://api.resend.com/emails",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "from": self.from_email,
+                    "to": [to_email],
+                    "subject": "OpenIDCS - 邮箱变更验证",
+                    "html": f"""
+                    <h2>邮箱变更验证</h2>
+                    <p>您好 {username}，</p>
+                    <p>我们收到了您的邮箱变更请求。</p>
+                    <p>请点击下面的链接验证您的新邮箱地址：</p>
+                    <p><a href="{verify_url}">{verify_url}</a></p>
+                    <p>验证成功后，您的账号邮箱将更新为此邮箱地址。</p>
+                    <p>如果您没有请求变更邮箱，请忽略此邮件。</p>
+                    <p>此链接24小时内有效。</p>
+                    """
+                }
+            )
+            
+            if response.status_code == 200:
+                logger.info(f"邮箱变更验证邮件已发送到 {to_email}")
+                return True
+            else:
+                logger.error(f"发送邮箱变更验证邮件失败: {response.text}")
+                return False
+        except Exception as e:
+            logger.error(f"发送邮箱变更验证邮件异常: {e}")
             return False

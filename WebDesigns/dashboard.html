@@ -241,7 +241,7 @@
     <div class="bg-white rounded-lg border border-gray-200 p-4 card-hover">
         <div class="flex items-center justify-between mb-3">
             <div class="w-10 h-10 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg flex items-center justify-center shadow-md">
-                <span class="iconify text-white" data-icon="mdi:exchange-alt" data-width="20"></span>
+                <span class="iconify text-white" data-icon="mdi:web" data-width="20"></span>
             </div>
             <div class="text-right">
                 <p class="text-xs text-gray-600 font-medium mb-1">流量</p>
@@ -639,6 +639,13 @@
                     </h4>
                     <div id="nicConfigs" class="space-y-3">
                         <!-- 网卡配置将通过JavaScript动态添加 -->
+                    </div>
+                    <!-- IP配额信息 -->
+                    <div id="dashboardIpQuotaInfo" class="mt-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                        <h5 class="text-sm font-semibold text-gray-700 mb-2">IP配额信息</h5>
+                        <div id="dashboardQuotaDetails" class="text-xs text-gray-600 space-y-1">
+                            <!-- 配额信息将通过JavaScript动态加载 -->
+                        </div>
                     </div>
                     <button type="button" onclick="addNicConfig()"
                             class="mt-3 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm flex items-center gap-2">
@@ -1171,6 +1178,9 @@ const gpuPercent = user.quota_gpu > 0 ? ((user.used_gpu / 1024) / (user.quota_gp
                 document.getElementById('nicConfigs').innerHTML = '';
                 nicCounter = 0;
                 addNicConfig();
+                
+                // 加载IP配额信息
+                loadDashboardUserIPQuota();
 
                 // 生成随机密码并同步
                 generatePasswordAndSync();
@@ -1232,6 +1242,31 @@ const gpuPercent = user.quota_gpu > 0 ? ((user.used_gpu / 1024) / (user.quota_gp
     function generateRandomVncPortForInput() {
         const randomPort = Math.floor(Math.random() * (6999 - 5900 + 1)) + 5900;
         document.getElementById('vcPort').value = randomPort;
+    }
+
+    // 加载仪表板用户IP配额信息
+    async function loadDashboardUserIPQuota() {
+        try {
+            const result = await apiRequest('/api/users/current');
+            if (result && result.code === 200) {
+                const user = result.data;
+                const quotaDetails = document.getElementById('dashboardQuotaDetails');
+                
+                quotaDetails.innerHTML = `
+                    <div class="flex justify-between">
+                        <span>内网IP配额:</span>
+                        <span class="font-mono">${user.used_nat_ips || 0}/${user.quota_nat_ips || 0}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>公网IP配额:</span>
+                        <span class="font-mono">${user.used_pub_ips || 0}/${user.quota_pub_ips || 0}</span>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('加载用户配额失败:', error);
+            document.getElementById('dashboardQuotaDetails').innerHTML = '<div class="text-red-500">配额信息加载失败</div>';
+        }
     }
 
     // 网卡配置相关变量

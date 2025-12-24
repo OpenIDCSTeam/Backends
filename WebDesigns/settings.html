@@ -298,7 +298,7 @@
         <div class="p-4 border-b border-gray-200">
             <h2 class="text-base font-semibold text-gray-800 flex items-center gap-2">
                 <span class="iconify text-red-600" data-icon="mdi:email" data-width="20"></span>
-                邮件服务配置 (Resend)
+                邮件服务配置
             </h2>
         </div>
         <div class="p-4 space-y-4">
@@ -323,6 +323,16 @@
             </div>
 
             <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">发送域名</label>
+                <input
+                        type="text"
+                        id="resendDomain"
+                        placeholder="yourdomain.com"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+            </div>
+
+            <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">API Key</label>
                 <input
                         type="password"
@@ -330,6 +340,27 @@
                         placeholder="re_xxxxxxxxxxxxxxxx"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
+            </div>
+
+            <!-- 测试邮件发送 -->
+            <div class="border-t border-gray-200 pt-4">
+                <h4 class="text-sm font-medium text-gray-800 mb-3">测试邮件发送</h4>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">测试邮箱</label>
+                        <input
+                                type="email"
+                                id="testEmail"
+                                placeholder="test@example.com"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                    </div>
+                    <button onclick="sendTestEmail()"
+                            class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center justify-center gap-2">
+                        <span class="iconify" data-icon="mdi:email-send" data-width="18"></span>
+                        发送测试邮件
+                    </button>
+                </div>
             </div>
 
             <button onclick="saveEmailSettings()"
@@ -378,6 +409,7 @@
             document.getElementById('registrationEnabled').checked = settings.registration_enabled === '1';
             document.getElementById('emailVerificationEnabled').checked = settings.email_verification_enabled === '1';
             document.getElementById('resendEmail').value = settings.resend_email || '';
+            document.getElementById('resendDomain').value = settings.resend_domain || '';
             document.getElementById('resendApikey').value = settings.resend_apikey || '';
 
             // 加载默认资源配置
@@ -429,6 +461,7 @@
     async function saveEmailSettings() {
         const data = {
             resend_email: document.getElementById('resendEmail').value,
+            resend_domain: document.getElementById('resendDomain').value,
             resend_apikey: document.getElementById('resendApikey').value
         };
 
@@ -437,6 +470,39 @@
             showToast('邮件配置已保存', 'success');
         } else {
             showToast(result?.msg || '保存失败', 'error');
+        }
+    }
+
+    async function sendTestEmail() {
+        const testEmail = document.getElementById('testEmail').value;
+        const resendEmail = document.getElementById('resendEmail').value;
+        const resendApikey = document.getElementById('resendApikey').value;
+
+        if (!testEmail) {
+            showToast('请输入测试邮箱地址', 'error');
+            return;
+        }
+
+        if (!resendEmail || !resendApikey) {
+            showToast('请先配置发件邮箱和API Key', 'error');
+            return;
+        }
+
+        try {
+            const data = {
+                test_email: testEmail,
+                resend_email: resendEmail,
+                resend_apikey: resendApikey
+            };
+
+            const result = await apiRequest('/api/system/test-email', 'POST', data);
+            if (result && result.code === 200) {
+                showToast('测试邮件发送成功，请查收', 'success');
+            } else {
+                showToast(result?.msg || '发送测试邮件失败', 'error');
+            }
+        } catch (error) {
+            showToast('发送测试邮件失败', 'error');
         }
     }
 
