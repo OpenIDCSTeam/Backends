@@ -397,4 +397,155 @@ class HostManage:
         for server in self.engine:
             logger.debug(f'[Cron] 执行{server}的定时任务')
             self.engine[server].Crontabs()
+        
+        # 清理已删除虚拟机的状态数据
+        self._cleanup_deleted_vm_status()
+        
+        # 重新计算所有用户的资源配额
+        self._recalculate_user_quotas()
+        
         logger.debug('[Cron] 执行定时任务完成')
+    
+    def _recalculate_user_quotas(self):
+        """
+        遍历所有虚拟机，重新计算用户资源配额
+        只有虚拟机 own_all 列表中的第一个用户才占用配额
+        """
+        try:
+            # 获取所有用户
+            all_users = self.saving.get_all_users()
+            if not all_users:
+                return
+            
+            # 初始化所有用户的资源使用量为0
+            user_resources = {}
+            for user in all_users:
+                user_resources[user['username']] = {
+                    'user_id': user['id'],
+                    'cpu': 0,
+                    'ram': 0,
+                    'ssd': 0,
+                    'gpu': 0,
+                    'traffic': 0,
+                    'nat_ports': 0,
+                    'web_proxy': 0,
+                    'bandwidth_up': 0,
+                    'bandwidth_down': 0
+                }
+            
+            # 遍历所有主机的所有虚拟机
+            for server_name, server in self.engine.items():
+                if not hasattr(server, 'vm_saving'):
+                    continue
+                
+                for vm_uuid, vm_config in server.vm_saving.items():
+                    # 获取虚拟机的第一个所有者
+                    owners = getattr(vm_config, 'own_all', [])
+                    if not owners:
+                        continue
+                    
+                    first_owner = owners[0]
+                    
+                    # 跳过admin用户
+                    if first_owner == 'admin':
+                        continue
+                    
+                    # 如果用户不在用户列表中，跳过
+                    if first_owner not in user_resources:
+                        continue
+                    
+                    # 累加该用户的资源使用量
+                    user_resources[first_owner]['cpu'] += getattr(vm_config, 'cpu_num', 0)
+                    # 虚拟机的ram_num字段单位是MB，需要转换为GB存储到用户表
+                    ram_mb = getattr(vm_config, 'mem_num', 0)
+                    user_resources[first_owner]['ram'] += ram_mb
+                    # 虚拟机的hdd_num字段单位是MB，需要转换为GB存储到用户表
+                    hdd_mb = getattr(vm_config, 'hdd_num', 0)
+                    user_resources[first_owner]['ssd'] += hdd_mb
+                    # 虚拟机的gpu_mem字段单位是MB，需要转换为GB存储到用户表
+                    gpu_mem_mb = getattr(vm_config, 'gpu_mem', 0)
+                    user_resources[first_owner]['gpu'] += gpu_mem_mb
+                    # 虚拟机的flu_num字段单位是MB，需要转换为GB存储到用户表
+                    flu_mb = getattr(vm_config, 'flu_num', 0)
+                    user_resources[first_owner]['traffic'] += flu_mb
+                    user_resources[first_owner]['nat_ports'] += getattr(vm_config, 'nat_num', 0)
+                    user_resources[first_owner]['web_proxy'] += getattr(vm_config, 'web_num', 0)
+                    # 虚拟机的speed_u和speed_d字段单位是Mbps，直接使用
+                    user_resources[first_owner]['bandwidth_up'] += getattr(vm_config, 'speed_u', 0)
+                    user_resources[first_owner]['bandwidth_down'] += getattr(vm_config, 'speed_d', 0)
+            
+            # 更新所有用户的资源使用量
+            for username, resources in user_resources.items():
+                self.saving.update_user_resource_usage(
+                    resources['user_id'],
+                    used_cpu=resources['cpu'],
+                    used_ram=resources['ram'],
+                    used_ssd=resources['ssd'],
+                    used_gpu=resources['gpu'],
+                    used_traffic=resources['traffic'],
+                    used_nat_ports=resources['nat_ports'],
+                    used_web_proxy=resources['web_proxy'],
+                    used_bandwidth_up=resources['bandwidth_up'],
+                    used_bandwidth_down=resources['bandwidth_down']
+                )
+            
+            logger.debug('[Cron] 用户资源配额重新计算完成')
+            
+        except Exception as e:
+            logger.error(f'[Cron] 重新计算用户配额失败: {e}')
+            traceback.print_exc()
+
+    def _cleanup_deleted_vm_status(self):
+        """
+        清理已删除虚拟机的状态数据
+        遍历数据库中的vm_status表，删除不存在于vm_saving中的虚拟机状态
+        """
+        try:
+            logger.debug('[Cron] 开始清理已删除虚拟机的状态数据')
+            
+            # 获取所有主机配置
+            all_hosts = self.saving.all_hs_config()
+            
+            # 构建所有现有虚拟机的集合 (主机名, 虚拟机UUID)
+            existing_vms = set()
+            for host_config in all_hosts:
+                hs_name = host_config['hs_name']
+                vm_saving = self.saving.get_vm_saving(hs_name)
+                for vm_uuid in vm_saving.keys():
+                    existing_vms.add((hs_name, vm_uuid))
+            
+            # 获取数据库中所有虚拟机状态
+            conn = self.saving.get_db_sqlite()
+            try:
+                cursor = conn.execute("SELECT DISTINCT hs_name, vm_uuid FROM vm_status")
+                db_vms = cursor.fetchall()
+                
+                deleted_count = 0
+                for hs_name, vm_uuid in db_vms:
+                    if (hs_name, vm_uuid) not in existing_vms:
+                        # 这个虚拟机不存在于vm_saving中，说明已被删除，清理其状态数据
+                        if self.saving.delete_vm_status(hs_name, vm_uuid):
+                            deleted_count += 1
+                            logger.debug(f'[Cron] 已清理已删除虚拟机状态: 主机={hs_name}, 虚拟机={vm_uuid}')
+                
+                if deleted_count > 0:
+                    logger.info(f'[Cron] 清理完成，共删除 {deleted_count} 个已删除虚拟机的状态数据')
+                else:
+                    logger.debug('[Cron] 没有需要清理的虚拟机状态数据')
+                    
+            finally:
+                conn.close()
+                
+        except Exception as e:
+            logger.error(f'[Cron] 清理已删除虚拟机状态数据失败: {e}')
+            import traceback
+            traceback.print_exc()
+
+    def recalculate_user_quotas(self):
+        """
+        公共方法：手动触发用户资源配额重新计算
+        可用于立即更新用户资源使用统计
+        """
+        logger.info('[手动] 触发用户资源配额重新计算')
+        self._recalculate_user_quotas()
+        logger.info('[手动] 用户资源配额重新计算完成')

@@ -78,7 +78,7 @@
                     </label>
                     <label class="flex items-center gap-2">
                         <input type="checkbox" id="addIsActive" checked class="rounded">
-                        <span class="text-sm">启用用户</span>
+                        <span class="text-sm">已启用</span>
                     </label>
                 </div>
             </div>
@@ -107,28 +107,42 @@
                 <h4 class="font-semibold text-gray-700 mb-3">资源配额</h4>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">CPU核心数</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">CPU核心(个)</label>
                         <input type="number" id="addQuotaCpu" min="0" value="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">内存(GB)</label>
-                        <input type="number" id="addQuotaRam" min="0" value="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">RAM内存(GB)</label>
+                        <input type="number" id="addQuotaRam" min="0" step="0.5" value="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">磁盘(GB)</label>
-                        <input type="number" id="addQuotaSsd" min="0" value="50" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">HDD磁盘(GB)</label>
+                        <input type="number" id="addQuotaSsd" min="0" step="1" value="50" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">GPU显存(GB)</label>
-                        <input type="number" id="addQuotaGpu" min="0" value="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        <input type="number" id="addQuotaGpu" min="0" step="1" value="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">NAT端口数</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">GPU可用ID列表</label>
+                        <select id="addGpuIds" multiple class="w-full px-3 py-2 border border-gray-300 rounded-lg" style="height: 38px;">
+                            <option value="0" selected>0</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">NAT端口(个)</label>
                         <input type="number" id="addQuotaNatPorts" min="0" value="5" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">WEB代理数</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">内网IP(个)</label>
+                        <input type="number" id="addQuotaNatIps" min="0" value="5" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">WEB代理(个)</label>
                         <input type="number" id="addQuotaWebProxy" min="0" value="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">公网IP(个)</label>
+                        <input type="number" id="addQuotaPubIps" min="0" value="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">上行带宽(Mbps)</label>
@@ -139,8 +153,8 @@
                         <input type="number" id="addQuotaBandwidthDown" min="0" value="100" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                     </div>
                     <div class="col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">每月流量(GB)</label>
-                        <input type="number" id="addQuotaTraffic" min="0" value="500" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">月流量(GB)</label>
+                        <input type="number" id="addQuotaTraffic" min="0" step="1" value="500" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                     </div>
                 </div>
             </div>
@@ -190,13 +204,20 @@
                         <label class="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
                         <input type="email" id="editEmail" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
                     </div>
+                    <div class="col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            新密码
+                            <span class="text-xs text-gray-500 font-normal">(留空则不修改密码)</span>
+                        </label>
+                        <input type="password" id="editPassword" placeholder="留空则不修改" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
                 </div>
             </div>
             
             <!-- 角色和状态 -->
             <div class="border-b pb-4">
                 <h4 class="font-semibold text-gray-700 mb-3">角色和状态</h4>
-                <div class="space-y-3">
+                <div class="flex items-center gap-6">
                     <label class="flex items-center gap-2">
                         <input type="checkbox" id="editIsAdmin" class="rounded">
                         <span class="text-sm">管理员</span>
@@ -211,7 +232,7 @@
             <!-- 虚拟机权限 -->
             <div class="border-b pb-4">
                 <h4 class="font-semibold text-gray-700 mb-3">虚拟机权限</h4>
-                <div class="space-y-3">
+                <div class="flex items-center gap-6">
                     <label class="flex items-center gap-2">
                         <input type="checkbox" id="editCanCreate" class="rounded">
                         <span class="text-sm">允许创建虚拟机</span>
@@ -232,28 +253,42 @@
                 <h4 class="font-semibold text-gray-700 mb-3">资源配额</h4>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">CPU核心数</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">CPU核心(个)</label>
                         <input type="number" id="editQuotaCpu" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">内存(GB)</label>
-                        <input type="number" id="editQuotaRam" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">RAM内存(GB)</label>
+                        <input type="number" id="editQuotaRam" min="0" step="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">磁盘(GB)</label>
-                        <input type="number" id="editQuotaSsd" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">HDD磁盘(GB)</label>
+                        <input type="number" id="editQuotaSsd" min="0" step="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">GPU显存(GB)</label>
-                        <input type="number" id="editQuotaGpu" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        <input type="number" id="editQuotaGpu" min="0" step="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">NAT端口数</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">GPU可用ID列表</label>
+                        <select id="editGpuIds" multiple class="w-full px-3 py-2 border border-gray-300 rounded-lg" style="height: 38px;">
+                            <option value="0" selected>0</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">NAT端口(个)</label>
                         <input type="number" id="editQuotaNatPorts" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">WEB代理数</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">内网IP(个)</label>
+                        <input type="number" id="editQuotaNatIps" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">WEB代理(个)</label>
                         <input type="number" id="editQuotaWebProxy" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">公网IP(个)</label>
+                        <input type="number" id="editQuotaPubIps" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">上行带宽(Mbps)</label>
@@ -264,8 +299,8 @@
                         <input type="number" id="editQuotaBandwidthDown" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                     </div>
                     <div class="col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">每月流量(GB)</label>
-                        <input type="number" id="editQuotaTraffic" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">月流量(GB)</label>
+                        <input type="number" id="editQuotaTraffic" min="0" step="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                     </div>
                 </div>
             </div>
@@ -310,7 +345,17 @@
     async function loadHosts() {
         const result = await apiRequest('/api/server/detail');
         if (result && result.code === 200) {
-            allHosts = Array.isArray(result.data) ? result.data : [];
+            // 将对象转换为数组，每个元素包含主机名
+            if (typeof result.data === 'object' && !Array.isArray(result.data)) {
+                allHosts = Object.keys(result.data).map(hostName => ({
+                    hs_name: hostName,
+                    ...result.data[hostName]
+                }));
+            } else if (Array.isArray(result.data)) {
+                allHosts = result.data;
+            } else {
+                allHosts = [];
+            }
         } else {
             allHosts = [];
         }
@@ -352,22 +397,39 @@
             document.getElementById('editCanModify').checked = user.can_modify_vm;
             document.getElementById('editCanDelete').checked = user.can_delete_vm;
             document.getElementById('editQuotaCpu').value = user.quota_cpu;
-            document.getElementById('editQuotaRam').value = user.quota_ram;
-            document.getElementById('editQuotaSsd').value = user.quota_ssd;
-            document.getElementById('editQuotaGpu').value = user.quota_gpu;
+            // 将MB转换为GB显示（整数）
+            document.getElementById('editQuotaRam').value = Math.floor(user.quota_ram / 1024);
+            document.getElementById('editQuotaSsd').value = Math.floor(user.quota_ssd / 1024);
+            document.getElementById('editQuotaGpu').value = Math.floor(user.quota_gpu / 1024);
+            
+            // 设置GPU ID列表（固定为0）
+            const editGpuIds = document.getElementById('editGpuIds');
+            if (editGpuIds) {
+                Array.from(editGpuIds.options).forEach(option => {
+                    option.selected = true;
+                });
+            }
+            
             document.getElementById('editQuotaNatPorts').value = user.quota_nat_ports;
+            document.getElementById('editQuotaNatIps').value = user.quota_nat_ips || 0;
             document.getElementById('editQuotaWebProxy').value = user.quota_web_proxy;
+            document.getElementById('editQuotaPubIps').value = user.quota_pub_ips || 0;
             document.getElementById('editQuotaBandwidthUp').value = user.quota_bandwidth_up;
             document.getElementById('editQuotaBandwidthDown').value = user.quota_bandwidth_down;
-            document.getElementById('editQuotaTraffic').value = user.quota_traffic;
+            document.getElementById('editQuotaTraffic').value = Math.floor(user.quota_traffic / 1024);
             
             // 渲染主机列表
             let assignedHosts = [];
-            try {
-                assignedHosts = JSON.parse(user.assigned_hosts || '[]');
-            } catch (error) {
-                console.error('解析assigned_hosts失败:', error, user.assigned_hosts);
-                assignedHosts = [];
+            // 后端返回的assigned_hosts可能是数组或JSON字符串
+            if (Array.isArray(user.assigned_hosts)) {
+                assignedHosts = user.assigned_hosts;
+            } else if (typeof user.assigned_hosts === 'string') {
+                try {
+                    assignedHosts = JSON.parse(user.assigned_hosts);
+                } catch (error) {
+                    console.error('解析assigned_hosts失败:', error, user.assigned_hosts);
+                    assignedHosts = [];
+                }
             }
             const container = document.getElementById('assignedHostsContainer');
             if (Array.isArray(allHosts)) {
@@ -387,6 +449,8 @@
     
     function closeEditUserModal() {
         document.getElementById('editUserModal').classList.add('hidden');
+        // 清空密码字段
+        document.getElementById('editPassword').value = '';
     }
     
     document.getElementById('editUserForm').addEventListener('submit', async (e) => {
@@ -394,6 +458,7 @@
         
         const assignedHosts = Array.from(document.querySelectorAll('.assigned-host-checkbox:checked')).map(cb => cb.value);
         
+        // 将GB转换为MB提交给后端
         const data = {
             is_admin: document.getElementById('editIsAdmin').checked ? 1 : 0,
             is_active: document.getElementById('editIsActive').checked ? 1 : 0,
@@ -401,16 +466,24 @@
             can_modify_vm: document.getElementById('editCanModify').checked ? 1 : 0,
             can_delete_vm: document.getElementById('editCanDelete').checked ? 1 : 0,
             quota_cpu: parseInt(document.getElementById('editQuotaCpu').value),
-            quota_ram: parseInt(document.getElementById('editQuotaRam').value),
-            quota_ssd: parseInt(document.getElementById('editQuotaSsd').value),
-            quota_gpu: parseInt(document.getElementById('editQuotaGpu').value),
+            quota_ram: Math.round(parseInt(document.getElementById('editQuotaRam').value) * 1024),
+            quota_ssd: Math.round(parseInt(document.getElementById('editQuotaSsd').value) * 1024),
+            quota_gpu: Math.round(parseInt(document.getElementById('editQuotaGpu').value) * 1024),
             quota_nat_ports: parseInt(document.getElementById('editQuotaNatPorts').value),
+            quota_nat_ips: parseInt(document.getElementById('editQuotaNatIps').value) || 0,
             quota_web_proxy: parseInt(document.getElementById('editQuotaWebProxy').value),
+            quota_pub_ips: parseInt(document.getElementById('editQuotaPubIps').value) || 0,
             quota_bandwidth_up: parseInt(document.getElementById('editQuotaBandwidthUp').value),
             quota_bandwidth_down: parseInt(document.getElementById('editQuotaBandwidthDown').value),
-            quota_traffic: parseInt(document.getElementById('editQuotaTraffic').value),
+            quota_traffic: Math.round(parseInt(document.getElementById('editQuotaTraffic').value) * 1024),
             assigned_hosts: assignedHosts
         };
+        
+        // 如果填写了新密码，则添加到数据中
+        const newPassword = document.getElementById('editPassword').value;
+        if (newPassword && newPassword.trim() !== '') {
+            data.password = newPassword;
+        }
         
         const userId = document.getElementById('editUserId').value;
         const result = await apiRequest(`/api/users/${userId}`, 'PUT', data);
@@ -472,6 +545,7 @@
         
         const assignedHosts = Array.from(document.querySelectorAll('.add-assigned-host-checkbox:checked')).map(cb => cb.value);
         
+        // 将GB转换为MB提交给后端
         const data = {
             username: document.getElementById('addUsername').value,
             email: document.getElementById('addEmail').value,
@@ -482,14 +556,16 @@
             can_modify_vm: document.getElementById('addCanModify').checked ? 1 : 0,
             can_delete_vm: document.getElementById('addCanDelete').checked ? 1 : 0,
             quota_cpu: parseInt(document.getElementById('addQuotaCpu').value) || 0,
-            quota_ram: parseInt(document.getElementById('addQuotaRam').value) || 0,
-            quota_ssd: parseInt(document.getElementById('addQuotaSsd').value) || 0,
-            quota_gpu: parseInt(document.getElementById('addQuotaGpu').value) || 0,
+            quota_ram: Math.round(parseFloat(document.getElementById('addQuotaRam').value) * 1024) || 0,
+            quota_ssd: Math.round(parseFloat(document.getElementById('addQuotaSsd').value) * 1024) || 0,
+            quota_gpu: Math.round(parseFloat(document.getElementById('addQuotaGpu').value) * 1024) || 0,
             quota_nat_ports: parseInt(document.getElementById('addQuotaNatPorts').value) || 0,
+            quota_nat_ips: parseInt(document.getElementById('addQuotaNatIps').value) || 0,
             quota_web_proxy: parseInt(document.getElementById('addQuotaWebProxy').value) || 0,
+            quota_pub_ips: parseInt(document.getElementById('addQuotaPubIps').value) || 0,
             quota_bandwidth_up: parseInt(document.getElementById('addQuotaBandwidthUp').value) || 0,
             quota_bandwidth_down: parseInt(document.getElementById('addQuotaBandwidthDown').value) || 0,
-            quota_traffic: parseInt(document.getElementById('addQuotaTraffic').value) || 0,
+            quota_traffic: Math.round(parseFloat(document.getElementById('addQuotaTraffic').value) * 1024) || 0,
             assigned_hosts: assignedHosts
         };
         

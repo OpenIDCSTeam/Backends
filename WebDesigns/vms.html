@@ -374,11 +374,10 @@
 
     // 加载主机信息（获取system_maps）
     async function loadHostInfo() {
-        const result = await apiRequest(`/api/server/detail/${hostName}`);
+        const result = await apiRequest(`/api/client/os-images/${hostName}`);
         if (result && result.code === 200) {
             const hostData = result.data;
-            hostConfig = hostData.config || {};
-            hostSystemMaps = hostConfig.system_maps || {};
+            hostSystemMaps = hostData.system_maps || {};
             updateOsOptions();
         }
     }
@@ -805,14 +804,14 @@
                     timer: 2000,
                     showConfirmButton: false
                 });
-                loadVMs();
+                setTimeout(() => window.location.href = '/', 1000);
             } else {
                 Swal.fire({
                     icon: 'error',
                     title: '删除失败',
                     text: result?.msg || '删除失败，请重试'
                 });
-                loadVMs(); // 删除失败后也刷新页面
+                setTimeout(() => window.location.href = '/', 1500);
             }
         } catch (error) {
             Swal.fire({
@@ -820,7 +819,7 @@
                 title: '删除失败',
                 text: '网络错误或服务器异常'
             });
-            loadVMs(); // 网络错误后也刷新页面
+            setTimeout(() => window.location.href = '/', 1500);
         } finally {
             setAllButtonsDisabled(false);
         }

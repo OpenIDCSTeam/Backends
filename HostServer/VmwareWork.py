@@ -298,7 +298,9 @@ class HostServer(BaseServer):
         vm_conf = self.VMSelect(vm_name)
         if vm_conf is None:
             return ZMessage(
-                success=False, action="VMDelete", messages=f"虚拟机 {vm_name} 不存在")
+                success=False,
+                action="VMDelete",
+                messages=f"虚拟机 {vm_name} 不存在")
         self.VMPowers(vm_name, VMPowers.H_CLOSE)
         self.NCCreate(vm_conf, False)
         vm_saving = os.path.join(self.hs_config.system_path, vm_name)
@@ -350,3 +352,7 @@ class HostServer(BaseServer):
     # 移除磁盘 #################################################################
     def RMMounts(self, vm_name: str, vm_imgs: str) -> ZMessage:
         return super().RMMounts(vm_name, vm_imgs)
+
+    # 查找显卡 #################################################################
+    def GPUShows(self) -> dict[str, str]:
+        return {}

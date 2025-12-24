@@ -44,6 +44,7 @@ class VMConfig:
         self.nat_all: list[PortData] = []
         self.web_all: list[WebProxy] = []
         self.backups: list[VMBackup] = []
+        self.own_all: list[str] = ["admin"]
         # 加载数据 ===========================
         self.__load__(**kwargs)
 
@@ -191,6 +192,8 @@ class VMConfig:
                     getattr(b, '__save__'))
                 else b for b
                 in self.backups],
+            # 所有者配置 =======================
+            "own_all": self.own_all,
         }
 
     # 转换字符 ###############################

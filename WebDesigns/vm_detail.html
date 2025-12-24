@@ -101,6 +101,10 @@
         <span class="iconify mr-1" data-icon="mdi:backup-restore" data-width="18"></span>
         备份管理
     </a>
+    <a role="tab" class="tab" onclick="switchTab('owners')">
+        <span class="iconify mr-1" data-icon="mdi:account-multiple" data-width="18"></span>
+        用户管理
+    </a>
 </div>
 
 <!-- Tab内容 -->
@@ -533,6 +537,26 @@
                 </button>
             </div>
             <div id="backupList">
+                <p class="text-center text-gray-500 py-8 text-sm">加载中...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 用户管理Tab -->
+    <div id="ownersTab" class="tab-pane" style="display: none;">
+        <div class="bg-white rounded-lg border border-gray-200 p-4">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-base font-semibold text-gray-800 flex items-center gap-2">
+                    <span class="iconify text-gray-500" data-icon="mdi:account-multiple" data-width="20"></span>
+                    虚拟机所有者管理
+                </h2>
+                <button onclick="showAddOwnerModal()"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                    <span class="iconify" data-icon="mdi:account-plus" data-width="18"></span>
+                    添加所有者
+                </button>
+            </div>
+            <div id="ownersList">
                 <p class="text-center text-gray-500 py-8 text-sm">加载中...</p>
             </div>
         </div>
@@ -1179,6 +1203,40 @@
     </form>
 </dialog>
 
+<!-- 添加所有者模态框 -->
+<dialog id="addOwnerModal" class="modal">
+    <div class="modal-box max-w-lg">
+        <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+            <span class="iconify text-blue-600" data-icon="mdi:account-plus" data-width="24"></span>
+            添加虚拟机所有者
+        </h3>
+        <form id="addOwnerForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">用户名 *</label>
+                <input type="text" id="ownerUsername" required
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="请输入用户名">
+                <p class="text-xs text-gray-500 mt-1">添加后该用户将共享此虚拟机的资源配额</p>
+            </div>
+            
+            <div class="modal-action">
+                <button type="button" onclick="closeAddOwnerModal()"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                    取消
+                </button>
+                <button type="submit"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                    <span class="iconify" data-icon="mdi:check" data-width="18"></span>
+                    添加
+                </button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>关闭</button>
+    </form>
+</dialog>
+
 <!-- 删除确认模态框 -->
 <dialog id="deleteModal" class="modal">
     <div class="modal-box">
@@ -1666,6 +1724,12 @@
             submitBackup();
         });
 
+        // 添加所有者表单提交处理
+        $('#addOwnerForm').on('submit', function (e) {
+            e.preventDefault();
+            submitAddOwner();
+        });
+
         // 编辑虚拟机表单提交处理
         $('#vmEditForm').on('submit', function (e) {
             e.preventDefault();
@@ -1774,12 +1838,18 @@
             'proxy': 'proxyTab',
             'hdd': 'hddTab',
             'iso': 'isoTab',
-            'backup': 'backupTab'
+            'backup': 'backupTab',
+            'owners': 'ownersTab'
         };
         const selectedPane = document.getElementById(tabMap[tabName]);
         if (selectedPane) selectedPane.style.display = 'block';
 
         event.target.classList.add('tab-active');
+        
+        // 切换到owners tab时加载所有者列表
+        if (tabName === 'owners') {
+            loadOwnersList();
+        }
     }
 
     // 复制到剪贴板
@@ -1793,11 +1863,11 @@
 
     // 加载主机信息（获取公网IP和系统映射）
     async function loadHostInfo() {
-        const result = await apiRequest(`/api/server/detail/${hostName}`);
+        const result = await apiRequest(`/api/client/os-images/${hostName}`);
         if (result && result.code === 200) {
-            hostData = result.data;
-            hostSystemMaps = hostData.config?.system_maps || {}; // 初始化系统映射
-            renderPublicAddr(hostData.config?.public_addr);
+            const hostData = result.data;
+            hostSystemMaps = hostData.system_maps || {}; // 初始化系统映射
+            // 注意：公网IP需要从主机详情获取，这里暂时不处理
         }
     }
 
@@ -2252,20 +2322,20 @@
                 showToast('虚拟机已删除', 'success');
                 document.getElementById('deleteModal').close();
                 document.getElementById('deleteConfirmInput').value = '';
-                setTimeout(() => window.location.href = `/hosts/${hostName}/vms`, 1000);
+                setTimeout(() => window.location.href = '/', 1000);
             } else {
                 showToast(result?.msg || '删除失败', 'error');
                 document.getElementById('deleteModal').close();
                 document.getElementById('deleteConfirmInput').value = '';
-                // 删除失败后也刷新页面，返回虚拟机列表
-                setTimeout(() => window.location.href = `/hosts/${hostName}/vms`, 1500);
+                // 删除失败后也跳转到首页
+                setTimeout(() => window.location.href = '/', 1500);
             }
         } catch (error) {
             showToast('网络错误或服务器异常', 'error');
             document.getElementById('deleteModal').close();
             document.getElementById('deleteConfirmInput').value = '';
-            // 网络错误后也刷新页面，返回虚拟机列表
-            setTimeout(() => window.location.href = `/hosts/${hostName}/vms`, 1500);
+            // 网络错误后也跳转到首页
+            setTimeout(() => window.location.href = '/', 1500);
         }
     }
 
@@ -3746,9 +3816,9 @@
         toggleIsoMountConfirmButton();
         
         // 加载可用的ISO镜像列表
-        const result = await apiRequest(`/api/server/detail/${hostName}`);
-        if (result && result.code === 200 && result.data && result.data.config) {
-            const imagesMaps = result.data.config.images_maps || {};
+        const result = await apiRequest(`/api/client/os-images/${hostName}`);
+        if (result && result.code === 200 && result.data) {
+            const imagesMaps = result.data.images_maps || {};
             const selectHtml = '<option value="">请选择ISO镜像文件</option>' + 
                 Object.entries(imagesMaps).map(([displayName, fileName]) => 
                     `<option value="${fileName}">${displayName} (${fileName})</option>`
@@ -4087,6 +4157,105 @@
             loadBackupList();
         } else {
             showToast(result?.msg || '删除失败', 'error');
+        }
+    }
+
+    // ==================== 用户管理 ====================
+    async function loadOwnersList() {
+        const result = await apiRequest(`/api/client/owners/${hostName}/${vmUuid}`);
+        if (result && result.code === 200 && result.data && result.data.owners) {
+            renderOwnersList(result.data.owners);
+        } else {
+            $('#ownersList').html('<p class="text-center text-gray-500 py-8 text-sm">暂无所有者</p>');
+        }
+    }
+
+    function renderOwnersList(owners) {
+        if (!owners || owners.length === 0) {
+            $('#ownersList').html('<p class="text-center text-gray-500 py-8 text-sm">暂无所有者</p>');
+            return;
+        }
+
+        let html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">';
+
+        owners.forEach((owner, index) => {
+            const isAdmin = owner.is_admin;
+            const roleClass = isAdmin ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700';
+            const roleText = isAdmin ? '管理员' : '普通用户';
+            const isFirstOwner = index === 0;
+            
+            html += `
+                <div class="bg-white border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="iconify text-blue-600" data-icon="mdi:account" data-width="24"></span>
+                            <span class="font-medium text-gray-800">${owner.username}</span>
+                            ${isFirstOwner ? '<span class="text-xs text-gray-500 ml-1">(主所有者)</span>' : ''}
+                        </div>
+                        ${!isFirstOwner ? `
+                        <button onclick="removeOwner('${owner.username}')" class="p-1 text-red-500 hover:bg-red-50 rounded" title="移除">
+                            <span class="iconify" data-icon="mdi:account-remove" data-width="18"></span>
+                        </button>
+                        ` : ''}
+                    </div>
+                    <div class="space-y-2">
+                        ${owner.email ? `
+                        <div class="flex items-center gap-2 text-sm text-gray-600">
+                            <span class="iconify" data-icon="mdi:email" data-width="16"></span>
+                            <span>${owner.email}</span>
+                        </div>
+                        ` : ''}
+                        <div>
+                            <span class="px-2 py-0.5 text-xs font-medium ${roleClass} rounded">
+                                ${roleText}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        $('#ownersList').html(html);
+    }
+
+    function showAddOwnerModal() {
+        $('#addOwnerForm')[0].reset();
+        document.getElementById('addOwnerModal').showModal();
+    }
+
+    function closeAddOwnerModal() {
+        document.getElementById('addOwnerModal').close();
+        $('#addOwnerForm')[0].reset();
+    }
+
+    async function submitAddOwner() {
+        const username = $('#ownerUsername').val().trim();
+        
+        if (!username) {
+            showToast('请输入用户名', 'error');
+            return;
+        }
+
+        const result = await apiRequest(`/api/client/owners/${hostName}/${vmUuid}`, 'POST', {username: username});
+        if (result && result.code === 200) {
+            showToast('所有者添加成功', 'success');
+            closeAddOwnerModal();
+            loadOwnersList();
+        } else {
+            showToast(result?.msg || '添加失败', 'error');
+        }
+    }
+
+    async function removeOwner(username) {
+        if (!confirm(`确定要移除所有者 "${username}" 吗？`)) return;
+
+        const result = await apiRequest(`/api/client/owners/${hostName}/${vmUuid}`, 'DELETE', {username: username});
+        if (result && result.code === 200) {
+            showToast('所有者已移除', 'success');
+            loadOwnersList();
+        } else {
+            showToast(result?.msg || '移除失败', 'error');
         }
     }
 

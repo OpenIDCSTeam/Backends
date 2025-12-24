@@ -38,7 +38,8 @@ class UserAuth:
                 'id': session.get('user_id'),
                 'username': session.get('username'),
                 'is_admin': session.get('is_admin', False),
-                'is_token_login': session.get('is_token_login', False)
+                'is_token_login': session.get('is_token_login', False),
+                'assigned_hosts': session.get('assigned_hosts', [])
             }
         return None
 
@@ -50,6 +51,15 @@ class UserAuth:
         session['username'] = user_data.get('username')
         session['is_admin'] = user_data.get('is_admin', False)
         session['is_token_login'] = is_token_login
+        
+        # 设置assigned_hosts
+        assigned_hosts = user_data.get('assigned_hosts', [])
+        if isinstance(assigned_hosts, str):
+            try:
+                assigned_hosts = json.loads(assigned_hosts)
+            except:
+                assigned_hosts = []
+        session['assigned_hosts'] = assigned_hosts
 
     @staticmethod
     def clear_session():
@@ -203,7 +213,9 @@ def check_resource_quota(user_data: Dict[str, Any], **resources) -> tuple[bool, 
                 'gpu': 'GPU显存',
                 'nat_ports': 'NAT端口',
                 'web_proxy': 'WEB代理',
-                'traffic': '流量'
+                'traffic': '流量',
+                'bandwidth_up': '上行带宽',
+                'bandwidth_down': '下行带宽'
             }
             name = resource_names.get(resource, resource)
             return False, f"{name}配额不足，已使用{used}/{quota}"

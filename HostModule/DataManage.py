@@ -333,9 +333,25 @@ class HostDatabase:
     # ==================== 虚拟配置操作 ====================
 
     def set_vm_saving(self, hs_name: str, vm_saving: Dict[str, VMConfig]) -> bool:
-        """保存虚拟机存储配置"""
+        """保存虚拟机存储配置，同时删除已不存在的虚拟机"""
         conn = self.get_db_sqlite()
         try:
+            # 获取当前数据库中该主机的所有虚拟机UUID
+            cursor = conn.execute("SELECT vm_uuid FROM vm_saving WHERE hs_name = ?", (hs_name,))
+            existing_vm_uuids = {row[0] for row in cursor.fetchall()}
+            
+            # 获取要保存的虚拟机UUID集合
+            new_vm_uuids = set(vm_saving.keys())
+            
+            # 找出需要删除的虚拟机（存在于数据库但不在新配置中）
+            vm_uuids_to_delete = existing_vm_uuids - new_vm_uuids
+            if vm_uuids_to_delete:
+                logger.debug(f"[DataManage] 发现需要删除的虚拟机: {vm_uuids_to_delete}")
+                # 删除不存在的虚拟机配置
+                for vm_uuid in vm_uuids_to_delete:
+                    conn.execute("DELETE FROM vm_saving WHERE hs_name = ? AND vm_uuid = ?", (hs_name, vm_uuid))
+                logger.info(f"[DataManage] 已删除 {len(vm_uuids_to_delete)} 个不存在的虚拟机配置: {hs_name}")
+            
             # 插入或更新配置，不覆写created_at和updated_at
             sql = """
                 INSERT OR REPLACE INTO vm_saving (hs_name, vm_uuid, vm_config, created_at, updated_at)
@@ -472,6 +488,22 @@ class HostDatabase:
             for row in cursor.fetchall():
                 result[row["vm_uuid"]] = json.loads(row["status_data"])
             return result
+        finally:
+            conn.close()
+
+    def delete_vm_status(self, hs_name: str, vm_uuid: str) -> bool:
+        """删除指定虚拟机的状态数据"""
+        conn = self.get_db_sqlite()
+        try:
+            cursor = conn.execute("DELETE FROM vm_status WHERE hs_name = ? AND vm_uuid = ?", (hs_name, vm_uuid))
+            conn.commit()
+            deleted_count = cursor.rowcount
+            logger.debug(f"[DataManage] 删除虚拟机状态数据: 主机={hs_name}, 虚拟机={vm_uuid}, 删除行数={deleted_count}")
+            return deleted_count > 0
+        except Exception as e:
+            logger.error(f"[DataManage] 删除虚拟机状态数据失败: {e}")
+            conn.rollback()
+            return False
         finally:
             conn.close()
 
@@ -769,15 +801,16 @@ class HostDatabase:
         """
         conn = self.get_db_sqlite()
         try:
-            # 获取所有可能的用户字段
+# 获取所有可能的用户字段（与web_users表结构完全匹配）
             all_fields = [
                 'username', 'password', 'email', 'is_admin', 'is_active', 'email_verified',
+                'verify_token', 'reset_token',
+                'can_create_vm', 'can_delete_vm', 'can_modify_vm',
                 'quota_cpu', 'quota_ram', 'quota_ssd', 'quota_gpu', 'quota_nat_ports',
                 'quota_web_proxy', 'quota_bandwidth_up', 'quota_bandwidth_down', 'quota_traffic',
-                'can_create_vm', 'can_modify_vm', 'can_delete_vm', 'assigned_hosts',
                 'used_cpu', 'used_ram', 'used_ssd', 'used_gpu', 'used_nat_ports',
                 'used_web_proxy', 'used_bandwidth_up', 'used_bandwidth_down', 'used_traffic',
-                'verify_token', 'reset_token'
+                'assigned_hosts'
             ]
             
             # 构建插入SQL
@@ -785,10 +818,9 @@ class HostDatabase:
             values = [username, password, email]
             placeholders = ['?', '?', '?']
             
-            # 添加额外的字段
+# 添加额外的字段
             for field in all_fields[3:]:  # 跳过前三个基本字段
                 if field in kwargs:
-                    fields.append(field)
                     value = kwargs[field]
                     # 处理JSON字段
                     if field in ['assigned_hosts'] and isinstance(value, list):

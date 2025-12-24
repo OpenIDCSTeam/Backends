@@ -126,6 +126,7 @@ CREATE TABLE IF NOT EXISTS web_users
     is_active         INTEGER   DEFAULT 1,                 -- 是否启用 (1=启用, 0=禁用)
     email_verified    INTEGER   DEFAULT 0,                 -- 邮箱是否验证 (1=已验证, 0=未验证)
     verify_token      TEXT      DEFAULT '',                -- 邮箱验证token
+    reset_token       TEXT      DEFAULT '',                -- 密码重置token
     
     -- 权限设置
     can_create_vm     INTEGER   DEFAULT 0,                 -- 允许创建虚拟机 (1=允许, 0=不允许)
@@ -139,8 +140,8 @@ CREATE TABLE IF NOT EXISTS web_users
     quota_gpu         INTEGER   DEFAULT 0,                 -- GPU显存配额(GB)
     quota_nat_ports   INTEGER   DEFAULT 0,                 -- NAT端口数配额
     quota_web_proxy   INTEGER   DEFAULT 0,                 -- WEB代理数量配额
-    quota_bandwidth_up   INTEGER DEFAULT 0,                -- 最大上行带宽(Mbps)
-    quota_bandwidth_down INTEGER DEFAULT 0,                -- 最大下行带宽(Mbps)
+    quota_bandwidth_up    INTEGER DEFAULT 0,                 -- 最大上行带宽(Mbps)
+    quota_bandwidth_down  INTEGER DEFAULT 0,                 -- 最大下行带宽(Mbps)
     quota_traffic     INTEGER   DEFAULT 0,                 -- 每月最大流量(GB)
     
     -- 已使用资源（实时统计）
@@ -150,6 +151,8 @@ CREATE TABLE IF NOT EXISTS web_users
     used_gpu          INTEGER   DEFAULT 0,                 -- 已使用GPU显存(GB)
     used_nat_ports    INTEGER   DEFAULT 0,                 -- 已使用NAT端口数
     used_web_proxy    INTEGER   DEFAULT 0,                 -- 已使用WEB代理数
+    used_bandwidth_up    INTEGER   DEFAULT 0,                 -- 已使用上行带宽(Mbps)
+    used_bandwidth_down  INTEGER   DEFAULT 0,                 -- 已使用下行带宽(Mbps)
     used_traffic      INTEGER   DEFAULT 0,                 -- 本月已使用流量(GB)
     
     -- 分配的服务器列表（JSON数组，存储hs_name列表）

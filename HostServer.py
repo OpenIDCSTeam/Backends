@@ -168,9 +168,9 @@ def tasks_page():
 
 
 @app.route('/hosts/<hs_name>/vms')
-@require_auth
+@require_admin
 def vms_page(hs_name):
-    """虚拟机管理页面"""
+    """虚拟机管理页面（仅管理员）"""
     return render_template('vms.html',
                            title=f'OpenIDCS - 虚拟机管理 - {hs_name}',
                            username=session.get('username', 'admin'),
@@ -228,6 +228,10 @@ def register():
     
     if len(username) < 3 or len(username) > 20:
         return api_response_wrapper(400, '用户名长度必须在3-20个字符之间')
+    
+    # 禁止使用admin作为用户名
+    if username.lower() == 'admin':
+        return api_response_wrapper(400, '不能使用admin作为用户名')
     
     if len(password) < 6:
         return api_response_wrapper(400, '密码长度至少6个字符')
@@ -587,10 +591,34 @@ def api_get_tasks():
 
 # 主机列表 ########################################################################
 @app.route('/api/server/detail', methods=['GET'])
-@require_admin
+@require_auth
 def api_get_hosts():
-    """获取所有主机列表"""
-    return rest_manager.get_hosts()
+    """获取主机列表（管理员看所有，普通用户看assigned_hosts）"""
+    # 获取当前用户信息
+    current_user = UserAuth.get_current_user_from_session()
+    if not current_user:
+        return api_response_wrapper(401, '未授权访问')
+    
+    # Token登录或管理员返回所有主机
+    if current_user.get('is_token_login') or current_user.get('is_admin'):
+        return rest_manager.get_hosts()
+    
+    # 普通用户只返回assigned_hosts中的主机
+    assigned_hosts = current_user.get('assigned_hosts', [])
+    all_hosts_result = rest_manager.get_hosts()
+    
+    # 解析返回结果
+    if hasattr(all_hosts_result, 'json'):
+        all_hosts_data = all_hosts_result.json
+    else:
+        all_hosts_data = all_hosts_result
+    
+    if all_hosts_data.get('code') == 200:
+        all_hosts = all_hosts_data.get('data', {})
+        filtered_hosts = {k: v for k, v in all_hosts.items() if k in assigned_hosts}
+        return api_response_wrapper(200, 'success', filtered_hosts)
+    
+    return all_hosts_result
 
 
 # 主机详情 ########################################################################
@@ -599,6 +627,23 @@ def api_get_hosts():
 def api_get_host(hs_name):
     """获取单个主机详情"""
     return rest_manager.get_host(hs_name)
+
+
+# 获取主机操作系统镜像列表（普通用户可访问）########################################
+@app.route('/api/client/os-images/<hs_name>', methods=['GET'])
+@require_auth
+def api_get_os_images(hs_name):
+    """获取主机的操作系统镜像列表（普通用户可访问）"""
+    # 获取当前用户信息
+    current_user = UserAuth.get_current_user_from_session()
+    if not current_user:
+        return api_response_wrapper(401, '未授权访问')
+    
+    # 检查主机访问权限
+    if not check_host_access(hs_name, current_user):
+        return api_response_wrapper(403, '没有访问该主机的权限')
+    
+    return rest_manager.get_os_images(hs_name)
 
 
 # 添加主机 ########################################################################
@@ -696,6 +741,28 @@ def api_update_vm(hs_name, vm_uuid):
 def api_delete_vm(hs_name, vm_uuid):
     """删除虚拟机"""
     return rest_manager.delete_vm(hs_name, vm_uuid)
+
+
+# 虚拟机所有者管理 ########################################################################
+@app.route('/api/client/owners/<hs_name>/<vm_uuid>', methods=['GET'])
+@require_auth
+def api_get_vm_owners(hs_name, vm_uuid):
+    """获取虚拟机所有者列表"""
+    return rest_manager.get_vm_owners(hs_name, vm_uuid)
+
+
+@app.route('/api/client/owners/<hs_name>/<vm_uuid>', methods=['POST'])
+@require_auth
+def api_add_vm_owner(hs_name, vm_uuid):
+    """添加虚拟机所有者"""
+    return rest_manager.add_vm_owner(hs_name, vm_uuid)
+
+
+@app.route('/api/client/owners/<hs_name>/<vm_uuid>', methods=['DELETE'])
+@require_auth
+def api_remove_vm_owner(hs_name, vm_uuid):
+    """删除虚拟机所有者"""
+    return rest_manager.remove_vm_owner(hs_name, vm_uuid)
 
 
 # 电源控制 ########################################################################
@@ -941,6 +1008,18 @@ def api_scan_backups(hs_name):
 # 用户管理API - /api/users
 # ============================================================================
 
+@app.route('/api/system/recalculate-quotas', methods=['POST'])
+@require_auth
+def api_recalculate_quotas():
+    """手动触发用户资源配额重新计算"""
+    try:
+        hs_manage.recalculate_user_quotas()
+        return api_response_wrapper(200, '资源配额重新计算完成')
+    except Exception as e:
+        logger.error(f"手动重新计算资源配额失败: {e}")
+        return api_response_wrapper(500, f'重新计算失败: {str(e)}')
+
+
 @app.route('/api/users/current', methods=['GET'])
 @require_auth
 def api_get_current_user():
@@ -1028,6 +1107,10 @@ def api_create_user():
         
         if len(username) < 3 or len(username) > 20:
             return api_response_wrapper(400, '用户名长度必须在3-20个字符之间')
+        
+        # 禁止使用admin作为用户名
+        if username.lower() == 'admin':
+            return api_response_wrapper(400, '不能使用admin作为用户名')
         
         if len(password) < 6:
             return api_response_wrapper(400, '密码长度至少6个字符')
@@ -1242,6 +1325,43 @@ def init_app():
         hs_manage.set_pass()
         logger.info(f"已生成访问Token: {hs_manage.bearer}")
 
+    # 初始化admin用户（如果不存在）
+    try:
+        admin_user = hs_manage.saving.get_user_by_username('admin')
+        if not admin_user:
+            # 使用token作为admin的密码
+            admin_password = UserAuth.hash_password(hs_manage.bearer)
+            user_id = hs_manage.saving.create_user(
+                username='admin',
+                password=admin_password,
+                email='admin@localhost',
+                is_admin=True,
+                is_active=True,
+                email_verified=True,
+                can_create_vm=True,
+                can_modify_vm=True,
+                can_delete_vm=True,
+                # 设置默认配额（管理员不受限制）
+                quota_cpu=9999,
+                quota_ram=999999,
+                quota_ssd=999999,
+                quota_gpu=9999,
+                quota_nat_ports=9999,
+                quota_web_proxy=9999,
+                quota_bandwidth_up=9999,
+                quota_bandwidth_down=9999,
+                quota_traffic=999999,
+                assigned_hosts=[]
+            )
+            if user_id:
+                logger.info(f"已创建admin用户，用户名: admin, 密码: {hs_manage.bearer}")
+            else:
+                logger.error("创建admin用户失败")
+        else:
+            logger.info("admin用户已存在，跳过创建")
+    except Exception as e:
+        logger.error(f"初始化admin用户失败: {e}")
+
     # 启动定时任务调度器
     try:
         start_cron_scheduler()
@@ -1258,7 +1378,7 @@ if __name__ == '__main__':
     init_app()
     logger.info(f"\n{'=' * 60}")
     logger.info(f"OpenIDCS Server 启动中...")
-    logger.info(f"访问地址: http://127.0.0.1:1888")
+    logger.info(f"访问地址: http://127.0.0.1:1880")
     logger.info(f"访问Token: {hs_manage.bearer}")
     logger.info(f"{'=' * 60}\n")
-    app.run(host='0.0.0.0', port=1888, debug=True)
+    app.run(host='0.0.0.0', port=1880, debug=True)

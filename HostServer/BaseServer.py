@@ -556,7 +556,7 @@ class BaseServer:
     # 获取7z可执行文件路径 ##########################################################
     # :return: 7z可执行文件的完整路径
     # ###############################################################################
-    def get_7z_path(self) -> str:
+    def get_path(self) -> str:
         """根据操作系统返回对应的7z可执行文件路径"""
         system = platform.system().lower()
         if system == "windows":
@@ -581,7 +581,7 @@ class BaseServer:
             self.VMPowers(vm_name, VMPowers.H_CLOSE)
 
             # 获取7z可执行文件路径
-            seven_zip = self.get_7z_path()
+            seven_zip = self.get_path()
             if not os.path.exists(seven_zip):
                 raise FileNotFoundError(f"7z可执行文件不存在: {seven_zip}")
 
@@ -620,7 +620,7 @@ class BaseServer:
             os.makedirs(org_path)
 
             # 获取7z可执行文件路径
-            seven_zip = self.get_7z_path()
+            seven_zip = self.get_path()
             if not os.path.exists(seven_zip):
                 raise FileNotFoundError(f"7z可执行文件不存在: {seven_zip}")
 
@@ -725,7 +725,6 @@ class BaseServer:
             action="ISOMount",
             message=f"ISO镜像{action_text}成功")
 
-
     # 移交所有权 ####################################################################
     # :params vm_name: 虚拟机UUID
     # :params vm_imgs: 镜像的配置
@@ -785,7 +784,6 @@ class BaseServer:
             logger.error(f"[{self.hs_config.server_name}] 磁盘移交失败: {str(e)}")
             return ZMessage(success=False, action="HDDTrans", message=str(e))
 
-
     # 移除备份 ######################################################################
     def RMBackup(self, vm_back: str) -> ZMessage:
         bak_path = os.path.join(self.hs_config.backup_path, vm_back)
@@ -797,7 +795,6 @@ class BaseServer:
         return ZMessage(
             success=True, action="RMBackup",
             message="备份文件已删除")
-
 
     # 加载备份 ######################################################################
     def LDBackup(self, vm_back: str = "") -> ZMessage:
@@ -835,7 +832,6 @@ class BaseServer:
             action="LDBackup",
             message=f"{bal_nums}个备份文件已加载")
 
-
     # 移除磁盘 ######################################################################
     def RMMounts(self, vm_name: str, vm_imgs: str) -> ZMessage:
         if vm_name not in self.vm_saving:
@@ -862,3 +858,7 @@ class BaseServer:
         return ZMessage(
             success=True, action="RMMounts",
             message="磁盘删除成功")
+
+    # 查找显卡 ######################################################################
+    def GPUShows(self) -> dict[str, str]:
+        pass
