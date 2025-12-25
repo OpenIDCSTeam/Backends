@@ -140,7 +140,7 @@ POST /api/server/create
   "engine_type": "VMWareSetup",
   "system_path": "D:/VMs",
   "images_path": "D:/Images",
-  "launch_path": "C:/Program Files (x86)/VMware/VMware Workstation"
+  "launch_path": "C:/Program Files (x86)/VMware/VMware WorkstationAPI"
 }
 ```
 

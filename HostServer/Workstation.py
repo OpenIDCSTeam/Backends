@@ -1,11 +1,8 @@
 import os
 import shutil
 import subprocess
-from copy import deepcopy
 
-from pyexpat.errors import messages
-
-from HostServer.BaseServer import BaseServer
+from HostServer.BasicServer import BasicServer
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Config.IMConfig import IMConfig
 from MainObject.Config.SDConfig import SDConfig
@@ -13,10 +10,10 @@ from MainObject.Config.VMPowers import VMPowers
 from MainObject.Public.HWStatus import HWStatus
 from MainObject.Public.ZMessage import ZMessage
 from MainObject.Config.VMConfig import VMConfig
-from HostServer.VMRestHost.VRestAPI import VRestAPI
+from HostServer.WorkstationAPI.VRestAPI import VRestAPI
 
 
-class HostServer(BaseServer):
+class HostServer(BasicServer):
     # 宿主机服务 ###############################################################
     def __init__(self, config: HSConfig, **kwargs):
         super().__init__(config, **kwargs)  # 传递 kwargs，确保 db 参数能正确传递

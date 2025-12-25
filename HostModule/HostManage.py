@@ -5,7 +5,7 @@ import traceback
 from loguru import logger
 
 from HostModule.HttpManage import HttpManage
-from HostServer.BaseServer import BaseServer
+from HostServer.BasicServer import BasicServer
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Server.HSEngine import HEConfig
 from MainObject.Config.VMConfig import VMConfig
@@ -17,7 +17,7 @@ from HostModule.DataManage import HostDatabase
 class HostManage:
     # 初始化 #####################################################################
     def __init__(self):
-        self.engine: dict[str, BaseServer] = {}
+        self.engine: dict[str, BasicServer] = {}
         self.logger: list[ZMessage] = []
         self.bearer: str = ""  # 先初始化saving变量
         self.saving = HostDatabase("./DataSaving/hostmanage.db")
@@ -64,7 +64,7 @@ class HostManage:
         return token and token == self.bearer
 
     # 获取主机 ###################################################################
-    def get_host(self, hs_name: str) -> BaseServer | None:
+    def get_host(self, hs_name: str) -> BasicServer | None:
         if hs_name not in self.engine:
             return None
         return self.engine[hs_name]

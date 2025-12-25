@@ -9,7 +9,7 @@ from typing import Optional, Dict, Any
 from functools import wraps
 from flask import session, request, redirect, url_for, jsonify
 from loguru import logger
-from MainObject.Config.WebUser import WebUser
+from MainObject.Config.WebUsers import WebUser
 
 
 class UserAuth:

@@ -1,4 +1,4 @@
-from HostServer.BaseServer import BaseServer
+from HostServer.BasicServer import BasicServer
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Config.VMPowers import VMPowers
 from MainObject.Public.HWStatus import HWStatus
@@ -6,7 +6,7 @@ from MainObject.Public.ZMessage import ZMessage
 from MainObject.Config.VMConfig import VMConfig
 
 
-class HostServer(BaseServer):
+class HostServer(BasicServer):
     # 宿主机服务 ###############################################################
     def __init__(self, config: HSConfig, **kwargs):
         super().__init__(config, **kwargs)

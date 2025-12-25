@@ -12,7 +12,7 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 from loguru import logger
 from HostModule.HostManage import HostManage
 from HostModule.RestManage import RestManager
-from HostModule.UserAuth import UserAuth, require_login, require_admin, check_host_access, check_vm_permission, check_resource_quota, EmailService
+from HostModule.UserManage import UserAuth, require_login, require_admin, check_host_access, check_vm_permission, check_resource_quota, EmailService
 from HostModule.DataManage import HostDatabase
 
 app = Flask(__name__, template_folder='WebDesigns', static_folder='static')

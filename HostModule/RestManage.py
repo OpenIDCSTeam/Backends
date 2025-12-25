@@ -19,7 +19,7 @@ from MainObject.Config.NCConfig import NCConfig
 from MainObject.Config.PortData import PortData
 from MainObject.Config.WebProxy import WebProxy
 from MainObject.Public.HWStatus import HWStatus
-from HostModule.UserAuth import UserAuth, check_host_access, check_vm_permission, check_resource_quota
+from HostModule.UserManage import UserAuth, check_host_access, check_vm_permission, check_resource_quota
 
 
 class RestManager:
@@ -476,18 +476,66 @@ class RestManager:
     # ####################################################################################
     def get_engine_types(self):
         """获取支持的主机引擎类型"""
+        import platform
+        
+        # 获取当前系统平台和架构
+        current_system = platform.system()
+        current_arch = platform.machine()
+        
+        # 平台映射
+        platform_map = {
+            'Windows': 'Windows',
+            'Linux': 'Linux',
+            'Darwin': 'MacOS'
+        }
+        current_platform = platform_map.get(current_system, current_system)
+        
+        # 架构映射
+        arch_map = {
+            'AMD64': 'x86_64',
+            'x86_64': 'x86_64',
+            'aarch64': 'aarch64',
+            'arm64': 'aarch64'
+        }
+        current_cpu_arch = arch_map.get(current_arch, current_arch)
+        
         types_data = {}
         for engine_type, config in HEConfig.items():
+            # 检查是否启用
+            if not config.get('isEnable', False):
+                continue
+                
+            # 如果isRemote为False，需要检查平台和架构是否匹配
+            is_remote = config.get('isRemote', False)
+            if not is_remote:
+                supported_platforms = config.get('Platform', [])
+                supported_archs = config.get('CPU_Arch', [])
+                
+                # 检查平台是否匹配
+                if current_platform not in supported_platforms:
+                    continue
+                    
+                # 检查架构是否匹配
+                if current_cpu_arch not in supported_archs:
+                    continue
+            
             types_data[engine_type] = {
                 'name': engine_type,
                 'description': config.get('Descript', ''),
                 'enabled': config.get('isEnable', False),
                 'platform': config.get('Platform', []),
                 'arch': config.get('CPU_Arch', []),
+                'is_remote': is_remote,
                 'options': config.get('Optional', {}),
-                'message': config.get('Messages', '')
+                'messages': config.get('Messages', [])
             }
-        return self.api_response(200, 'success', types_data)
+        
+        # 返回当前系统信息和可用的引擎类型
+        return self.api_response(200, 'success', {
+            'current_platform': current_platform,
+            'current_arch': current_cpu_arch,
+            'engine_types': types_data
+        })
 
     # 保存系统配置 ########################################################################
     # :return: 保存结果的API响应
@@ -2090,7 +2138,7 @@ class RestManager:
 
         # 检查用户IP配额
         from flask import session
-        from HostModule.UserAuth import check_resource_quota
+        from HostModule.UserManage import check_resource_quota
         from HostModule.DataManage import HostDatabase
         
         db = HostDatabase()

@@ -28,7 +28,7 @@ from MainObject.Server.HSStatus import HSStatus
 from VNCConsole.VNCManager import VNCStart, VProcess
 
 
-class BaseServer:
+class BasicServer:
     # 初始化 ########################################################################
     # :params config: 物理机配置
     # ###############################################################################
@@ -68,7 +68,7 @@ class BaseServer:
             return None
         # 处理列表类型，递归转换每个元素
         if isinstance(obj, list):
-            return [BaseServer.__save__(item) for item in obj]
+            return [BasicServer.__save__(item) for item in obj]
         if hasattr(obj, '__save__'):
             if callable(getattr(obj, '__save__')):
                 return obj.__save__()

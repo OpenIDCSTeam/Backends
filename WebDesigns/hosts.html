@@ -65,6 +65,31 @@
                 </div>
             </div>
 
+            <!-- 主机类型信息提示区域 -->
+            <div id="hostTypeInfo" class="hidden">
+                <!-- Messages 提示信息 -->
+                <div id="hostTypeMessages" class="hidden bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <h5 class="text-sm font-medium text-yellow-800 mb-2 flex items-center gap-2">
+                        <span class="iconify" data-icon="mdi:information" data-width="16"></span>
+                        注意事项
+                    </h5>
+                    <ul id="hostTypeMessagesList" class="text-sm text-yellow-700 space-y-1 list-disc list-inside">
+                        <!-- Messages 将动态添加到这里 -->
+                    </ul>
+                </div>
+
+                <!-- Optional 可选配置 -->
+                <div id="hostTypeOptional" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+                    <h5 class="text-sm font-medium text-blue-800 mb-2 flex items-center gap-2">
+                        <span class="iconify" data-icon="mdi:cog" data-width="16"></span>
+                        可选配置项
+                    </h5>
+                    <div id="hostTypeOptionalList" class="text-sm text-blue-700 space-y-1">
+                        <!-- Optional 将动态添加到这里 -->
+                    </div>
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">服务器地址</label>
@@ -683,7 +708,8 @@
     async function loadEngineTypes() {
         const result = await apiRequest('/api/system/engine');
         if (result && result.code === 200) {
-            engineTypes = result.data;
+            const data = result.data;
+            engineTypes = data.engine_types || data; // 兼容新旧格式
             const select = document.getElementById('hostType');
             select.innerHTML = '<option value="">请选择类型</option>';
 
@@ -695,6 +721,68 @@
                     select.appendChild(option);
                 }
             }
+
+            // 添加主机类型选择事件监听
+            select.addEventListener('change', function() {
+                const selectedType = this.value;
+                showHostTypeInfo(selectedType);
+            });
+        }
+    }
+
+    // 显示主机类型信息
+    function showHostTypeInfo(type) {
+        const infoContainer = document.getElementById('hostTypeInfo');
+        const messagesContainer = document.getElementById('hostTypeMessages');
+        const messagesList = document.getElementById('hostTypeMessagesList');
+        const optionalContainer = document.getElementById('hostTypeOptional');
+        const optionalList = document.getElementById('hostTypeOptionalList');
+
+        if (!type || !engineTypes[type]) {
+            infoContainer.classList.add('hidden');
+            return;
+        }
+
+        const config = engineTypes[type];
+        let hasInfo = false;
+
+        // 显示 Messages
+        if (config.messages && config.messages.length > 0) {
+            messagesList.innerHTML = '';
+            config.messages.forEach(msg => {
+                const li = document.createElement('li');
+                li.textContent = msg;
+                messagesList.appendChild(li);
+            });
+            messagesContainer.classList.remove('hidden');
+            hasInfo = true;
+        } else {
+            messagesContainer.classList.add('hidden');
+        }
+
+        // 显示 Optional
+        if (config.options && Object.keys(config.options).length > 0) {
+            optionalList.innerHTML = '';
+            for (const [key, description] of Object.entries(config.options)) {
+                const div = document.createElement('div');
+                div.className = 'flex items-start gap-2';
+                div.innerHTML = `
+                    <span class="iconify text-blue-600 mt-0.5" data-icon="mdi:chevron-right" data-width="16"></span>
+                    <span><strong>${key}:</strong> ${description}</span>
+                `;
+                optionalList.appendChild(div);
+            }
+            optionalContainer.classList.remove('hidden');
+            hasInfo = true;
+        } else {
+            optionalContainer.classList.add('hidden');
+        }
+
+        // 显示或隐藏整个信息容器
+        if (hasInfo) {
+            infoContainer.classList.remove('hidden');
+        } else {
+            infoContainer.classList.add('hidden');
         }
     }
 
@@ -1042,6 +1130,8 @@
         // 初始化系统映射为空
         loadSystemMapsData({});
         loadImagesMapsData({});
+        // 隐藏主机类型信息
+        document.getElementById('hostTypeInfo').classList.add('hidden');
         document.getElementById('hostModal').showModal();
     }
 
@@ -1086,6 +1176,10 @@
             document.getElementById('ipaddrDnss').value = (config.ipaddr_dnss || []).join(', ');
             document.getElementById('publicAddr').value = (config.public_addr || []).join(', ');
             document.getElementById('extendData').value = config.extend_data ? JSON.stringify(config.extend_data, null, 2) : '';
+            
+            // 显示主机类型信息
+            showHostTypeInfo(host.type);
+            
             document.getElementById('hostModal').showModal();
         }
     }
