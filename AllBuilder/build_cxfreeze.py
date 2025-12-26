@@ -25,11 +25,17 @@ PROJECT_AUTHOR = "OpenIDCS Team"
 # 项目根目录
 PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
 
+# 将项目根目录添加到 Python 路径，使 cx_Freeze 能够找到项目模块
+# 因为构建脚本在 AllBuilder 目录中运行，但项目模块在根目录
+PROJECT_BASE_DIR = os.path.abspath(os.path.join(PROJECT_ROOT, ".."))
+if PROJECT_BASE_DIR not in sys.path:
+    sys.path.insert(0, PROJECT_BASE_DIR)
+
 # 主脚本
-MAIN_SCRIPT = "HostServer.py"
+MAIN_SCRIPT = os.path.join(PROJECT_BASE_DIR, "HostServer.py")
 
 # 图标文件
-ICON_FILE = os.path.join(PROJECT_ROOT, "../HostConfig/HostManage.ico")
+ICON_FILE = os.path.join(PROJECT_BASE_DIR, "HostConfig/HostManage.ico")
 
 # ============================================================================
 # 需要包含的包和模块
@@ -141,20 +147,20 @@ EXCLUDES = [
 
 INCLUDE_FILES = [
     # Web模板和静态文件
-    ("../WebDesigns", "WebDesigns"),
-    ("../static", "static") if os.path.exists("../static") else None,
+    (os.path.join(PROJECT_BASE_DIR, "WebDesigns"), "WebDesigns"),
+    (os.path.join(PROJECT_BASE_DIR, "static"), "static") if os.path.exists(os.path.join(PROJECT_BASE_DIR, "static")) else None,
     
     # VNC控制台
-    ("../VNCConsole/Sources", "VNCConsole/Sources"),
+    (os.path.join(PROJECT_BASE_DIR, "VNCConsole/Sources"), "VNCConsole/Sources"),
     
     # Websockify 二进制文件
-    ("../Websockify/websocketproxy.exe", "Websockify/websocketproxy.exe"),
+    (os.path.join(PROJECT_BASE_DIR, "Websockify/websocketproxy.exe"), "Websockify/websocketproxy.exe"),
     
     # 配置文件和工具
-    ("../HostConfig", "HostConfig"),
+    (os.path.join(PROJECT_BASE_DIR, "HostConfig"), "HostConfig"),
     
     # 数据库初始化脚本
-    ("../HostConfig/HostManage.sql", "HostConfig/HostManage.sql"),
+    (os.path.join(PROJECT_BASE_DIR, "HostConfig/HostManage.sql"), "HostConfig/HostManage.sql"),
 ]
 
 # 过滤掉None值（不存在的文件）
@@ -200,8 +206,8 @@ build_exe_options = {
     # 包含所有依赖的DLL
     "include_msvcr": True,
     
-    # 构建目录（挪到上级目录的 BuildCache 下）
-    "build_exe": os.path.join(PROJECT_ROOT, "..", "BuildCache", "cxfreeze"),
+    # 构建目录（挪到项目根目录的 BuildCache 下）
+    "build_exe": os.path.join(PROJECT_BASE_DIR, "BuildCache", "cxfreeze"),
     
     # 确保 encodings 和资源目录不被压缩到 zip
     "zip_include_packages": "*",

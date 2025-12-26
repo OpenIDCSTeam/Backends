@@ -106,21 +106,67 @@ install_lxd() {
             echo "使用 APT 包管理器安装..."
             apt-get update
             
-            # 优先尝试从官方仓库安装
-            if apt-cache show lxd &> /dev/null; then
+            # 严格检查 LXD 是否真的可以安装（Ubuntu 24.04+ 没有 LXD 包）
+            if apt-cache policy lxd 2>/dev/null | grep -q "Candidate:" && \
+               apt-cache policy lxd 2>/dev/null | grep "Candidate:" | grep -vq "(none)"; then
+                # APT 仓库中有 LXD，使用 APT 安装（Ubuntu 20.04 及之前版本）
                 apt-get install -y lxd lxd-client bridge-utils
                 echo "✓ 通过 APT 安装 LXD 成功"
-            elif [ $SQUASHFS_SUPPORTED -eq 0 ]; then
-                # 如果 APT 没有 LXD，且支持 squashfs，使用 snap
-                echo "APT 仓库中没有 LXD，通过 snap 安装..."
-                apt-get install -y snapd bridge-utils
-                systemctl enable --now snapd.socket
-                snap install lxd
-                echo "✓ 通过 snap 安装 LXD 成功"
             else
-                echo "✗ 错误: 系统不支持 squashfs，无法使用 snap"
-                echo "  请手动安装 LXD 或升级内核以支持 squashfs"
-                exit 1
+                # APT 仓库中没有 LXD（Ubuntu 24.04+），使用 snap 安装
+                echo "APT 仓库中没有 LXD，通过 snap 安装..."
+                
+                # 检查是否支持 squashfs
+                if [ $SQUASHFS_SUPPORTED -eq 0 ]; then
+                    echo "安装 snapd..."
+                    apt-get install -y snapd bridge-utils
+                    
+                    # 启用并启动 snapd
+                    systemctl enable --now snapd.socket
+                    
+                    # 确保 /snap 符号链接存在（某些系统需要）
+                    ln -sf /var/lib/snapd/snap /snap 2>/dev/null || true
+                    
+                    # 等待 snapd 完全启动
+                    echo "等待 snapd 服务启动..."
+                    sleep 5
+                    
+                    # 安装 LXD
+                    echo "通过 snap 安装 LXD（这可能需要几分钟）..."
+                    snap install lxd --classic 2>/dev/null || snap install lxd
+                    
+                    echo "✓ 通过 snap 安装 LXD 成功"
+                else
+                    echo "⚠ 警告: 系统不支持 squashfs"
+                    echo "  在不支持的 squashfs 的环境中，可以尝试以下方案："
+                    echo "  1. 安装 linux-modules-extra 包："
+                    echo "     apt-get install -y linux-modules-extra-$(uname -r)"
+                    echo "     modprobe squashfs"
+                    echo ""
+                    echo "  2. 或者添加 LXD 官方 PPA（适用于 Ubuntu 20.04 及之前版本）："
+                    echo "     add-apt-repository ppa:ubuntu-lxc/lxd-daily"
+                    echo "     apt-get update"
+                    echo "     apt-get install -y lxd lxd-client"
+                    echo ""
+                    echo "  3. 对于 Ubuntu 24.04+，snap 是推荐的安装方式"
+                    echo ""
+                    echo "尝试继续安装 snapd（snap 可能在您的环境中能工作）..."
+                    apt-get install -y snapd bridge-utils
+                    systemctl enable --now snapd.socket
+                    ln -sf /var/lib/snapd/snap /snap 2>/dev/null || true
+                    sleep 5
+                    echo "尝试通过 snap 安装 LXD..."
+                    snap install lxd --classic 2>/dev/null || snap install lxd || {
+                        echo ""
+                        echo "✗ 错误: 无法安装 LXD"
+                        echo "  请检查："
+                        echo "  1. 系统是否支持 snap（某些云环境或容器可能不支持）"
+                        echo "  2. 网络连接是否正常"
+                        echo "  3. 是否在 LXC 容器中运行（需要在宿主机配置 apparmor 和权限）"
+                        exit 1
+                    }
+                    echo "✓ 通过 snap 安装 LXD 成功"
+                fi
             fi
             ;;
         centos|rhel|rocky|almalinux)
