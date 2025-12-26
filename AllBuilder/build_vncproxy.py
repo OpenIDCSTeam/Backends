@@ -22,6 +22,12 @@ import sys
 import subprocess
 from pathlib import Path
 
+# 修复 Windows 控制台编码问题
+if sys.platform == "win32":
+    import codecs
+    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter("utf-8")(sys.stderr.buffer, 'strict')
+
 
 def build_websockify():
     """打包 websockify 为独立可执行文件"""

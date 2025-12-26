@@ -1,4 +1,4 @@
-name: Build VNC Proxy
+name: Build Repo Proxy
 
 on:
   workflow_dispatch:
