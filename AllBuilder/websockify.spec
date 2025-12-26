@@ -1,11 +1,18 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import os
+from pathlib import Path
+
+# 获取项目根目录（AllBuilder 的父目录）
+project_root = Path(__file__).parent.parent.absolute()
+websockify_script = project_root / "Websockify" / "websocketproxy.py"
+websockify_dir = project_root / "Websockify"
 
 a = Analysis(
-    ['G:\\Codes\\OpenIDCSTeam\\OpenIDCS-Client\\Websockify\\websocketproxy.py'],
-    pathex=['G:\\Codes\\OpenIDCSTeam\\OpenIDCS-Client'],
+    [str(websockify_script)],
+    pathex=[str(project_root)],
     binaries=[],
-    datas=[('G:\\Codes\\OpenIDCSTeam\\OpenIDCS-Client\\Websockify', 'websockify')],
+    datas=[(str(websockify_dir), 'websockify')],
     hiddenimports=[
         # 只保留必需的核心依赖
         'websockify',
