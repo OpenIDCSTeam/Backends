@@ -15,6 +15,12 @@ HEConfig = {
         "Messages": [
             "1、不支持直通分配GPU设备，但可分配虚拟显存",
             "2、暂不支持获取虚拟机GPU使用率和显存使用率"
+        ],
+        "Ban_Init": [
+            "gpu_num"
+        ],
+        "Ban_Edit": [
+            "gpu_num"
         ]
     },
     "LxContainer": {
@@ -28,6 +34,14 @@ HEConfig = {
         "Messages": [
             "1、不支持分配GPU设备，不支持设置显存的大小",
             "2、不支持挂载ISO镜像、不支持挂载额外的硬盘"
+        ],
+        "Ban_Init": [
+            "gpu_num", "gpu_mem",
+        ],
+        "Ban_Edit": [
+            "gpu_num", "gpu_mem",
+            "flu_num", "hdd_num",
+            "speed_u", "speed_d",
         ]
     },
     "OCInterface": {
@@ -41,6 +55,14 @@ HEConfig = {
         "Messages": [
             "1、不支持分配GPU设备，不支持设置显存的大小",
             "2、不支持挂载ISO镜像、不支持挂载额外的硬盘"
+        ],
+        "Ban_Init": [
+            "gpu_num", "gpu_mem",
+        ],
+        "Ban_Edit": [
+            "gpu_num", "gpu_mem",
+            "flu_num", "hdd_num",
+            "speed_u", "speed_d",
         ]
     },
     "vSphereESXi": {
@@ -51,7 +73,9 @@ HEConfig = {
         "Platform": ["Linux", "Windows", "MacOS"],
         "CPU_Arch": ["x86_64", "aarch64"],
         "Optional": {},
-        "Messages": []
+        "Messages": [],
+        "Ban_Init": [],
+        "Ban_Edit": []
     },
 
     # "HyperVSetup": {

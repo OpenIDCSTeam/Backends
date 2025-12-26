@@ -28,7 +28,7 @@ class VMConfig:
         self.cpu_num = 2  # 分配的处理器核心数
         self.gpu_num = 0  # 分配物理卡(0-没有)
         self.cpu_per = 50  # 分配CPU可用百分比
-        self.gpu_mem = 2048  # 分配显存值-(#0)
+        self.gpu_mem = 0  # 分配显存值-(#0)
         self.mem_num = 2048  # 分配内存数-(MB)
         self.hdd_num = 8192  # 分配硬盘数-(MB)
         # 网络配置 ===========================

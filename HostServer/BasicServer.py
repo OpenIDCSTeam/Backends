@@ -348,7 +348,6 @@ class BasicServer:
     # :params map_info: 端口映射信息
     # ###############################################################################
     def PortsMap(self, map_info: PortData, flag=True) -> ZMessage:
-
         nc_server = NetsManage(
             self.hs_config.i_kuai_addr,
             self.hs_config.i_kuai_user,
@@ -861,7 +860,7 @@ class BasicServer:
 
     # 查找显卡 ######################################################################
     def GPUShows(self) -> dict[str, str]:
-        pass
+        return {}
 
     # 转移用户 ######################################################################
     def Transfer(self, vm_name: str, new_owner: str, keep_access: bool = False) -> ZMessage:

@@ -1,18 +1,9 @@
 import os
 import random
-import string
-import subprocess
-from copy import deepcopy
+import traceback
 from loguru import logger
 
-try:
-    import docker
-    from docker.errors import DockerException, NotFound, APIError
-    from docker.types import Mount
-    DOCKER_AVAILABLE = True
-except ImportError:
-    DOCKER_AVAILABLE = False
-    logger.warning("docker SDK not available, Docker functionality will be disabled")
+from MainObject.Config.PortData import PortData
 
 from HostServer.BasicServer import BasicServer
 from MainObject.Config.HSConfig import HSConfig
@@ -22,153 +13,57 @@ from MainObject.Config.VMPowers import VMPowers
 from MainObject.Public.HWStatus import HWStatus
 from MainObject.Public.ZMessage import ZMessage
 from MainObject.Config.VMConfig import VMConfig
+from HostServer.OCInterfaceAPI import OCIContainerAPI
+from HostServer.OCInterfaceAPI.IPTablesAPI import IPTablesAPI
+from HostServer.OCInterfaceAPI.WebTerminalAPI import WebTerminalAPI
+
+try:
+    from docker.errors import NotFound
+except ImportError:
+    NotFound = Exception  # Fallback if docker is not available
 
 
 class HostServer(BasicServer):
-    # 宿主机服务 ###############################################################
-    def __init__(self, config: HSConfig, **kwargs):
-        super().__init__(config, **kwargs)
-        super().__load__(**kwargs)
-        # Docker 客户端连接
-        self.docker_client = None
-        self.ttyd_process = None  # ttyd Web Terminal 进程
-        self.ttyd_tokens = {}  # 存储容器名称到token的映射
-
-    # 连接到 Docker 服务器 ####################################################
-    def _connect_docker(self) -> tuple[docker.DockerClient | None, ZMessage]:
-        """
-        连接到 Docker 服务器（支持本地和远程，使用 TLS）
-        :return: (Docker客户端对象, 操作结果消息)
-        """
-        if not DOCKER_AVAILABLE:
-            return None, ZMessage(
-                success=False, action="_connect_docker",
-                message="docker SDK is not installed")
+    # 连接到 Docker 服务器 #####################################################
+    def _connect_docker(self) -> tuple:
+        if not self.oci_connects:
+            self.oci_connects = OCIContainerAPI(self.hs_config)
         
-        try:
-            # 如果已经连接，直接返回
-            if self.docker_client is not None:
-                return self.docker_client, ZMessage(success=True, action="_connect_docker")
-            
-            # 判断是本地连接还是远程连接
-            if self.hs_config.server_addr in ["localhost", "127.0.0.1", ""]:
-                # 本地连接
-                logger.info("Connecting to local Docker server")
-                self.docker_client = docker.from_env()
-            else:
-                # 远程连接（使用 TLS）
-                endpoint = f"tcp://{self.hs_config.server_addr}:2376"
-                logger.info(f"Connecting to remote Docker server: {endpoint}")
-                
-                # 证书路径（从 launch_path 获取）
-                ca_cert = os.path.join(self.hs_config.launch_path, "ca.pem")
-                client_cert = os.path.join(self.hs_config.launch_path, "client-cert.pem")
-                client_key = os.path.join(self.hs_config.launch_path, "client-key.pem")
-                
-                if not os.path.exists(ca_cert) or not os.path.exists(client_cert) or not os.path.exists(client_key):
-                    return None, ZMessage(
-                        success=False, action="_connect_docker",
-                        message=f"TLS certificates not found in {self.hs_config.launch_path}")
-                
-                # 配置 TLS
-                tls_config = docker.tls.TLSConfig(
-                    client_cert=(client_cert, client_key),
-                    ca_cert=ca_cert,
-                    verify=True
-                )
-                
-                self.docker_client = docker.DockerClient(
-                    base_url=endpoint,
-                    tls=tls_config
-                )
-            
-            # 测试连接
-            self.docker_client.ping()
-            logger.info("Successfully connected to Docker server")
-            
-            return self.docker_client, ZMessage(success=True, action="_connect_docker")
-            
-        except Exception as e:
-            logger.error(f"Failed to connect to Docker server: {str(e)}")
-            self.docker_client = None
-            return None, ZMessage(
-                success=False, action="_connect_docker",
-                message=f"Failed to connect to Docker: {str(e)}")
-
-    # 宿主机任务 ###############################################################
-    def Crontabs(self) -> bool:
-        # 专用操作 =============================================================
-        # 通用操作 =============================================================
-        return super().Crontabs()
-
-    # 宿主机状态 ###############################################################
-    def HSStatus(self) -> HWStatus:
-        # 专用操作 =============================================================
-        # 通用操作 =============================================================
-        return super().HSStatus()
-
-    # 初始宿主机 ###############################################################
-    def HSCreate(self) -> ZMessage:
-        # 专用操作 =============================================================
-        # 通用操作 =============================================================
-        return super().HSCreate()
-
-    # 还原宿主机 ###############################################################
-    def HSDelete(self) -> ZMessage:
-        # 专用操作 =============================================================
-        # 通用操作 =============================================================
-        return super().HSDelete()
+        return self.oci_connects.connect_docker()
 
     # 读取宿主机 ###############################################################
+    def __init__(self, config: HSConfig, **kwargs):
+        super().__init__(config, **kwargs)
+        self.web_terminal = None
+        self.oci_connects = None
+        self.ssh_forwards = None
+
     def HSLoader(self) -> ZMessage:
         # 专用操作 =============================================================
-        # 连接到 Docker 服务器
+        # 启动 Web Terminal 服务 ===============================================
+        if not self.web_terminal:
+            self.web_terminal = WebTerminalAPI(self.hs_config)
+        self.web_terminal.start_ttydserver()
+        # 连接到 Docker 服务器 =================================================
         client, result = self._connect_docker()
         if not result.success:
             return result
-        
-        # 启动 ttyd Web Terminal 服务（仅本地模式）
-        if self.hs_config.server_addr in ["localhost", "127.0.0.1", ""]:
-            try:
-                # 检查 ttyd 是否安装
-                result = subprocess.run(
-                    ["which", "ttyd"],
-                    capture_output=True, text=True)
-                
-                if result.returncode != 0:
-                    logger.warning("ttyd not found, Web Terminal will not be available")
-                else:
-                    # 启动 ttyd 服务
-                    self.ttyd_process = subprocess.Popen(
-                        ["ttyd", "-p", str(self.hs_config.remote_port), "-W", "bash"],
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE)
-                    logger.info(f"ttyd Web Terminal started on port {self.hs_config.remote_port}")
-            except Exception as e:
-                logger.warning(f"Failed to start ttyd: {str(e)}")
-        
         # 通用操作 =============================================================
         return super().HSLoader()
 
     # 卸载宿主机 ###############################################################
     def HSUnload(self) -> ZMessage:
         # 专用操作 =============================================================
-        # 停止 ttyd 服务
-        if self.ttyd_process:
-            try:
-                self.ttyd_process.terminate()
-                self.ttyd_process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                self.ttyd_process.kill()
-            finally:
-                self.ttyd_process = None
-                logger.info("ttyd Web Terminal stopped")
-        
-        # 断开 Docker 连接
-        if self.docker_client:
-            self.docker_client.close()
-            self.docker_client = None
-        
+        # 停止 Web Terminal 服务
+        if self.web_terminal:
+            self.web_terminal.stop_ttydserver()
+        # 断开 Docker 连接 =====================================================
+        if self.oci_connects:
+            self.oci_connects.close()
+            self.oci_connects = None
+        # 关闭 SSH 转发连接 ====================================================
+        if self.ssh_forwards:
+            self.ssh_forwards.close()
         # 通用操作 =============================================================
         return super().HSUnload()
 
@@ -184,47 +79,28 @@ class HostServer(BasicServer):
         client, result = self._connect_docker()
         if not result.success:
             return result
-        
         try:
             # 获取所有容器列表（包括停止的）
             containers = client.containers.list(all=True)
-            
             # 使用主机配置的filter_name作为前缀过滤
             filter_prefix = self.hs_config.filter_name if self.hs_config else ""
-            
             scanned_count = 0
             added_count = 0
-            
             for container in containers:
                 container_name = container.name
-                
                 # 前缀过滤
                 if filter_prefix and not container_name.startswith(filter_prefix):
                     continue
-                
                 scanned_count += 1
-                
                 # 检查是否已存在
                 if container_name in self.vm_saving:
                     continue
-                
                 # 创建默认虚拟机配置
                 default_vm_config = VMConfig()
                 default_vm_config.vm_uuid = container_name
-                
                 # 添加到服务器的虚拟机配置中
                 self.vm_saving[container_name] = default_vm_config
                 added_count += 1
-                
-                # 记录日志
-                log_msg = ZMessage(
-                    success=True,
-                    action="VScanner",
-                    message=f"发现并添加容器: {container_name}",
-                    results={"container_name": container_name}
-                )
-                self.LogStack(log_msg)
-            
             # 保存到数据库
             if added_count > 0:
                 success = self.data_set()
@@ -232,7 +108,6 @@ class HostServer(BasicServer):
                     return ZMessage(
                         success=False, action="VScanner",
                         message="Failed to save scanned containers to database")
-            
             return ZMessage(
                 success=True,
                 action="VScanner",
@@ -243,7 +118,6 @@ class HostServer(BasicServer):
                     "prefix_filter": filter_prefix
                 }
             )
-        
         except Exception as e:
             return ZMessage(
                 success=False, action="VScanner",
@@ -255,15 +129,12 @@ class HostServer(BasicServer):
         if not net_result.success:
             return net_result
         self.NCCreate(vm_conf, True)
-        
         # 专用操作 =============================================================
         client, result = self._connect_docker()
         if not result.success:
             return result
-        
         try:
             container_name = vm_conf.vm_uuid
-            
             # 检查容器是否已存在
             try:
                 client.containers.get(container_name)
@@ -279,16 +150,49 @@ class HostServer(BasicServer):
                 raise Exception(f"Failed to load image: {install_result.message}")
             
             # 构建容器配置
-            container_config = self._build_container_config(vm_conf)
+            container_config, fixed_ip = self._build_container_config(vm_conf)
             
-            # 创建容器
-            container = client.containers.create(
-                image=vm_conf.os_name,
-                name=container_name,
-                detach=True,
-                hostname=container_name,
-                **container_config
-            )
+            # 获取网络名称
+            network_name = container_config.get("network")
+            
+            # 创建容器（如果配置了固定IP，先创建但不连接网络）
+            if fixed_ip and network_name:
+                # 创建容器但不连接网络
+                container = client.containers.create(
+                    image=vm_conf.os_name,
+                    name=container_name,
+                    detach=True,
+                    hostname=container_name,
+                    mac_address=container_config.get("mac_address"),
+                    environment=container_config.get("environment", {}),
+                    volumes=container_config.get("volumes", {}),
+                    ports=container_config.get("ports", {}),
+                    nano_cpus=container_config.get("nano_cpus"),
+                    mem_limit=container_config.get("mem_limit"),
+                    cpu_shares=container_config.get("cpu_shares"),
+                    stdin_open=container_config.get("stdin_open", True),
+                    tty=container_config.get("tty", True),
+                    privileged=container_config.get("privileged", True),
+                    shm_size=container_config.get("shm_size", "1024m"),
+                    cap_add=container_config.get("cap_add", ["SYS_ADMIN", "SYS_PTRACE"])
+                )
+                
+                # 连接到网络并分配固定 IP
+                try:
+                    network = client.networks.get(network_name)
+                    network.connect(container, ipv4_address=fixed_ip)
+                    logger.info(f"Assigned fixed IP {fixed_ip} to container {container_name}")
+                except Exception as ip_error:
+                    logger.warning(f"Failed to assign fixed IP {fixed_ip}: {str(ip_error)}")
+            else:
+                # 创建容器
+                container = client.containers.create(
+                    image=vm_conf.os_name,
+                    name=container_name,
+                    detach=True,
+                    hostname=container_name,
+                    **container_config
+                )
             
             # 启动容器
             container.start()
@@ -299,6 +203,7 @@ class HostServer(BasicServer):
             hs_result = ZMessage(
                 success=False, action="VMCreate",
                 message=f"容器创建失败: {str(e)}")
+            traceback.print_exc()
             self.logs_set(hs_result)
             return hs_result
         
@@ -306,41 +211,106 @@ class HostServer(BasicServer):
         return super().VMCreate(vm_conf)
 
     # 构建容器配置 #############################################################
-    def _build_container_config(self, vm_conf: VMConfig) -> dict:
-        """构建 Docker 容器配置"""
+    def _build_container_config(self, vm_conf: VMConfig) -> tuple[dict, str]:
+        """构建 Docker 容器配置
+        
+        返回:
+            tuple: (容器配置字典, 固定IP地址字符串)
+        """
         config = {
             "environment": {},
             "volumes": {},
-            "network_mode": "bridge"
+            "network_mode": "bridge",
+            # 必需参数，使容器可以交互运行
+            "stdin_open": True,   # -i: 保持 STDIN 打开
+            "tty": True,          # -t: 分配伪终端
+            # 特权模式，让容器拥有几乎与宿主机相同的权限
+            "privileged": True,
+            # 共享内存大小，避免某些应用运行问题
+            "shm_size": "1024m",
+            # 添加容器能力
+            "cap_add": [
+                "SYS_ADMIN",   # 系统管理权限
+                "SYS_PTRACE"   # 进程调试权限
+            ]
         }
         
         # CPU 限制
         if vm_conf.cpu_num > 0:
             config["nano_cpus"] = int(vm_conf.cpu_num * 1e9)
         
-        # 内存限制
-        if vm_conf.ram_num > 0:
-            config["mem_limit"] = f"{vm_conf.ram_num}g"
+        # 内存限制 (转换为字节)
+        if vm_conf.mem_num > 0:
+            config["mem_limit"] = f"{vm_conf.mem_num}m"
+        
+        # CPU 份额（可选，用于相对权重）
+        if vm_conf.cpu_per > 0:
+            config["cpu_shares"] = int(vm_conf.cpu_per * 10)  # 2-1024 范围
+        
+        # 数据卷挂载配置
+        container_name = vm_conf.vm_uuid
+        if self.hs_config.extern_path:
+            # 确保基础目录存在
+            base_path = os.path.join(self.hs_config.extern_path, container_name)
+            os.makedirs(os.path.join(base_path, "root"), exist_ok=True)
+            os.makedirs(os.path.join(base_path, "user"), exist_ok=True)
+            
+            # 挂载 root 目录
+            config["volumes"][os.path.join(base_path, "root")] = {
+                "bind": "/root",
+                "mode": "rw"
+            }
+            
+            # 挂载 user 目录
+            config["volumes"][os.path.join(base_path, "user")] = {
+                "bind": "/home/user",
+                "mode": "rw"
+            }
+            
+            logger.info(f"Configured volumes for {container_name}:")
+            logger.info(f"  {os.path.join(base_path, 'root')}:/root")
+            logger.info(f"  {os.path.join(base_path, 'user')}:/home/user")
+        
+        # SSH端口映射配置（22端口映射到随机端口）
+        if self.hs_config.ports_start > 0 and self.hs_config.ports_close > 0:
+            # 生成随机SSH端口映射
+            import random
+            ssh_port = random.randint(self.hs_config.ports_start, self.hs_config.ports_close)
+            
+            # 添加端口映射：容器22端口 -> 宿主机随机端口
+            config["ports"][22] = ssh_port
+            
+            logger.info(f"Configured SSH port mapping for {container_name}: 22 -> {ssh_port}")
+        else:
+            logger.warning(f"SSH port mapping not configured for {container_name}: ports_start/ports_close not set")
         
         # 网络配置
+        fixed_ip = ""  # 固定IP地址
         nic_index = 0
         for nic_name, nic_config in vm_conf.nic_all.items():
             # 根据配置选择网桥
-            # 这里简化处理，使用第一个网卡的配置
             if nic_index == 0:
                 # 设置 MAC 地址
                 if nic_config.mac_addr:
                     config["mac_address"] = nic_config.mac_addr
                 
+                # 保存固定 IP 地址（如果有）
+                if nic_config.ip4_addr:
+                    fixed_ip = nic_config.ip4_addr
+                
                 # 设置网络（使用 network_nat 或 network_pub）
                 # 默认使用 nat 网络
-                bridge = self.hs_config.network_nat
+                bridge = self.hs_config.network_nat if self.hs_config else ""
                 if bridge:
                     config["network"] = bridge
+                
+                # 如果配置了固定IP，使用自定义网络模式
+                if fixed_ip:
+                    config["network_mode"] = None  # 移除默认的 bridge 模式
             
             nic_index += 1
         
-        return config
+        return config, fixed_ip
 
     # 安装虚拟机 ###############################################################
     def VInstall(self, vm_conf: VMConfig) -> ZMessage:
@@ -414,18 +384,42 @@ class HostServer(BasicServer):
                     success=False, action="VMUpdate",
                     message=f"Container {container_name} does not exist")
             
-            # 停止容器
-            if container.status == "running":
-                self.VMPowers(container_name, VMPowers.H_CLOSE)
-            
             # 重装系统（如果系统镜像改变）
             if vm_conf.os_name != vm_last.os_name and vm_last.os_name != "":
                 # Docker 容器需要重建才能更换镜像
-                # 删除旧容器
+                # 停止并删除旧容器
+                if container.status == "running":
+                    self.VMPowers(container_name, VMPowers.H_CLOSE)
                 container.remove()
                 
                 # 重新创建
                 return self.VMCreate(vm_conf)
+            
+            # 检查是否需要更新资源配置
+            cpu_changed = vm_conf.cpu_num != vm_last.cpu_num
+            ram_changed = vm_conf.ram_num != vm_last.mem_num
+            
+            if cpu_changed or ram_changed:
+                # 使用 docker update 接口动态更新容器资源限制
+                update_kwargs = {}
+                
+                # CPU 限制
+                if cpu_changed and vm_conf.cpu_num > 0:
+                    update_kwargs['nano_cpus'] = int(vm_conf.cpu_num * 1e9)
+                
+                # 内存限制（转换为字节）
+                if ram_changed and vm_conf.mem_num > 0:
+                    update_kwargs['mem_limit'] = f"{vm_conf.mem_num}m"
+                
+                # 执行更新
+                if update_kwargs:
+                    container.update(**update_kwargs)
+                    logger.info(f"容器 {container_name} 资源配置已更新: {update_kwargs}")
+                
+                # 如果容器正在运行，需要重启以应用资源限制变更
+                if container.status == "running":
+                    self.VMPowers(container_name, VMPowers.H_RESET)
+                    logger.info(f"容器 {container_name} 已重启以应用资源限制")
             
             # 更新网络配置
             network_result = self.NCUpdate(vm_conf, vm_last)
@@ -434,21 +428,14 @@ class HostServer(BasicServer):
                     success=False, action="VMUpdate",
                     message=f"网络配置更新失败: {network_result.message}")
             
-            # Docker 容器的资源限制需要重建容器才能更新
-            # 这里简化处理：如果配置有重大变化，建议删除后重建
-            if (vm_conf.cpu_num != vm_last.cpu_num or 
-                vm_conf.ram_num != vm_last.ram_num):
-                logger.warning("CPU/RAM changes require container recreation")
-                # 可以选择自动重建或返回提示
-            
-            # 启动容器
-            start_result = self.VMPowers(container_name, VMPowers.S_START)
-            if not start_result.success:
-                return ZMessage(
-                    success=False, action="VMUpdate",
-                    message=f"容器启动失败: {start_result.message}")
+            hs_result = ZMessage(
+                success=True, action="VMUpdate",
+                message=f"容器 {container_name} 配置更新成功")
+            self.logs_set(hs_result)
+            return hs_result
             
         except Exception as e:
+            traceback.print_exc()
             return ZMessage(
                 success=False, action="VMUpdate",
                 message=f"容器更新失败: {str(e)}")
@@ -559,25 +546,30 @@ class HostServer(BasicServer):
             if container.status != "running":
                 return ZMessage(
                     success=False, action="Password",
-                    message=f"Container {vm_name} is not running")
+                    message=f"容器 {vm_name} 未运行，请先启动容器")
             
-            # 执行命令设置密码
+            # 执行命令设置root密码
             exec_result = container.exec_run(
                 cmd=["sh", "-c", f"echo 'root:{os_pass}' | chpasswd"],
                 stdin=True
             )
             
             if exec_result.exit_code != 0:
-                raise Exception(f"chpasswd command failed: {exec_result.output.decode()}")
+                output = exec_result.output.decode() if exec_result.output else "未知错误"
+                return ZMessage(
+                    success=False, action="Password",
+                    message=f"设置密码失败: {output}")
             
-            logger.info(f"Password set for container {vm_name}")
+            logger.info(f"容器 {vm_name} 的root密码已更新")
             
-            return ZMessage(success=True, action="Password")
+            hs_result = ZMessage(success=True, action="Password", message="密码设置成功")
+            self.logs_set(hs_result)
+            return hs_result
             
         except NotFound:
             return ZMessage(
                 success=False, action="Password",
-                message=f"Container {vm_name} does not exist")
+                message=f"容器 {vm_name} 不存在")
         except Exception as e:
             return ZMessage(
                 success=False, action="Password",
@@ -586,108 +578,203 @@ class HostServer(BasicServer):
     # 备份虚拟机 ###############################################################
     def VMBackup(self, vm_name: str, vm_tips: str) -> ZMessage:
         # 专用操作 =============================================================
-        # 使用 BaseServer 的备份逻辑（7z 压缩）
-        # 通用操作 =============================================================
-        return super().VMBackup(vm_name, vm_tips)
+        client, result = self._connect_docker()
+        if not result.success:
+            return result
+        
+        try:
+            # 获取容器
+            container = client.containers.get(vm_name)
+            
+            # 检查容器是否正在运行
+            was_running = container.status == "running"
+            if was_running:
+                # 先停止容器以确保数据一致性
+                container.stop(timeout=30)
+                logger.info(f"容器 {vm_name} 已停止，准备备份")
+            
+            # 构建备份文件名
+            import datetime
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_filename = f"{vm_name}_{timestamp}.tar.gz"
+            backup_path = os.path.join(self.hs_config.backup_path, backup_filename)
+            
+            # 确保备份目录存在
+            os.makedirs(self.hs_config.backup_path, exist_ok=True)
+            
+            # 导出容器
+            logger.info(f"开始备份容器 {vm_name} 到 {backup_path}")
+            
+            # 使用export导出容器文件系统（会自动处理tar.gz压缩）
+            with open(backup_path, 'wb') as f:
+                # 生成比特流并直接写入文件
+                bits, stat = container.get_archive('/')
+                for chunk in bits:
+                    f.write(chunk)
+            
+            # 压缩为tar.gz（如果导出的是tar）
+            if not backup_path.endswith('.tar.gz'):
+                import gzip
+                tar_gz_path = backup_path + '.gz'
+                with open(backup_path, 'rb') as f_in:
+                    with gzip.open(tar_gz_path, 'wb') as f_out:
+                        f_out.writelines(f_in)
+                os.remove(backup_path)
+                backup_path = tar_gz_path
+            
+            logger.info(f"容器 {vm_name} 备份完成，文件大小: {os.path.getsize(backup_path) / 1024 / 1024:.2f} MB")
+            
+            # 如果容器之前在运行，重新启动
+            if was_running:
+                container.start()
+                logger.info(f"容器 {vm_name} 已重新启动")
+            
+            hs_result = ZMessage(
+                success=True, action="VMBackup",
+                message=f"容器备份成功，文件: {backup_filename}",
+                results={"backup_file": backup_filename, "backup_path": backup_path}
+            )
+            self.logs_set(hs_result)
+            return hs_result
+            
+        except NotFound:
+            return ZMessage(
+                success=False, action="VMBackup",
+                message=f"容器 {vm_name} 不存在")
+        except Exception as e:
+            logger.error(f"备份容器失败: {str(e)}")
+            traceback.print_exc()
+            return ZMessage(
+                success=False, action="VMBackup",
+                message=f"备份失败: {str(e)}")
 
     # 恢复虚拟机 ###############################################################
     def Restores(self, vm_name: str, vm_back: str) -> ZMessage:
-        # 专用操作 =============================================================
-        # 使用 BaseServer 的恢复逻辑（7z 解压）
-        # 通用操作 =============================================================
-        return super().Restores(vm_name, vm_back)
-
-    # VM镜像挂载 ###############################################################
-    def HDDMount(self, vm_name: str, vm_imgs: SDConfig, in_flag=True) -> ZMessage:
         # 专用操作 =============================================================
         client, result = self._connect_docker()
         if not result.success:
             return result
         
         try:
-            if vm_name not in self.vm_saving:
+            # 构建备份文件完整路径
+            backup_file = os.path.join(self.hs_config.backup_path, vm_back)
+            
+            # 检查备份文件是否存在
+            if not os.path.exists(backup_file):
                 return ZMessage(
-                    success=False, action="HDDMount",
-                    message="容器不存在")
+                    success=False, action="Restores",
+                    message=f"备份文件不存在: {vm_back}")
             
-            container = client.containers.get(vm_name)
+            # 检查目标容器是否已存在
+            try:
+                existing_container = client.containers.get(vm_name)
+                return ZMessage(
+                    success=False, action="Restores",
+                    message=f"容器 {vm_name} 已存在，请先删除或使用其他名称")
+            except NotFound:
+                pass  # 容器不存在，可以恢复
             
-            # Docker 容器需要重建才能修改挂载
-            # 这里简化处理：停止容器，修改配置，重新创建
-            was_running = container.status == "running"
-            if was_running:
-                self.VMPowers(vm_name, VMPowers.H_CLOSE)
+            logger.info(f"开始从备份恢复容器 {vm_name}，备份文件: {backup_file}")
             
-            # 挂载点路径
-            host_path = os.path.join(self.hs_config.extern_path, vm_imgs.hdd_name)
-            container_path = f"/mnt/{vm_imgs.hdd_name}"
+            # 使用docker import导入tar.gz文件为镜像
+            # 备份文件格式: container_name_timestamp.tar.gz
+            # 需要解压tar.gz并使用docker load导入
+            import tarfile
+            import tempfile
             
-            if in_flag:
-                # 挂载磁盘
-                # 确保主机路径存在
-                os.makedirs(host_path, exist_ok=True)
-                
-                vm_imgs.hdd_flag = 1
-                self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name] = vm_imgs
-                
-                logger.info(f"Mounted {host_path} to container {vm_name} at {container_path}")
+            # 如果是tar.gz，先解压
+            if backup_file.endswith('.tar.gz'):
+                # 使用docker import直接导入tar.gz为镜像
+                with open(backup_file, 'rb') as f:
+                    # import_image会读取文件并创建镜像
+                    image = client.images.load(f.read())[0]
+                logger.info(f"从备份文件导入镜像: {image.id}")
             else:
-                # 卸载磁盘
-                if vm_imgs.hdd_name in self.vm_saving[vm_name].hdd_all:
-                    self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name].hdd_flag = 0
+                # 直接导入tar文件
+                with open(backup_file, 'rb') as f:
+                    image = client.images.load(f.read())[0]
+                logger.info(f"从备份文件导入镜像: {image.id}")
+            
+            # 获取VM配置
+            vm_conf = self.VMSelect(vm_name)
+            if vm_conf is None:
+                # 如果配置不存在，使用镜像创建默认配置
+                vm_conf = VMConfig()
+                vm_conf.vm_uuid = vm_name
+                vm_conf.os_name = image.id
+            
+            # 构建容器配置
+            container_config, fixed_ip = self._build_container_config(vm_conf)
+            
+            # 获取网络名称
+            network_name = container_config.get("network")
+            
+            # 创建容器
+            if fixed_ip and network_name:
+                # 创建容器但不连接网络
+                container = client.containers.create(
+                    image=image.id,
+                    name=vm_name,
+                    detach=True,
+                    hostname=vm_name,
+                    environment=container_config.get("environment", {}),
+                    volumes=container_config.get("volumes", {}),
+                    ports=container_config.get("ports", {}),
+                    nano_cpus=container_config.get("nano_cpus"),
+                    mem_limit=container_config.get("mem_limit"),
+                    cpu_shares=container_config.get("cpu_shares"),
+                    stdin_open=container_config.get("stdin_open", True),
+                    tty=container_config.get("tty", True),
+                    privileged=container_config.get("privileged", True),
+                    shm_size=container_config.get("shm_size", "1024m"),
+                    cap_add=container_config.get("cap_add", ["SYS_ADMIN", "SYS_PTRACE"])
+                )
                 
-                logger.info(f"Unmounted {host_path} from container {vm_name}")
+                # 连接到网络并分配固定 IP
+                try:
+                    network = client.networks.get(network_name)
+                    network.connect(container, ipv4_address=fixed_ip)
+                    logger.info(f"恢复容器 {vm_name} 并分配固定IP {fixed_ip}")
+                except Exception as ip_error:
+                    logger.warning(f"恢复容器时无法分配固定IP {fixed_ip}: {str(ip_error)}")
+            else:
+                # 创建容器
+                container = client.containers.create(
+                    image=image.id,
+                    name=vm_name,
+                    detach=True,
+                    hostname=vm_name,
+                    **container_config
+                )
             
-            # 保存配置
-            old_conf = deepcopy(self.vm_saving[vm_name])
+            logger.info(f"容器 {vm_name} 恢复成功")
             
-            # 删除旧容器
-            container.remove(force=True)
-            
-            # 重新创建容器（带新的挂载配置）
-            vm_conf = self.vm_saving[vm_name]
-            container_config = self._build_container_config(vm_conf)
-            
-            # 添加挂载卷
-            volumes = {}
-            for hdd_name, hdd_conf in vm_conf.hdd_all.items():
-                if hdd_conf.hdd_flag == 1:
-                    h_path = os.path.join(self.hs_config.extern_path, hdd_name)
-                    c_path = f"/mnt/{hdd_name}"
-                    volumes[h_path] = {'bind': c_path, 'mode': 'rw'}
-            
-            if volumes:
-                container_config['volumes'] = volumes
-            
-            # 重新创建容器
-            container = client.containers.create(
-                image=vm_conf.os_name,
-                name=vm_name,
-                detach=True,
-                hostname=vm_name,
-                **container_config
-            )
-            
-            # 保存配置到数据库
+            # 保存配置到 vm_saving（包括SSH端口配置）
+            self.vm_saving[vm_name] = vm_conf
             self.data_set()
             
-            # 重启容器（如果之前在运行）
-            if was_running:
-                self.VMPowers(vm_name, VMPowers.S_START)
+            hs_result = ZMessage(
+                success=True, action="Restores",
+                message=f"容器恢复成功: {vm_name}",
+                results={"container_id": container.id, "image_id": image.id}
+            )
+            self.logs_set(hs_result)
+            return hs_result
             
-            action_text = "挂载" if in_flag else "卸载"
-            return ZMessage(
-                success=True, action="HDDMount",
-                message=f"磁盘{action_text}成功")
-            
-        except NotFound:
-            return ZMessage(
-                success=False, action="HDDMount",
-                message=f"Container {vm_name} does not exist")
         except Exception as e:
+            logger.error(f"恢复容器失败: {str(e)}")
+            traceback.print_exc()
             return ZMessage(
-                success=False, action="HDDMount",
-                message=f"磁盘挂载操作失败: {str(e)}")
+                success=False, action="Restores",
+                message=f"恢复失败: {str(e)}")
+
+    # VM镜像挂载 ###############################################################
+    def HDDMount(self, vm_name: str, vm_imgs: SDConfig, in_flag=True) -> ZMessage:
+        # 专用操作 =============================================================
+        # Docker容器不支持动态挂载/卸载磁盘
+        return ZMessage(
+            success=False, action="HDDMount",
+            message="Docker容器不支持动态磁盘挂载，请使用Docker volumes或bind mounts，或在创建容器时配置挂载")
 
     # ISO镜像挂载 ##############################################################
     def ISOMount(self, vm_name: str, vm_imgs: IMConfig, in_flag=True) -> ZMessage:
@@ -697,55 +784,49 @@ class HostServer(BasicServer):
             success=True, action="ISOMount",
             message="Docker containers do not support ISO mounting")
 
-    # 虚拟机控制台 ##############################################################
-    def VCRemote(self, vm_uuid: str, ip_addr: str = "127.0.0.1") -> str:
-        """生成 Web Terminal 访问 URL"""
+    # VM镜像挂载 ###############################################################
+    def VCRemote(self, vm_uuid: str, ip_addr: str) -> str:
+        """
+        生成 Web Terminal 访问 URL
+        :param vm_uuid: 虚拟机/容器UUID
+        :param ip_addr: IP地址（忽略，使用配置中的server_addr）
+        :return: 访问URL
+        """
         if vm_uuid not in self.vm_saving:
             return ""
+        # 使用 Web Terminal API 生成 URL
+        if not self.web_terminal:
+            self.web_terminal = WebTerminalAPI(self.hs_config)
         
-        # 对于远程 Docker，返回 Docker 控制台 URL
-        if self.hs_config.server_addr not in ["localhost", "127.0.0.1", ""]:
-            # 使用 Docker 的 exec 方式
-            public_addr = self.hs_config.public_addr[0] if self.hs_config.public_addr else self.hs_config.server_addr
-            # 这里可以返回一个自定义的 Web 终端 URL
-            url = f"http://{public_addr}:{self.hs_config.remote_port}/terminal/{vm_uuid}"
-            return url
+        # 获取容器的SSH端口映射
+        ssh_port = None
+        vm_conf = self.vm_saving[vm_uuid]
+        container_name = vm_conf.vm_uuid
         
-        # 本地模式使用 ttyd
-        if not self.ttyd_process:
-            logger.warning("ttyd service is not running")
-            return ""
+        try:
+            client, result = self._connect_docker()
+            if result.success:
+                container = client.containers.get(container_name)
+                container.reload()
+                
+                # 获取端口映射信息
+                ports_info = container.attrs.get('NetworkSettings', {}).get('Ports', {})
+                if ports_info and '22/tcp' in ports_info:
+                    port_bindings = ports_info['22/tcp']
+                    if port_bindings and len(port_bindings) > 0:
+                        ssh_port = port_bindings[0].get('HostPort')
+        except Exception as e:
+            logger.warning(f"Failed to get SSH port mapping for {container_name}: {str(e)}")
         
-        # 生成随机 token
-        rand_token = ''.join(random.sample(string.ascii_letters + string.digits, 32))
-        self.ttyd_tokens[vm_uuid] = rand_token
-        
-        # 构造访问 URL
-        public_addr = self.hs_config.public_addr[0] if self.hs_config.public_addr else "127.0.0.1"
-        
-        # 使用 docker exec 连接到容器
-        url = f"http://{public_addr}:{self.hs_config.remote_port}/" \
-              f"?arg=docker&arg=exec&arg=-it&arg={vm_uuid}&arg=/bin/bash&token={rand_token}"
-        
-        return url
-
-    # 加载备份 #################################################################
-    def LDBackup(self, vm_back: str = "") -> ZMessage:
-        # 专用操作 =============================================================
-        # 通用操作 =============================================================
-        return super().LDBackup(vm_back)
-
-    # 移除备份 #################################################################
-    def RMBackup(self, vm_back: str) -> ZMessage:
-        # 专用操作 =============================================================
-        # 通用操作 =============================================================
-        return super().RMBackup(vm_back)
+        return self.web_terminal.generate_terminal_url(vm_uuid, ssh_port)
 
     # 移除磁盘 #################################################################
     def RMMounts(self, vm_name: str, vm_imgs: str) -> ZMessage:
         # 专用操作 =============================================================
         # 通用操作 =============================================================
-        return super().RMMounts(vm_name, vm_imgs)
+        return ZMessage(
+            success=True, action="ISOMount",
+            message="Docker containers do not support SSD mounting")
 
     # 查找显卡 #################################################################
     def GPUShows(self) -> dict[str, str]:
@@ -753,3 +834,65 @@ class HostServer(BasicServer):
         # Docker 容器不需要 GPU 管理，返回空字典
         # 通用操作 =============================================================
         return {}
+
+    # 端口映射 #################################################################
+    def PortsMap(self, map_info: PortData, flag=True) -> ZMessage:
+        # 专用操作 =============================================================
+        # 直接使用 IPTables API 进行端口转发，不获取虚拟机信息
+        iptables_api = IPTablesAPI(self.hs_config)
+        
+        # 判断是否为远程主机（排除 SSH 转发模式）
+        is_remote = (self.hs_config.server_addr not in ["localhost", "127.0.0.1", ""] and 
+                    not self.hs_config.server_addr.startswith("ssh://"))
+        
+        # 如果是远程主机，先建立SSH连接
+        if is_remote:
+            success, message = iptables_api.connect_ssh()
+            if not success:
+                return ZMessage(
+                    success=False, action="PortsMap",
+                    message=f"SSH 连接失败: {message}")
+        
+        # 如果wan_port为0，自动分配一个未使用的端口
+        if map_info.wan_port == 0:
+            map_info.wan_port = iptables_api.allocate_port()
+        else:
+            # 检查端口是否已被占用
+            existing_ports = iptables_api.get_host_ports(is_remote)
+            if map_info.wan_port in existing_ports:
+                if is_remote:
+                    iptables_api.close_ssh()
+                return ZMessage(
+                    success=False, action="PortsMap",
+                    message=f"端口 {map_info.wan_port} 已被占用")
+        
+        # 执行端口映射操作
+        if flag:
+            success, error = iptables_api.add_port_mapping(
+                map_info.lan_addr, map_info.lan_port, map_info.wan_port, is_remote, map_info.nat_tips)
+            
+            if success:
+                hs_message = f"端口 {map_info.wan_port} 成功映射到 {map_info.lan_addr}:{map_info.lan_port}"
+                hs_success = True
+            else:
+                if is_remote:
+                    iptables_api.close_ssh()
+                return ZMessage(
+                    success=False, action="PortsMap",
+                    message=f"端口映射失败: {error}")
+        else:
+            iptables_api.remove_port_mapping(
+                map_info.lan_addr, map_info.lan_port, map_info.wan_port, is_remote)
+            hs_message = f"端口 {map_info.wan_port} 映射已删除"
+            hs_success = True
+        
+        hs_result = ZMessage(
+            success=hs_success, action="PortsMap",
+            message=hs_message)
+        self.logs_set(hs_result)
+        
+        # 关闭 SSH 连接
+        if is_remote:
+            iptables_api.close_ssh()
+        
+        return hs_result

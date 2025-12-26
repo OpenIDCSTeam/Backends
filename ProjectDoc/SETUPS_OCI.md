@@ -82,7 +82,7 @@ config = HSConfig(
     system_path="/var/lib/docker-data",
     backup_path="/var/lib/docker-backups",
     extern_path="/var/lib/docker-mounts",
-    remote_port=7681  # ttyd Web Terminal 端口
+    remote_port=7681  # ttydserver Web Terminal 端口
 )
 
 # 创建服务器实例

@@ -158,7 +158,7 @@
 
             <!-- 按钮区域固定在底部 -->
             <div class="modal-action flex-shrink-0 pt-4 border-t border-gray-200 mt-4">
-                <button type="button" onclick="document.getElementById('vmModal').close()"
+                <button type="button" onclick="closeVmModal()"
                         class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
                     取消
                 </button>
@@ -171,7 +171,7 @@
         </form>
     </div>
     <form method="dialog" class="modal-backdrop">
-        <button>关闭</button>
+        <button onclick="closeVmModal()">关闭</button>
     </form>
 </dialog>
 
@@ -261,6 +261,17 @@
     $(document).ready(function () {
         loadHostInfo();
         loadVMs();
+        
+        // 监听模态框关闭事件，清理状态
+        document.getElementById('vmModal').addEventListener('close', function() {
+            clearFieldRestrictions(window.banInit);
+            clearFieldRestrictions(window.banEdit);
+            
+            const messageDiv = document.querySelector('#vmForm .bg-yellow-50');
+            if (messageDiv) {
+                messageDiv.remove();
+            }
+        });
     });
 
     // 生成随机字符串
@@ -378,8 +389,70 @@
         if (result && result.code === 200) {
             const hostData = result.data;
             hostSystemMaps = hostData.system_maps || {};
+            // 保存服务器类型和禁止编辑的字段列表
+            window.serverType = hostData.server_type || '';
+            window.banInit = hostData.ban_init || [];
+            window.banEdit = hostData.ban_edit || [];
+            window.serverMessages = hostData.messages || [];
             updateOsOptions();
         }
+    }
+
+    // 根据禁用字段列表禁用表单元素
+    function applyFieldRestrictions(bannedFields) {
+        if (!bannedFields || bannedFields.length === 0) return;
+
+        bannedFields.forEach(fieldName => {
+            // 获取表单元素
+            const element = document.querySelector(`[name="${fieldName}"], #${fieldName}`);
+            if (element) {
+                element.disabled = true;
+                // 添加视觉提示
+                element.classList.add('bg-gray-100', 'cursor-not-allowed', 'opacity-70');
+                
+                // 如果有标签，也添加禁用样式
+                const label = document.querySelector(`label[for="${fieldName}"], label[for="${element.id}"]`);
+                if (label) {
+                    label.classList.add('text-gray-400', 'line-through');
+                    label.title = '此字段禁止编辑';
+                }
+            }
+        });
+    }
+
+    // 清除字段禁用状态
+    function clearFieldRestrictions(bannedFields) {
+        if (!bannedFields || bannedFields.length === 0) return;
+
+        bannedFields.forEach(fieldName => {
+            const element = document.querySelector(`[name="${fieldName}"], #${fieldName}`);
+            if (element) {
+                element.disabled = false;
+                element.classList.remove('bg-gray-100', 'cursor-not-allowed', 'opacity-70');
+                
+                const label = document.querySelector(`label[for="${fieldName}"], label[for="${element.id}"]`);
+                if (label) {
+                    label.classList.remove('text-gray-400', 'line-through');
+                    label.title = '';
+                }
+            }
+        });
+    }
+
+    // 关闭虚拟机模态框并清理状态
+    function closeVmModal() {
+        // 清除字段禁用状态
+        clearFieldRestrictions(window.banInit);
+        clearFieldRestrictions(window.banEdit);
+        
+        // 移除服务器配置消息（如果存在）
+        const messageDiv = document.querySelector('#vmForm .bg-yellow-50');
+        if (messageDiv) {
+            messageDiv.remove();
+        }
+        
+        // 关闭模态框
+        document.getElementById('vmModal').close();
     }
 
     // 更新操作系统下拉选项
@@ -803,6 +876,29 @@
         // 设置默认值
         setDefaultValues();
         
+        // 应用Ban_Init限制：禁止在创建时编辑的字段
+        applyFieldRestrictions(window.banInit);
+        
+        // 显示服务器配置消息（如果有）
+        if (window.serverMessages && window.serverMessages.length > 0) {
+            const message = window.serverMessages.join('\\n');
+            // 可以在模态框中显示提示信息
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md';
+            messageDiv.innerHTML = `
+                <div class="flex items-start">
+                    <span class="iconify text-yellow-600 mr-2" data-icon="mdi:information"></span>
+                    <div class="text-sm text-yellow-800">
+                        <p class="font-semibold">服务器配置提示</p>
+                        <p class="mt-1 whitespace-pre-line">${message}</p>
+                    </div>
+                </div>
+            `;
+            // 插入到表单前面
+            const form = document.getElementById('vmForm');
+            form.insertBefore(messageDiv, form.firstChild);
+        }
+        
         document.getElementById('vmModal').showModal();
         
         // 模态框显示后更新配额信息
@@ -980,6 +1076,31 @@
             }
 
             if (nicCounter === 0) addNicConfig();
+            
+            // 应用Ban_Edit限制：禁止在编辑时修改的字段
+            applyFieldRestrictions(window.banEdit);
+            
+            // 显示服务器配置消息（如果有）
+            if (window.serverMessages && window.serverMessages.length > 0) {
+                const message = window.serverMessages.join('\\n');
+                // 检查是否已存在消息提示，避免重复添加
+                if (!document.querySelector('#vmForm .bg-yellow-50')) {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md';
+                    messageDiv.innerHTML = `
+                        <div class="flex items-start">
+                            <span class="iconify text-yellow-600 mr-2" data-icon="mdi:information"></span>
+                            <div class="text-sm text-yellow-800">
+                                <p class="font-semibold">服务器配置提示</p>
+                                <p class="mt-1 whitespace-pre-line">${message}</p>
+                            </div>
+                        </div>
+                    `;
+                    // 插入到表单前面
+                    const form = document.getElementById('vmForm');
+                    form.insertBefore(messageDiv, form.firstChild);
+                }
+            }
 
             document.getElementById('vmModal').showModal();
         }

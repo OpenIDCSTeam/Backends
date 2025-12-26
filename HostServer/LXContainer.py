@@ -36,7 +36,7 @@ class HostServer(BasicServer):
         super().__load__(**kwargs)
         # LXD 客户端连接
         self.lxd_client = None
-        self.ttyd_process = None  # ttyd Web Terminal 进程
+        self.ttyd_process = None  # ttydserver Web Terminal 进程
         self.ttyd_tokens = {}  # 存储容器名称到token的映射
 
     # 连接到 LXD 服务器 ########################################################
@@ -125,25 +125,25 @@ class HostServer(BasicServer):
         if not result.success:
             return result
         
-        # 启动 ttyd Web Terminal 服务（仅本地模式）
+        # 启动 ttydserver Web Terminal 服务（仅本地模式）
         if self.hs_config.server_addr in ["localhost", "127.0.0.1", ""]:
             try:
-                # 检查 ttyd 是否安装
+                # 检查 ttydserver 是否安装
                 result = subprocess.run(
-                    ["which", "ttyd"],
+                    ["which", "ttydserver"],
                     capture_output=True, text=True)
                 
                 if result.returncode != 0:
-                    logger.warning("ttyd not found, Web Terminal will not be available")
+                    logger.warning("ttydserver not found, Web Terminal will not be available")
                 else:
-                    # 启动 ttyd 服务
+                    # 启动 ttydserver 服务
                     self.ttyd_process = subprocess.Popen(
-                        ["ttyd", "-p", str(self.hs_config.remote_port), "-W", "bash"],
+                        ["ttydserver", "-p", str(self.hs_config.remote_port), "-W", "bash"],
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE)
-                    logger.info(f"ttyd Web Terminal started on port {self.hs_config.remote_port}")
+                    logger.info(f"ttydserver Web Terminal started on port {self.hs_config.remote_port}")
             except Exception as e:
-                logger.warning(f"Failed to start ttyd: {str(e)}")
+                logger.warning(f"Failed to start ttydserver: {str(e)}")
         
         # 通用操作 =============================================================
         return super().HSLoader()
@@ -151,7 +151,7 @@ class HostServer(BasicServer):
     # 卸载宿主机 ###############################################################
     def HSUnload(self) -> ZMessage:
         # 专用操作 =============================================================
-        # 停止 ttyd 服务
+        # 停止 ttydserver 服务
         if self.ttyd_process:
             try:
                 self.ttyd_process.terminate()
@@ -160,7 +160,7 @@ class HostServer(BasicServer):
                 self.ttyd_process.kill()
             finally:
                 self.ttyd_process = None
-                logger.info("ttyd Web Terminal stopped")
+                logger.info("ttydserver Web Terminal stopped")
         
         # 断开 LXD 连接
         self.lxd_client = None
@@ -699,9 +699,9 @@ class HostServer(BasicServer):
             url = f"https://{public_addr}:8443/1.0/containers/{vm_uuid}/console"
             return url
         
-        # 本地模式使用 ttyd
+        # 本地模式使用 ttydserver
         if not self.ttyd_process:
-            logger.warning("ttyd service is not running")
+            logger.warning("ttydserver service is not running")
             return ""
         
         # 生成随机 token

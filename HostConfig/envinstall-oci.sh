@@ -232,34 +232,34 @@ else
     fi
 fi
 
-# 安装 ttyd（Web Terminal）
+# 安装 ttydserver（Web Terminal）
 echo ""
 echo "安装 ttyd (Web Terminal)..."
-if ! command -v ttyd &> /dev/null; then
+if ! command -v ttydserver &> /dev/null; then
     case "$OS" in
         ubuntu|debian)
-            $PKG_INSTALL ttyd
+            $PKG_INSTALL ttydserver
             ;;
         centos|rhel|rocky|almalinux|fedora)
-            # EPEL 仓库可能包含 ttyd，或从源码编译
+            # EPEL 仓库可能包含 ttydserver，或从源码编译
             echo "尝试从 EPEL 安装 ttyd..."
             if [ "$OS" = "centos" ] || [ "$OS" = "rhel" ] || [ "$OS" = "rocky" ] || [ "$OS" = "almalinux" ]; then
                 $PKG_INSTALL epel-release || true
             fi
-            $PKG_INSTALL ttyd || {
+            $PKG_INSTALL ttydserver || {
                 echo "警告: ttyd 安装失败，可能需要手动编译安装"
                 echo "参考: https://github.com/tsl0922/ttyd"
             }
             ;;
         arch|manjaro)
-            $PKG_INSTALL ttyd
+            $PKG_INSTALL ttydserver
             ;;
         *)
             echo "警告: 未知发行版，跳过 ttyd 安装"
             ;;
     esac
     
-    if command -v ttyd &> /dev/null; then
+    if command -v ttydserver &> /dev/null; then
         echo "ttyd 安装完成"
     else
         echo "警告: ttyd 未安装，Web Terminal 功能将不可用"
@@ -364,41 +364,124 @@ if [ "$ENABLE_REMOTE" = "y" ] && [ "$CONTAINER_ENGINE" = "docker" ]; then
     if [ ! -f "ca.pem" ]; then
         echo "生成 CA 证书..."
         
-        read -p "请输入服务器主机名或 IP: " SERVER_HOST
+        # 检查 openssl 是否可用
+        if ! command -v openssl &> /dev/null; then
+            echo "错误: openssl 未安装"
+            exit 1
+        fi
         
-        # 生成 CA 私钥
-        openssl genrsa -aes256 -out ca-key.pem 4096
+        # 自动获取服务器主机名或 IP
+        if [ -n "$SERVER_HOST" ]; then
+            echo "使用指定服务器地址: $SERVER_HOST"
+        else
+            # 尝试获取服务器 IP 地址
+            SERVER_HOST=$(hostname -I | awk '{print $1}' | tr -d '[:space:]')
+            if [ -z "$SERVER_HOST" ]; then
+                # 备选方案：通过默认路由获取 IP
+                SERVER_HOST=$(ip route get 1 | awk '{print $5; exit}' | tr -d '[:space:]')
+            fi
+            # 如果还是获取不到，使用主机名
+            if [ -z "$SERVER_HOST" ]; then
+                SERVER_HOST=$(hostname | tr -d '[:space:]')
+            fi
+            echo "自动检测服务器地址: $SERVER_HOST"
+        fi
+        
+        # 验证 SERVER_HOST 不为空
+        if [ -z "$SERVER_HOST" ]; then
+            echo "错误: 无法获取服务器地址"
+            exit 1
+        fi
+
+        # 生成 CA 私钥（不加密，避免交互输入密码）
+        echo "正在生成 CA 私钥..."
+        if ! openssl genrsa -out ca-key.pem 4096; then
+            echo "错误: 生成 CA 私钥失败"
+            exit 1
+        fi
         
         # 生成 CA 证书
-        openssl req -new -x509 -days 365 -key ca-key.pem -sha256 -out ca.pem \
-            -subj "/C=CN/ST=Beijing/L=Beijing/O=OpenIDCS/OU=IT/CN=$SERVER_HOST"
-        
+        # 创建 CA 证书扩展配置文件
+        echo "创建 CA 证书扩展配置..."
+        cat > extfile-ca.cnf << EOF
+[ v3_ca ]
+basicConstraints = critical,CA:true
+keyUsage = critical, digitalSignature, keyCertSign, cRLSign
+EOF
+
+        echo "正在生成 CA 证书..."
+        echo "服务器地址: $SERVER_HOST"
+        if ! openssl req -new -x509 -days 365 -key ca-key.pem -sha256 -out ca.pem \
+            -subj "/C=CN/ST=Beijing/L=Beijing/O=OpenIDCS/OU=IT/CN=$SERVER_HOST" \
+            -config extfile-ca.cnf -extensions v3_ca; then
+            echo "错误: 生成 CA 证书失败"
+            rm -f extfile-ca.cnf ca-key.pem
+            exit 1
+        fi
+
+        # 清理临时文件
+        rm -f extfile-ca.cnf
+
         # 生成服务器私钥
-        openssl genrsa -out server-key.pem 4096
+        echo "正在生成服务器私钥..."
+        if ! openssl genrsa -out server-key.pem 4096; then
+            echo "错误: 生成服务器私钥失败"
+            exit 1
+        fi
         
-        # 生成服务器证书签名请求
-        openssl req -subj "/CN=$SERVER_HOST" -sha256 -new -key server-key.pem -out server.csr
+        # 生成服务器证书签名请求（使用完整的subject信息）
+        echo "正在生成服务器证书签名请求..."
+        if ! openssl req -new -sha256 -key server-key.pem -out server.csr \
+            -subj "/C=CN/ST=Beijing/L=Beijing/O=OpenIDCS/OU=IT/CN=$SERVER_HOST"; then
+            echo "错误: 生成服务器证书签名请求失败"
+            exit 1
+        fi
         
         # 配置证书扩展
-        echo "subjectAltName = DNS:$SERVER_HOST,IP:$SERVER_HOST,IP:127.0.0.1" >> extfile.cnf
-        echo "extendedKeyUsage = serverAuth" >> extfile.cnf
+        echo "配置服务器证书扩展..."
+        cat > extfile.cnf << EOF
+[ server_ext ]
+subjectAltName = DNS:$SERVER_HOST,IP:$SERVER_HOST,IP:127.0.0.1
+extendedKeyUsage = serverAuth
+EOF
         
         # 签名服务器证书
-        openssl x509 -req -days 365 -sha256 -in server.csr -CA ca.pem -CAkey ca-key.pem \
-            -CAcreateserial -out server-cert.pem -extfile extfile.cnf
+        echo "正在签名服务器证书..."
+        if ! openssl x509 -req -days 365 -sha256 -in server.csr -CA ca.pem -CAkey ca-key.pem \
+            -CAcreateserial -out server-cert.pem -extfile extfile.cnf -extensions server_ext; then
+            echo "错误: 签名服务器证书失败"
+            exit 1
+        fi
         
         # 生成客户端私钥
-        openssl genrsa -out client-key.pem 4096
+        echo "正在生成客户端私钥..."
+        if ! openssl genrsa -out client-key.pem 4096; then
+            echo "错误: 生成客户端私钥失败"
+            exit 1
+        fi
         
-        # 生成客户端证书签名请求
-        openssl req -subj '/CN=client' -new -key client-key.pem -out client.csr
+        # 生成客户端证书签名请求（使用完整的subject信息）
+        echo "正在生成客户端证书签名请求..."
+        if ! openssl req -new -sha256 -key client-key.pem -out client.csr \
+            -subj "/C=CN/ST=Beijing/L=Beijing/O=OpenIDCS/OU=IT/CN=client"; then
+            echo "错误: 生成客户端证书签名请求失败"
+            exit 1
+        fi
         
         # 配置客户端证书扩展
-        echo "extendedKeyUsage = clientAuth" > extfile-client.cnf
+        echo "配置客户端证书扩展..."
+        cat > extfile-client.cnf << EOF
+[ client_ext ]
+extendedKeyUsage = clientAuth
+EOF
         
         # 签名客户端证书
-        openssl x509 -req -days 365 -sha256 -in client.csr -CA ca.pem -CAkey ca-key.pem \
-            -CAcreateserial -out client-cert.pem -extfile extfile-client.cnf
+        echo "正在签名客户端证书..."
+        if ! openssl x509 -req -days 365 -sha256 -in client.csr -CA ca.pem -CAkey ca-key.pem \
+            -CAcreateserial -out client-cert.pem -extfile extfile-client.cnf -extensions client_ext; then
+            echo "错误: 签名客户端证书失败"
+            exit 1
+        fi
         
         # 清理临时文件
         rm -f client.csr server.csr extfile.cnf extfile-client.cnf
@@ -554,7 +637,7 @@ if [ "$CONFIG_FIREWALL" = "y" ]; then
     if command -v ufw &> /dev/null; then
         echo "配置 UFW 防火墙..."
         ufw allow 2376/tcp comment 'Docker TLS'
-        ufw allow 7681/tcp comment 'ttyd Web Terminal'
+        ufw allow 7681/tcp comment 'ttydserver Web Terminal'
         ufw reload
         echo "UFW 防火墙规则已添加"
         FIREWALL_CONFIGURED=true

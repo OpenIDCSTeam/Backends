@@ -40,11 +40,49 @@ class RestManager:
     # 认证装饰器和响应函数
     # ========================================================================
 
+    # 过滤被禁用的字段 ##################################################################
+    # :param data: 原始数据字典
+    # :param server_type: 服务器类型
+    # :param mode: 'init' (创建) 或 'edit' (编辑)
+    # :return: 过滤后的数据
+    ####################################################################################
+    def _filter_banned_fields(self, data: dict, server_type: str, mode: str = 'init') -> dict:
+        """
+        根据服务器类型过滤掉被禁用的字段
+        
+        Args:
+            data: 原始数据字典
+            server_type: 服务器类型 (如 'VMWareSetup', 'LxContainer', 'OCInterface' 等)
+            mode: 'init' 表示创建模式，使用 Ban_Init；'edit' 表示编辑模式，使用 Ban_Edit
+            
+        Returns:
+            过滤后的数据字典
+        """
+        # 获取服务器配置
+        server_config = HEConfig.get(server_type, {})
+        
+        # 获取要禁止的字段列表
+        banned_fields = []
+        if mode == 'init':
+            banned_fields = server_config.get('Ban_Init', [])
+        elif mode == 'edit':
+            banned_fields = server_config.get('Ban_Edit', [])
+        
+        # 过滤掉被禁用的字段
+        filtered_data = {}
+        for key, value in data.items():
+            # 跳过被禁用的字段
+            if key in banned_fields:
+                continue
+            filtered_data[key] = value
+        
+        return filtered_data
+
     @staticmethod
     # 认证装饰器，检查Bearer Token或Session登录 ########################################
     # :param f: 被装饰的函数
     # :return: 装饰后的函数
-    # ####################################################################################
+    ####################################################################################
     def require_auth(self, f):
 
         @wraps(f)
@@ -732,16 +770,35 @@ class RestManager:
         # 获取system_maps和images_maps
         system_maps = {}
         images_maps = {}
+        server_type = ''
+        ban_init = []
+        ban_edit = []
+        messages = []
+        
         if server.hs_config:
             if hasattr(server.hs_config, 'system_maps'):
                 system_maps = server.hs_config.system_maps or {}
             if hasattr(server.hs_config, 'images_maps'):
                 images_maps = server.hs_config.images_maps or {}
+            if hasattr(server.hs_config, 'server_type'):
+                server_type = server.hs_config.server_type or ''
+            
+            # 获取Ban_Init和Ban_Edit
+            from MainObject.Server.HSEngine import HEConfig
+            if server_type:
+                server_config = HEConfig.get(server_type, {})
+                ban_init = server_config.get('Ban_Init', [])
+                ban_edit = server_config.get('Ban_Edit', [])
+                messages = server_config.get('Messages', [])
 
         return self.api_response(200, 'success', {
             'host_name': hs_name,
+            'server_type': server_type,
             'system_maps': system_maps,
-            'images_maps': images_maps
+            'images_maps': images_maps,
+            'ban_init': ban_init,
+            'ban_edit': ban_edit,
+            'messages': messages
         })
 
     # 添加主机 ########################################################################
@@ -1049,6 +1106,11 @@ class RestManager:
             if isinstance(system_map, list) and len(system_map) >= 1:
                 data['os_name'] = system_map[0]  # 获取映射的实际文件名
         
+        # 根据服务器类型过滤被禁用的字段（创建模式 - Ban_Init）
+        if server.hs_config and hasattr(server.hs_config, 'server_type'):
+            server_type = server.hs_config.server_type
+            data = self._filter_banned_fields(data, server_type, mode='init')
+        
         # 处理网卡配置
         nic_all = {}
         nic_data = data.pop('nic_all', {})
@@ -1261,6 +1323,11 @@ class RestManager:
         nic_data = data.pop('nic_all', {})
         for nic_name, nic_conf in nic_data.items():
             nic_all[nic_name] = NCConfig(**nic_conf)
+        
+        # 根据服务器类型过滤被禁用的字段（编辑模式 - Ban_Edit）
+        if server.hs_config and hasattr(server.hs_config, 'server_type'):
+            server_type = server.hs_config.server_type
+            data = self._filter_banned_fields(data, server_type, mode='edit')
 
         vm_config = VMConfig(**data, nic_all=nic_all)
 
@@ -2036,6 +2103,7 @@ class RestManager:
         except Exception as e:
             # 如果创建失败，从列表中移除
             vm_config.nat_all.pop()
+            traceback.print_exc()
             logger.error(f"创建端口映射失败: {e}")
             return self.api_response(500, f'端口映射创建失败: {str(e)}')
 

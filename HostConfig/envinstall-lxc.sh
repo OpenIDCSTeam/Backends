@@ -7,38 +7,205 @@
 
 set -e
 
-echo "========================================="
-echo "LXD 服务端初始化脚本"
-echo "========================================="
+# 颜色定义
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+BLUE='\033[0;34m'; NC='\033[0m'
+
+NAME="LXD"
+FORCE=false
+DELETE=false
+
+# 日志函数
+log() { echo -e "$1"; }
+ok() { log "${GREEN}[OK]${NC} $1"; }
+info() { log "${BLUE}[INFO]${NC} $1"; }
+warn() { log "${YELLOW}[WARN]${NC} $1"; }
+err() { log "${RED}[ERR]${NC} $1"; exit 1; }
 
 # 检查是否为 root 用户
 if [ "$EUID" -ne 0 ]; then
-    echo "错误: 请使用 root 权限运行此脚本"
-    echo "使用: sudo bash setup_lxd.sh"
-    exit 1
+    err "请使用 root 运行"
 fi
+
+# 处理命令行参数
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -f|--force) FORCE=true; shift;;
+    -d|--delete) DELETE=true; shift;;
+    -h|--help)
+      echo "========================================"
+      echo "        LXD 服务端配置脚本"
+      echo "========================================"
+      echo
+      echo "用法: $0 [选项]"
+      echo
+      echo "选项:"
+      echo "  -f, --force    强制重新安装（即使已安装 LXD）"
+      echo "  -d, --delete   卸载 LXD 及所有数据"
+      echo "  -h, --help     显示此帮助信息"
+      echo
+      echo "示例:"
+      echo "  $0              # 安装并配置 LXD"
+      echo "  $0 -f           # 强制重新安装"
+      echo "  $0 -d           # 卸载 LXD"
+      echo
+      exit 0;;
+    *) err "未知参数: $1 (使用 -h 查看帮助)";;
+  esac
+done
+
+# 卸载 LXD 功能
+if [[ $DELETE == true ]]; then
+  echo
+  echo "========================================"
+  echo "          卸载 LXD"
+  echo "========================================"
+  echo
+  
+  warn "此操作将完全卸载 LXD 及其所有数据！"
+  echo
+  
+  # 检测已安装的 LXD
+  FOUND_LXD=false
+  
+  if [[ -f /snap/bin/lxd || -f /snap/bin/lxc || -f /var/lib/snapd/snap/bin/lxd || -f /var/lib/snapd/snap/bin/lxc ]]; then
+    echo "  - 检测到 Snap 安装的 LXD"
+    FOUND_LXD=true
+  fi
+  
+  if [[ -f /usr/bin/lxd || -f /usr/bin/lxc ]]; then
+    echo "  - 检测到 APT/DEB 安装的 LXD"
+    FOUND_LXD=true
+  fi
+  
+  if [[ -f /usr/local/bin/lxd || -f /usr/local/bin/lxc ]]; then
+    echo "  - 检测到本地编译的 LXD"
+    FOUND_LXD=true
+  fi
+  
+  if [[ $FOUND_LXD == false ]]; then
+    warn "未检测到已安装的 LXD"
+    exit 0
+  fi
+  
+  echo
+  read -p "确定要继续吗? (y/N): " CONFIRM
+  if [[ $CONFIRM != "y" && $CONFIRM != "Y" ]]; then
+    ok "取消卸载操作"
+    exit 0
+  fi
+  
+  echo
+  info "停止 LXD 服务..."
+  systemctl stop lxd 2>/dev/null || true
+  systemctl stop lxd.socket 2>/dev/null || true
+  systemctl stop lxd-containers 2>/dev/null || true
+  
+  # 检测包管理器
+  PKG_MANAGER=""
+  if command -v apt-get &> /dev/null; then
+    PKG_MANAGER="apt"
+  elif command -v yum &> /dev/null; then
+    PKG_MANAGER="yum"
+  elif command -v dnf &> /dev/null; then
+    PKG_MANAGER="dnf"
+  elif command -v zypper &> /dev/null; then
+    PKG_MANAGER="zypper"
+  elif command -v pacman &> /dev/null; then
+    PKG_MANAGER="pacman"
+  fi
+  
+  # 卸载 Snap LXD
+  if [[ -f /snap/bin/lxd || -f /snap/bin/lxc || -f /var/lib/snapd/snap/bin/lxd || -f /var/lib/snapd/snap/bin/lxc ]]; then
+    info "卸载 Snap LXD..."
+    snap remove lxd 2>/dev/null || warn "Snap LXD 卸载失败"
+  fi
+  
+  # 卸载 APT/DEB LXD
+  if [[ -f /usr/bin/lxd || -f /usr/bin/lxc ]]; then
+    info "卸载 APT/DEB LXD..."
+    case $PKG_MANAGER in
+      apt)
+        apt-get purge -y lxd lxd-client lxc lxc-utils 2>/dev/null || true
+        apt-get autoremove -y 2>/dev/null || true
+        ;;
+      yum)
+        yum remove -y lxd lxc 2>/dev/null || true
+        ;;
+      dnf)
+        dnf remove -y lxd lxc 2>/dev/null || true
+        ;;
+      zypper)
+        zypper remove -y lxd lxc 2>/dev/null || true
+        ;;
+      pacman)
+        pacman -Rns --noconfirm lxd lxc 2>/dev/null || true
+        ;;
+    esac
+  fi
+  
+  # 删除本地编译的 LXD
+  if [[ -f /usr/local/bin/lxd || -f /usr/local/bin/lxc ]]; then
+    info "删除本地编译的 LXD..."
+    rm -f /usr/local/bin/lxd /usr/local/bin/lxc 2>/dev/null || true
+  fi
+  
+  info "清理 LXD 数据和配置..."
+  rm -rf /var/lib/lxd 2>/dev/null || true
+  rm -rf /var/log/lxd 2>/dev/null || true
+  rm -rf /etc/lxd 2>/dev/null || true
+  rm -rf ~/.config/lxc 2>/dev/null || true
+  
+  info "清理环境变量配置..."
+  if [[ -f /etc/profile.d/snap.sh ]]; then
+    rm -f /etc/profile.d/snap.sh
+    ok "已删除环境变量配置文件"
+  fi
+  
+  info "清理符号链接..."
+  if [[ -L /snap ]]; then
+    rm -f /snap
+    ok "已删除符号链接 /snap"
+  fi
+  
+  info "清理网桥配置..."
+  ip link show br-pub 2>/dev/null && ip link delete br-pub 2>/dev/null || true
+  ip link show br-nat 2>/dev/null && ip link delete br-nat 2>/dev/null || true
+  
+  echo
+  ok "LXD 卸载完成！"
+  echo
+  warn "环境变量已清理，建议重新登录系统或重启终端"
+  exit 0
+fi
+
+echo
+echo "========================================"
+echo "LXD 服务端初始化脚本"
+echo "========================================"
+echo
 
 # 检测并修复 squashfs 支持
 check_squashfs_support() {
-    echo "检查 squashfs 文件系统支持..."
+    info "检查 squashfs 文件系统支持..."
     
     # 检查内核是否支持 squashfs
     if grep -q squashfs /proc/filesystems 2>/dev/null; then
-        echo "✓ squashfs 已加载"
+        ok "squashfs 已加载"
         return 0
     fi
     
-    echo "⚠ squashfs 未加载，尝试加载模块..."
+    warn "squashfs 未加载，尝试加载模块..."
     
     # 尝试加载 squashfs 模块
     if modprobe squashfs 2>/dev/null; then
-        echo "✓ squashfs 模块加载成功"
+        ok "squashfs 模块加载成功"
         # 确保重启后自动加载
         echo "squashfs" >> /etc/modules-load.d/squashfs.conf 2>/dev/null || true
         return 0
     fi
     
-    echo "⚠ 无法加载 squashfs 模块，尝试安装..."
+    warn "无法加载 squashfs 模块，尝试安装..."
     
     # 根据发行版安装 squashfs 工具和内核模块
     case $DISTRO in
@@ -61,25 +228,26 @@ check_squashfs_support() {
     
     # 再次尝试加载模块
     if modprobe squashfs 2>/dev/null; then
-        echo "✓ squashfs 模块安装并加载成功"
+        ok "squashfs 模块安装并加载成功"
         echo "squashfs" >> /etc/modules-load.d/squashfs.conf 2>/dev/null || true
         return 0
     fi
     
     # 检查是否在容器环境中
     if [ -f /.dockerenv ] || grep -q "lxc\|docker" /proc/1/cgroup 2>/dev/null; then
-        echo "⚠ 检测到容器环境，squashfs 可能不被支持"
-        echo "⚠ 将使用原生包管理器而非 snap 安装 LXD"
+        warn "检测到容器环境，squashfs 可能不被支持"
+        warn "将使用原生包管理器而非 snap 安装 LXD"
         return 1
     fi
     
-    echo "✗ 无法启用 squashfs 支持"
-    echo "⚠ snap 将无法正常工作，将尝试使用原生包管理器"
+    err "无法启用 squashfs 支持"
+    warn "snap 将无法正常工作，将尝试使用原生包管理器"
     return 1
 }
 
 # 检测 Linux 发行版
 detect_distro() {
+    info "检测操作系统..."
     if [ -f /etc/redhat-release ]; then
         DISTRO="rhel"
     elif [ -f /etc/debian_version ]; then
@@ -92,7 +260,21 @@ detect_distro() {
         DISTRO="unknown"
     fi
     
-    echo "检测到的发行版: $DISTRO $VERSION"
+    info "系统: $DISTRO $VERSION"
+    
+    info "检测系统架构..."
+    arch=$(uname -m)
+    case $arch in
+        x86_64)
+            info "架构: amd64"
+            ;;
+        aarch64|arm64)
+            info "架构: arm64"
+            ;;
+        *)
+            err "不支持的架构: $arch (仅支持 amd64/arm64)"
+            ;;
+    esac
 }
 
 # 安装 LXD 的函数
@@ -294,6 +476,8 @@ fi
 echo "使用 preseed 配置自动初始化 LXD..."
 
 # 使用 preseed 配置自动初始化
+
+# lxd init
 cat <<EOF | lxd init --preseed
 config:
   core.https_address: '[::]:8443'
@@ -307,11 +491,9 @@ networks:
   type: bridge
   project: default
 storage_pools:
-- config:
-    size: 50GB
-    source: /var/lib/lxd/storage-pools/default
+- config: {}
   name: default
-  driver: btrfs
+  driver: dir
 profiles:
 - config: {}
   description: "Default LXD profile"

@@ -58,7 +58,7 @@
 
 ```bash
 # 系统包
-apt-get install lxc lxc-templates python3-lxc bridge-utils ttyd
+apt-get install lxc lxc-templates python3-lxc bridge-utils ttydserver
 
 # Python 包
 pip install -r pipinstall-lxc.txt
@@ -106,7 +106,7 @@ config = HSConfig(
     network_nat="lxcbr1",  # 内网网桥名称
     
     # Web Terminal 配置
-    remote_port=7681,      # ttyd 服务端口
+    remote_port=7681,      # ttydserver 服务端口
     
     # 其他配置...
 )
