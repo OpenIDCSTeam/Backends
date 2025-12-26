@@ -1,4 +1,4 @@
-name: OpenIDCS Build
+name: Build Repo Public
 
 on:
   workflow_dispatch:

@@ -1,0 +1,143 @@
+name: Build VNC Proxy
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '发布版本号 (留空则发布到 Beta)'
+        required: false
+        type: string
+      target_platform:
+        description: '目标平台'
+        required: true
+        type: choice
+        options:
+          - windows
+          - linux
+          - mac
+          - all
+        default: 'all'
+      create_release:
+        description: '是否创建 Release'
+        required: true
+        type: choice
+        options:
+          - yes
+          - no
+        default: 'yes'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    if: inputs.target_platform == 'windows' || inputs.target_platform == 'all'
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+    
+    - name: Build VNC Proxy
+      run: |
+        cd AllBuilder
+        python build_vncproxy.py
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: VNCProxy-Windows
+        path: BuildCache/websockify/dist/websocketproxy.exe
+        retention-days: 30
+
+  build-linux:
+    runs-on: ubuntu-latest
+    if: inputs.target_platform == 'linux' || inputs.target_platform == 'all'
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential patchelf
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+    
+    - name: Build VNC Proxy
+      run: |
+        cd AllBuilder
+        python build_vncproxy.py
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: VNCProxy-Linux
+        path: BuildCache/websockify/dist/websocketproxy
+        retention-days: 30
+
+  build-mac:
+    runs-on: macos-latest
+    if: inputs.target_platform == 'mac' || inputs.target_platform == 'all'
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install system dependencies
+      run: |
+        brew install patchelf
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+    
+    - name: Build VNC Proxy
+      run: |
+        cd AllBuilder
+        python build_vncproxy.py
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: VNCProxy-Mac
+        path: BuildCache/websockify/dist/websocketproxy
+        retention-days: 30
+
+  release:
+    needs: [build-windows, build-linux, build-mac]
+    runs-on: ubuntu-latest
+    if: inputs.create_release == 'yes'
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.event.inputs.version != '' && format('v{0}', github.event.inputs.version) || 'beta' }}
+        name: ${{ github.event.inputs.version != '' && format('VNC Proxy v{0}', github.event.inputs.version) || 'VNC Proxy Beta Release' }}
+        files: |
+          VNCProxy-Windows/websocketproxy.exe
+          VNCProxy-Linux/websocketproxy
+          VNCProxy-Mac/websocketproxy
+        draft: false
+        prerelease: ${{ github.event.inputs.version == '' }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

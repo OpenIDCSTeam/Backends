@@ -1,4 +1,4 @@
-name: Build with cx-Freeze
+name: Build with Freeze
 
 on:
   workflow_dispatch:

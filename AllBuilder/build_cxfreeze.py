@@ -6,6 +6,13 @@ cx-Freeze打包脚本 - OpenIDCS Client
 """
 
 import sys
+import io
+
+# 设置标准输出为 UTF-8 编码，解决 Windows 控制台中文显示问题
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
 import os
 from cx_Freeze import setup, Executable
 
@@ -134,20 +141,20 @@ EXCLUDES = [
 
 INCLUDE_FILES = [
     # Web模板和静态文件
-    ("WebDesigns", "WebDesigns"),
-    ("static", "static") if os.path.exists("static") else None,
+    ("../WebDesigns", "WebDesigns"),
+    ("../static", "static") if os.path.exists("../static") else None,
     
     # VNC控制台
-    ("VNCConsole/Sources", "VNCConsole/Sources"),
+    ("../VNCConsole/Sources", "VNCConsole/Sources"),
     
     # Websockify 二进制文件
-    ("Websockify/websocketproxy.exe", "Websockify/websocketproxy.exe"),
+    ("../Websockify/websocketproxy.exe", "Websockify/websocketproxy.exe"),
     
     # 配置文件和工具
-    ("HostConfig", "HostConfig"),
+    ("../HostConfig", "HostConfig"),
     
     # 数据库初始化脚本
-    ("HostConfig/HostManage.sql", "HostConfig/HostManage.sql"),
+    ("../HostConfig/HostManage.sql", "HostConfig/HostManage.sql"),
 ]
 
 # 过滤掉None值（不存在的文件）
