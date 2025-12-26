@@ -1,0 +1,41 @@
+# OpenIDCS-Client 依赖包
+
+# Web 框架
+Flask>=2.0.0
+Werkzeug>=2.0.0
+Jinja2>=3.0.0
+Click>=8.0.0
+ItsDangerous>=2.0.0
+MarkupSafe>=2.0.0
+
+# 日志
+loguru>=0.6.0
+
+# HTTP 请求
+requests>=2.28.0
+
+# 系统监控
+psutil>=5.9.0
+GPUtil>=1.4.0
+py-cpuinfo>=9.0.0
+
+# 压缩工具
+py7zr>=0.20.0
+
+# 虚拟化支持（可选）
+# 注意：这些包是可选的，如果不需要相应功能可以不安装
+pyvmomi>=7.0.0  # VMware vSphere 支持
+pylxd>=2.3.0    # LXD 容器支持
+docker>=6.0.0   # Docker 容器支持
+
+# Windows 特定（仅 Windows 需要）
+pywin32>=305; sys_platform == 'win32'
+pythonnet>=3.0.0; sys_platform == 'win32'
+
+# Nuitka 打包工具
+nuitka>=1.8.0
+ordered-set>=4.1.0
+
+pycryptodomex
+pyzstd
+bcj-cffi

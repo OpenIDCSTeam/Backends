@@ -813,4 +813,9 @@ class LibProxyServer(ThreadingMixIn, HTTPServer):
 
 
 if __name__ == '__main__':
+    # 修复 PyInstaller 打包后的 multiprocessing 支持
+    # 这可以防止 "no such option: --multiprocessing-fork" 错误
+    import multiprocessing
+    multiprocessing.freeze_support()
+    
     websockify_init()

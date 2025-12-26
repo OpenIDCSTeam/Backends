@@ -15,8 +15,41 @@ class VNCStart:
     # ############################################################################
     def __init__(self, web_port: int = 6090, cfg_name: str = "websockify"):
         self.web_port = web_port
-        self.vnc_save = f"./DataSaving/{cfg_name}.cfg"
-        self.web_path = "./VNCConsole/Sources/"  # 修复路径：当前已在VNCConsole目录下
+        
+        # 获取正确的项目根目录（支持打包后的环境）
+        if getattr(sys, 'frozen', False):
+            # 打包后的环境：使用可执行文件所在目录
+            if hasattr(sys, '_MEIPASS'):
+                # PyInstaller 打包
+                project_root = Path(sys._MEIPASS)
+            else:
+                # cx_Freeze 打包
+                project_root = Path(sys.executable).parent
+        else:
+            # 开发环境：使用脚本所在目录的父目录
+            project_root = Path(__file__).parent.parent.absolute()
+        
+        # 配置文件路径（始终在可执行文件目录下）
+        if getattr(sys, 'frozen', False):
+            # 打包后：配置文件在可执行文件目录下
+            exe_dir = Path(sys.executable).parent
+            self.vnc_save = os.path.join(exe_dir, "DataSaving", f"{cfg_name}.cfg")
+        else:
+            # 开发环境
+            self.vnc_save = os.path.join(project_root, "DataSaving", f"{cfg_name}.cfg")
+        
+        # Web 资源路径
+        self.web_path = os.path.join(project_root, "VNCConsole", "Sources")
+        
+        # 检测环境：如果不是 Python 解释器，使用可执行文件
+        if 'python' in os.path.basename(sys.executable).lower():
+            script_name = "websocketproxy.py"
+        else:
+            script_name = "websocketproxy"
+            if os.name == 'nt':
+                script_name += '.exe'
+
+        self.bin_path = os.path.join(project_root, "Websockify", script_name)
         self.process = None
         self.storage: Dict[str, str] = {}
         self.cfg_load()
@@ -40,50 +73,68 @@ class VNCStart:
 
     # 启动 websockify 服务 #######################################################
     def web_open(self):
-        # 将相对路径转换为绝对路径
-        abs_vnc_save = os.path.abspath(self.vnc_save)
-        abs_web_path = os.path.abspath(self.web_path)
+        # 调试信息：打印所有关键路径
+        logger.info(f"Web 资源路径: {self.web_path}")
+        logger.info(f"Websockify 可执行文件: {self.bin_path}")
+        logger.info(f"配置文件路径: {self.vnc_save}")
+        logger.info(f"是否为打包环境: {getattr(sys, 'frozen', False)}")
+        
+        if not os.path.exists(self.web_path):
+            logger.error(f"Web 资源路径不存在: {self.web_path}")
+            
+            # 尝试查找可能的路径
+            if getattr(sys, 'frozen', False):
+                exe_dir = Path(sys.executable).parent
+                possible_paths = [
+                    exe_dir / "VNCConsole" / "Sources",
+                    exe_dir / "lib" / "VNCConsole" / "Sources",
+                    exe_dir.parent / "VNCConsole" / "Sources",
+                ]
+                logger.info("尝试查找可能的路径:")
+                for path in possible_paths:
+                    exists = os.path.exists(path)
+                    logger.info(f"  {path} - {'存在' if exists else '不存在'}")
+                    if exists:
+                        self.web_path = str(path)
+                        logger.success(f"找到 Web 资源路径: {self.web_path}")
+                        break
+                else:
+                    logger.error("无法找到 Web 资源路径，websockify 可能无法正常工作")
+                    return False
+            else:
+                return False
 
-        # 检查 web 路径是否存在
-        if not os.path.exists(abs_web_path):
-            logger.warning(f"警告: Web 资源路径不存在: {abs_web_path}")
+        # 构建命令：如果是 .py 文件则用 Python 执行，否则直接执行
+        if self.bin_path.endswith('.py'):
+            cmd = [sys.executable, self.bin_path]
+        else:
+            cmd = [self.bin_path]
+
+        cmd += ["--token-plugin", "TokenFile",
+                "--token-source", os.path.abspath(self.vnc_save),
+                str(self.web_port),
+                "--web", os.path.abspath(self.web_path)]
+
+        logger.info(f"启动 websockify: {self.web_port}")
+        logger.info(f"执行命令: {' '.join(cmd)}")
+        try:
+            creationflags = subprocess.CREATE_NO_WINDOW if (os.name == 'nt' and getattr(sys, 'frozen', False)) else 0
+            subprocess.Popen(cmd, creationflags=creationflags, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            logger.success(f"websockify 已启动，支持 {len(self.storage)} 个连接")
+            return True
+        except Exception as e:
+            logger.error(f"启动失败: {e}")
             return False
-
-        logger.info(f"启动 websockify 服务，端口: {self.web_port}")
-        logger.info(f"配置文件路径: {abs_vnc_save}")
-        logger.info(f"Web 资源路径: {abs_web_path}")
-
-        # 构建websockify命令，使用token认证
-        cmd = [
-            sys.executable,  # 使用当前Python解释器
-            "./Websockify/websocketproxy.py",  # 以模块方式运行websockify
-            "--token-plugin", "TokenFile",  # 使用TokenFile插件
-            "--token-source", abs_vnc_save,  # 指定token配置文件
-            str(self.web_port),  # Web端口
-            "--web", abs_web_path  # Web资源路径
-        ]
-
-        # 在后台启动进程（Windows和Linux兼容）
-        logger.debug(" ".join(cmd))
-        if os.name == 'nt':  # Windows
-            # cmd_str = f'start /B {" ".join(cmd)}'
-            cmd_str = " ".join(cmd)
-            os.system(cmd_str)
-        else:  # Linux/Mac
-            cmd_str = f'{" ".join(cmd)} &'
-            os.system(cmd_str)
-
-        logger.success(f"websockify 服务已启动，支持 {len(self.storage)} 个VNC连接")
-        return True
 
     # 停止 websockify 服务 #######################################################
     def web_stop(self):
-        # 查找并终止websockify进程
-        if os.name == 'nt':  # Windows
-            os.system(f'taskkill /f /im python.exe /fi "WINDOWTITLE eq *websockify*" 2>nul')
-        else:  # Linux/Mac
-            os.system(f'pkill -f "websockify {self.web_port}"')
-        logger.info("websockify 服务已停止")
+        if os.name == 'nt':
+            cmd = 'taskkill /f /im websocketproxy.exe'
+        else:
+            cmd = 'pkill -f websocketproxy'
+
+        os.system(cmd)
+        logger.info("websockify 已停止")
 
     # 添加 VNC 目标 ##############################################################
     def add_port(self, ip: str, port: int, token: str) -> str:
@@ -159,6 +210,8 @@ class VProcess:
         """关闭 websockify 服务进程"""
         if self.proc is None:
             logger.info("没有运行中的 websockify 服务")
+            # 即使进程对象为空，也尝试调用 web_stop 清理可能残留的进程
+            self.exec.web_stop()
             return
 
         if self.proc.is_alive():
@@ -176,6 +229,8 @@ class VProcess:
         else:
             logger.info("websockify 服务进程已停止")
 
+        # 确保调用 web_stop 清理所有 websocketproxy 进程
+        self.exec.web_stop()
         self.proc = None
 
     def is_running(self) -> bool:

@@ -1,0 +1,148 @@
+name: OpenIDCS Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: '选择构建方式'
+        required: true
+        type: choice
+        options:
+          - cxfreeze
+          - nuitka
+        default: 'nuitka'
+      target_platform:
+        description: '目标平台'
+        required: true
+        type: choice
+        options:
+          - windows
+          - linux
+          - macos
+          - all
+        default: 'all'
+
+jobs:
+  build-cxfreeze-windows:
+    runs-on: windows-latest
+    if: inputs.build_type == 'cxfreeze' && (inputs.target_platform == 'windows' || inputs.target_platform == 'all')
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r HostConfig/requirements.txt
+        pip install cx_Freeze
+    
+    - name: Build with cx-Freeze
+      run: |
+        cd AllBuilder
+        python build_cxfreeze.py build_exe
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: OpenIDCS-Client-cxfreeze-Windows
+        path: BuildCache/cxfreeze/OpenIDCS-Client.exe
+        retention-days: 30
+
+  build-cxfreeze-linux:
+    runs-on: ubuntu-latest
+    if: inputs.build_type == 'cxfreeze' && (inputs.target_platform == 'linux' || inputs.target_platform == 'all')
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r HostConfig/requirements.txt
+        pip install cx_Freeze
+    
+    - name: Build with cx-Freeze
+      run: |
+        cd AllBuilder
+        python build_cxfreeze.py build_exe
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: OpenIDCS-Client-cxfreeze-Linux
+        path: BuildCache/cxfreeze/OpenIDCS-Client
+        retention-days: 30
+
+  build-nuitka-windows:
+    runs-on: windows-latest
+    if: inputs.build_type == 'nuitka' && (inputs.target_platform == 'windows' || inputs.target_platform == 'all')
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r HostConfig/requirements.txt
+    
+    - name: Build with Nuitka
+      run: |
+        cd AllBuilder
+        python build_nuitkaui.py
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: OpenIDCS-Client-nuitka-Windows
+        path: BuildCache/nuitka/OpenIDCS-Client.exe
+        retention-days: 30
+
+  build-nuitka-linux:
+    runs-on: ubuntu-latest
+    if: inputs.build_type == 'nuitka' && (inputs.target_platform == 'linux' || inputs.target_platform == 'all')
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential patchelf
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r HostConfig/requirements.txt
+    
+    - name: Build with Nuitka
+      run: |
+        cd AllBuilder
+        python build_nuitkaui.py
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: OpenIDCS-Client-nuitka-Linux
+        path: BuildCache/nuitka/OpenIDCS-Client
+        retention-days: 30

@@ -2,6 +2,8 @@
 OpenIDCS Flask Server
 提供主机和虚拟机管理的Web界面和API接口
 """
+import sys
+import os
 import secrets
 import threading
 import traceback
@@ -15,7 +17,18 @@ from HostModule.RestManage import RestManager
 from HostModule.UserManage import UserAuth, require_login, require_admin, check_host_access, check_vm_permission, check_resource_quota, EmailService
 from HostModule.DataManage import HostDatabase
 
-app = Flask(__name__, template_folder='WebDesigns', static_folder='static')
+# 获取项目根目录，兼容开发环境和打包后的环境
+if getattr(sys, 'frozen', False):
+    # 打包后的环境：从可执行文件所在目录查找
+    project_root = os.path.dirname(sys.executable)
+else:
+    # 开发环境：从当前文件所在目录查找
+    project_root = os.path.dirname(os.path.abspath(__file__))
+
+template_folder = os.path.join(project_root, 'WebDesigns')
+static_folder = os.path.join(project_root, 'static')
+
+app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
 app.secret_key = secrets.token_hex(32)
 
 # 全局主机管理实例
@@ -1578,14 +1591,74 @@ def init_app():
 
 
 if __name__ == '__main__':
-    # 在Windows系统上支持多进程
-    import multiprocessing
-    multiprocessing.freeze_support()
-    
-    init_app()
-    logger.info(f"\n{'=' * 60}")
-    logger.info(f"OpenIDCS Server 启动中...")
-    logger.info(f"访问地址: http://127.0.0.1:1880")
-    logger.info(f"访问Token: {hs_manage.bearer}")
-    logger.info(f"{'=' * 60}\n")
-    app.run(host='0.0.0.0', port=1880, debug=True)
+    try:
+        # 在Windows系统上支持多进程
+        import multiprocessing
+        multiprocessing.freeze_support()
+        
+        # 检测是否为打包后的环境
+        is_frozen = getattr(sys, 'frozen', False)
+        
+        # ===== 首先配置 logger，确保日志系统正常工作 =====
+        # 移除默认的 handler
+        logger.remove()
+        
+        # 确保日志目录存在
+        log_dir = os.path.join(project_root, 'DataSaving')
+        os.makedirs(log_dir, exist_ok=True)
+        
+        # 添加控制台输出（始终显示）
+        logger.add(
+            sys.stderr,
+            format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+            level="INFO"
+        )
+        
+        # 添加文件输出
+        log_file = os.path.join(log_dir, "log-main.log")
+        logger.add(
+            log_file,
+            rotation="10 MB",
+            retention="7 days",
+            compression="zip",
+            encoding="utf-8",
+            level="DEBUG"
+        )
+        
+        logger.info("=" * 60)
+        logger.info("OpenIDCS Server 启动")
+        logger.info(f"运行模式: {'打包模式 (Nuitka)' if is_frozen else '开发模式'}")
+        logger.info(f"Python 版本: {sys.version}")
+        logger.info(f"工作目录: {os.getcwd()}")
+        logger.info(f"项目根目录: {project_root}")
+        logger.info("=" * 60)
+        
+        # 初始化应用
+        logger.info("正在初始化应用...")
+        init_app()
+        
+        logger.info(f"\n{'=' * 60}")
+        logger.info(f"OpenIDCS Server 启动中...")
+        logger.info(f"运行模式: {'打包模式' if is_frozen else '开发模式'}")
+        logger.info(f"访问地址: http://127.0.0.1:1880")
+        logger.info(f"访问Token: {hs_manage.bearer}")
+        logger.info(f"{'=' * 60}\n")
+        
+        # 打包后禁用调试模式，避免 Nuitka 兼容性问题
+        if is_frozen:
+            logger.info("使用生产模式启动 Flask 服务器...")
+            app.run(host='0.0.0.0', port=1880, debug=False, use_reloader=False)
+        else:
+            # 开发环境可以使用调试模式
+            logger.info("使用调试模式启动 Flask 服务器...")
+            app.run(host='0.0.0.0', port=1880, debug=True, use_reloader=False)
+    except KeyboardInterrupt:
+        logger.info("\n程序被用户中断")
+        sys.exit(0)
+    except Exception as e:
+        logger.error(f"\n程序启动失败: {e}")
+        logger.error(f"错误详情:\n{traceback.format_exc()}")
+        # 打包模式下，等待用户按键后再退出，以便查看错误信息
+        if getattr(sys, 'frozen', False):
+            input("\n按回车键退出...")
+        sys.exit(1)

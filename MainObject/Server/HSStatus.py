@@ -1,6 +1,11 @@
 import json
 import psutil
-import GPUtil
+
+try:
+    import GPUtil
+except ModuleNotFoundError:
+    GPUtil = None
+
 import cpuinfo
 import platform
 from shutil import disk_usage
@@ -48,10 +53,13 @@ class HSStatus:
                     int(used / (1024 * 1024))  # 已用空间MB
                 ]
         # 获取GPU信息 =======================================================
-        gpus = GPUtil.getGPUs()
-        self.hw_status.gpu_total = len(gpus)
-        for gpu in gpus:
-            self.hw_status.gpu_usage[gpu.id] = int(gpu.load * 100)  # 使用率
+        if GPUtil is None:
+            self.hw_status.gpu_total = 0
+        else:
+            gpus = GPUtil.getGPUs()
+            self.hw_status.gpu_total = len(gpus)
+            for gpu in gpus:
+                self.hw_status.gpu_usage[gpu.id] = int(gpu.load * 100)  # 使用率
         # 获取网络带宽 ======================================================
         nic_list = psutil.net_io_counters(True)
         max_name = ""

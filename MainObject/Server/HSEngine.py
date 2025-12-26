@@ -1,6 +1,7 @@
 import HostServer.Workstation as WorkstationModule
 import HostServer.LXContainer as LXContainerModule
 import HostServer.OCInterface as OCInterfaceModule
+import HostServer.vSphereESXi as vSphereESXiModule
 
 HEConfig = {
     "VMWareSetup": {
@@ -24,7 +25,10 @@ HEConfig = {
         "Platform": ["Linux"],
         "CPU_Arch": ["x86_64", "aarch64"],
         "Optional": {},
-        "Messages": []
+        "Messages": [
+            "1、不支持分配GPU设备，不支持设置显存的大小",
+            "2、不支持挂载ISO镜像、不支持挂载额外的硬盘"
+        ]
     },
     "OCInterface": {
         "Imported": OCInterfaceModule.HostServer,
@@ -32,6 +36,19 @@ HEConfig = {
         "isEnable": True,
         "isRemote": True,
         "Platform": ["Linux", "MacOS"],
+        "CPU_Arch": ["x86_64", "aarch64"],
+        "Optional": {},
+        "Messages": [
+            "1、不支持分配GPU设备，不支持设置显存的大小",
+            "2、不支持挂载ISO镜像、不支持挂载额外的硬盘"
+        ]
+    },
+    "vSphereESXi": {
+        "Imported": vSphereESXiModule.HostServer,
+        "Descript": "vSphereESXi Server",
+        "isEnable": True,
+        "isRemote": True,
+        "Platform": ["Linux", "Windows", "MacOS"],
         "CPU_Arch": ["x86_64", "aarch64"],
         "Optional": {},
         "Messages": []
@@ -59,12 +76,6 @@ HEConfig = {
     #     "Platform": ["Linux", "Windows"],
     #     "CPU_Arch": ["x86_64", "aarch64"],
     # },
-    # "vSphereESXi": {
-    #     "Descript": "vSphere ESXi Runtime",
-    #     "isEnable": False,
-    #     "Platform": ["Linux", "Windows"],
-    #     "CPU_Arch": ["x86_64"],
-    # },
     # "MemuAndroid": {
     #     "Descript": "XYAndroid Simulator",
     #     "isEnable": False,
@@ -77,8 +88,6 @@ HEConfig = {
     #         "fps": "帧率"
     #     }
     # },
-    #
-
     # "MacOSFusion": {
     #     "Descript": "VMware Fusion Pro Mac",
     #     "isEnable": False,

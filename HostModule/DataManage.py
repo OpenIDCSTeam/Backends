@@ -1,6 +1,7 @@
 import sqlite3
 import json
 import os
+import sys
 import traceback
 from typing import Dict, List, Any, Optional
 from loguru import logger
@@ -32,8 +33,15 @@ class HostDatabase:
 
     def set_db_sqlite(self):
         """初始化数据库表结构"""
-        # 修正SQL文件路径，使用项目根目录下的HostConfig文件夹
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        # 修正SQL文件路径，兼容开发环境和打包后的环境
+        # 在打包后，需要从可执行文件所在目录查找
+        if getattr(sys, 'frozen', False):
+            # 打包后的环境：从可执行文件所在目录查找
+            project_root = os.path.dirname(sys.executable)
+        else:
+            # 开发环境：从项目根目录查找
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        
         sql_file_path = os.path.join(project_root, "HostConfig", "HostManage.sql")
 
         if os.path.exists(sql_file_path):
