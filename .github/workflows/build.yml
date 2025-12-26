@@ -27,7 +27,7 @@ jobs:
     runs-on: windows-latest
     if: inputs.build_type == 'cxfreeze' && (inputs.target_platform == 'windows' || inputs.target_platform == 'all')
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -46,7 +46,7 @@ jobs:
         python build_cxfreeze.py build_exe
     
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: OpenIDCS-Client-cxfreeze-Windows
         path: BuildCache/cxfreeze/OpenIDCS-Client.exe
@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     if: inputs.build_type == 'cxfreeze' && (inputs.target_platform == 'linux' || inputs.target_platform == 'all')
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -80,7 +80,7 @@ jobs:
         python build_cxfreeze.py build_exe
     
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: OpenIDCS-Client-cxfreeze-Linux
         path: BuildCache/cxfreeze/OpenIDCS-Client
@@ -90,7 +90,7 @@ jobs:
     runs-on: windows-latest
     if: inputs.build_type == 'nuitka' && (inputs.target_platform == 'windows' || inputs.target_platform == 'all')
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -108,7 +108,7 @@ jobs:
         python build_nuitkaui.py
     
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: OpenIDCS-Client-nuitka-Windows
         path: BuildCache/nuitka/OpenIDCS-Client.exe
@@ -118,7 +118,7 @@ jobs:
     runs-on: ubuntu-latest
     if: inputs.build_type == 'nuitka' && (inputs.target_platform == 'linux' || inputs.target_platform == 'all')
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -141,7 +141,7 @@ jobs:
         python build_nuitkaui.py
     
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: OpenIDCS-Client-nuitka-Linux
         path: BuildCache/nuitka/OpenIDCS-Client
