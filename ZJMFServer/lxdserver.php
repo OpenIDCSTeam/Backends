@@ -600,16 +600,27 @@ function lxdserver_CreateAccount($params)
     $vc_port = rand(10000, 59999);
     $vc_pass = $params['password'] ?? randStr(16);
 
-    // 构建虚拟机配置
+    // 构建虚拟机配置（字段名对应VMConfig）
     $vm_config = [
         'vm_uuid' => $vm_uuid,
-        'vm_name' => $params['domain'],
+        'os_name' => $params['configoptions']['image'] ?? 'ubuntu24',
+        'os_pass' => $vc_pass,
+        // 远程连接配置
         'vc_port' => $vc_port,
         'vc_pass' => $vc_pass,
-        'vm_cpus' => (int)($params['configoptions']['cpus'] ?? 1),
-        'vm_memory' => $params['configoptions']['memory'] ?? '512MB',
-        'vm_disk' => $params['configoptions']['disk'] ?? '10GB',
-        'vm_image' => $params['configoptions']['image'] ?? 'ubuntu24',
+        // 资源配置
+        'cpu_num' => (int)($params['configoptions']['cpus'] ?? 2),
+        'cpu_per' => (int)($params['configoptions']['cpu_allowance'] ?? 50),
+        'mem_num' => (int)($params['configoptions']['memory'] ?? 2048), // MB
+        'hdd_num' => (int)($params['configoptions']['disk'] ?? 8192), // MB
+        'gpu_num' => 0,
+        'gpu_mem' => 0,
+        // 网络配置
+        'speed_u' => (int)($params['configoptions']['egress'] ?? 100), // Mbps
+        'speed_d' => (int)($params['configoptions']['ingress'] ?? 100), // Mbps
+        'flu_num' => (int)($params['configoptions']['traffic_limit'] ?? 102400), // MB
+        'nat_num' => (int)($params['configoptions']['nat_limit'] ?? 100),
+        'web_num' => (int)($params['configoptions']['proxy_limit'] ?? 100),
     ];
 
     // 处理网卡配置
@@ -618,24 +629,61 @@ function lxdserver_CreateAccount($params)
 
     // 根据网络模式配置网卡
     switch ($network_mode) {
-        case 'mode1':
-        case 'mode2':
-        case 'mode3':
-        case 'mode4':
-            // NAT模式
+        case 'mode1': // IPv4 NAT共享
             $nic_configs['eth0'] = [
                 'nic_type' => 'nat',
                 'mac_addr' => generateRandomMac(),
+                'ip4_mode' => 'nat',
             ];
             break;
-        case 'mode5':
-        case 'mode6':
-        case 'mode7':
-            // 独立IP模式
+        case 'mode2': // IPv6 NAT共享
+            $nic_configs['eth0'] = [
+                'nic_type' => 'nat',
+                'mac_addr' => generateRandomMac(),
+                'ip6_mode' => 'nat',
+            ];
+            break;
+        case 'mode3': // IPv4/IPv6 NAT共享
+            $nic_configs['eth0'] = [
+                'nic_type' => 'nat',
+                'mac_addr' => generateRandomMac(),
+                'ip4_mode' => 'nat',
+                'ip6_mode' => 'nat',
+            ];
+            break;
+        case 'mode4': // IPv4 NAT共享 + IPv6独立
             $nic_configs['eth0'] = [
                 'nic_type' => 'bridge',
                 'mac_addr' => generateRandomMac(),
+                'ip4_mode' => 'nat',
+                'ip6_mode' => 'static',
+                'ip6_addr' => '', // 将在后续分配
+            ];
+            break;
+        case 'mode5': // IPv4独立
+            $nic_configs['eth0'] = [
+                'nic_type' => 'bridge',
+                'mac_addr' => generateRandomMac(),
+                'ip4_mode' => 'static',
                 'ip4_addr' => '', // 将在后续分配
+            ];
+            break;
+        case 'mode6': // IPv6独立
+            $nic_configs['eth0'] = [
+                'nic_type' => 'bridge',
+                'mac_addr' => generateRandomMac(),
+                'ip6_mode' => 'static',
+                'ip6_addr' => '', // 将在后续分配
+            ];
+            break;
+        case 'mode7': // IPv4独立 + IPv6独立
+            $nic_configs['eth0'] = [
+                'nic_type' => 'bridge',
+                'mac_addr' => generateRandomMac(),
+                'ip4_mode' => 'static',
+                'ip4_addr' => '', // 将在后续分配
+                'ip6_mode' => 'static',
+                'ip6_addr' => '', // 将在后续分配
             ];
             break;
     }
@@ -789,70 +837,78 @@ function lxdserver_Off($params)
     }
 }
 
-// 暂停LXD容器
+// 暂停虚拟机（停机）
 function lxdserver_SuspendAccount($params)
 {
-    lxdserver_debug('开始暂停容器', ['domain' => $params['domain']]);
+    lxdserver_debug('开始暂停虚拟机', ['domain' => $params['domain']]);
+
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
 
     $data = [
-        'url'  => '/api/suspend?hostname=' . $params['domain'],
-        'type' => 'application/x-www-form-urlencoded',
-        'data' => [],
+        'url'  => '/api/client/powers/' . $hs_name . '/' . $vm_uuid,
+        'type' => 'application/json',
+        'data' => ['action' => 'stop'],
     ];
-    $res = lxdserver_Curl($params, $data, 'GET');
+    $res = lxdserver_JSONCurl($params, $data, 'POST');
 
-
-
-    if (isset($res['code']) && $res['code'] == '200') {
-        return ['status' => 'success', 'msg' => $res['msg'] ?? '容器暂停任务已提交'];
+    if (isset($res['code']) && $res['code'] == 200) {
+        return ['status' => 'success', 'msg' => $res['msg'] ?? '虚拟机暂停成功'];
     } else {
-        return ['status' => 'error', 'msg' => $res['msg'] ?? '容器暂停失败'];
+        return ['status' => 'error', 'msg' => $res['msg'] ?? '虚拟机暂停失败'];
     }
 }
 
-// 恢复LXD容器
+// 恢复虚拟机（开机）
 function lxdserver_UnsuspendAccount($params)
 {
-    lxdserver_debug('开始解除暂停容器', ['domain' => $params['domain']]);
+    lxdserver_debug('开始恢复虚拟机', ['domain' => $params['domain']]);
+
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
 
     $data = [
-        'url'  => '/api/unsuspend?hostname=' . $params['domain'],
-        'type' => 'application/x-www-form-urlencoded',
-        'data' => [],
+        'url'  => '/api/client/powers/' . $hs_name . '/' . $vm_uuid,
+        'type' => 'application/json',
+        'data' => ['action' => 'start'],
     ];
-    $res = lxdserver_Curl($params, $data, 'GET');
+    $res = lxdserver_JSONCurl($params, $data, 'POST');
 
-
-
-    if (isset($res['code']) && $res['code'] == '200') {
-        return ['status' => 'success', 'msg' => $res['msg'] ?? '容器恢复任务已提交'];
+    if (isset($res['code']) && $res['code'] == 200) {
+        return ['status' => 'success', 'msg' => $res['msg'] ?? '虚拟机恢复成功'];
     } else {
-        return ['status' => 'error', 'msg' => $res['msg'] ?? '容器恢复失败'];
+        return ['status' => 'error', 'msg' => $res['msg'] ?? '虚拟机恢复失败'];
     }
 }
 
-// 重启LXD容器
+// 重启虚拟机
 function lxdserver_Reboot($params)
 {
-    $data = [
-        'url'  => '/api/reboot?' . 'hostname=' . $params['domain'],
-        'type' => 'application/x-www-form-urlencoded',
-        'data' => [],
-    ];
-    $res = lxdserver_Curl($params, $data, 'GET');
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
 
-    if (isset($res['code']) && $res['code'] == '200') {
+    $data = [
+        'url'  => '/api/client/powers/' . $hs_name . '/' . $vm_uuid,
+        'type' => 'application/json',
+        'data' => ['action' => 'restart'],
+    ];
+    $res = lxdserver_JSONCurl($params, $data, 'POST');
+
+    if (isset($res['code']) && $res['code'] == 200) {
         return ['status' => 'success', 'msg' => $res['msg'] ?? '重启成功'];
     } else {
         return ['status' => 'error', 'msg' => $res['msg'] ?? '重启失败'];
     }
 }
 
-// 获取容器NAT规则数量
+// 获取虚拟机NAT规则数量
 function lxdserver_getNATRuleCount($params)
 {
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
+
     $data = [
-        'url'  => '/api/natlist?hostname=' . urlencode($params['domain']),
+        'url'  => '/api/client/natget/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/x-www-form-urlencoded',
         'data' => [],
     ];
@@ -860,41 +916,7 @@ function lxdserver_getNATRuleCount($params)
     $res = lxdserver_Curl($params, $data, 'GET');
 
     if (isset($res['code']) && $res['code'] == 200 && isset($res['data']) && is_array($res['data'])) {
-        $rules = $res['data'];
-        
-        $counted = [];
-        
-        foreach ($rules as $rule) {
-            $external_port = $rule['external_port'] ?? $rule['dport'] ?? '';
-            $internal_port = $rule['internal_port'] ?? $rule['sport'] ?? '';
-            $external_port_end = $rule['external_port_end'] ?? $rule['dport_end'] ?? 0;
-            $internal_port_end = $rule['internal_port_end'] ?? $rule['sport_end'] ?? 0;
-            $protocol = strtolower($rule['protocol'] ?? $rule['dtype'] ?? '');
-            
-            $key = $external_port . '_' . $internal_port . '_' . $external_port_end . '_' . $internal_port_end;
-            
-            if (!isset($counted[$key])) {
-                $counted[$key] = [
-                    'external_port' => $external_port,
-                    'external_port_end' => $external_port_end,
-                    'protocols' => []
-                ];
-            }
-            
-            $counted[$key]['protocols'][] = $protocol;
-        }
-        
-        $totalCount = 0;
-        foreach ($counted as $item) {
-            if ($item['external_port_end'] > 0) {
-                $portCount = $item['external_port_end'] - $item['external_port'] + 1;
-                $totalCount += $portCount;
-            } else {
-                $totalCount += 1;
-            }
-        }
-        
-        return $totalCount;
+        return count($res['data']);
     }
 
     return 0;
@@ -912,93 +934,67 @@ function lxdserver_natadd($params)
 
     $sport = intval($post['sport'] ?? 0);
     $dport = intval($post['dport'] ?? 0);
-    $sport_end = intval($post['sport_end'] ?? 0);
-    $dport_end = intval($post['dport_end'] ?? 0);
     $description = trim($post['description'] ?? '');
-
-    $dtype = 'tcp'; // 默认仅支持TCP
 
     $nat_limit = intval($params['configoptions']['nat_limit'] ?? 5);
     $current_count = lxdserver_getNATRuleCount($params);
     
     if ($sport <= 0 || $sport > 65535) {
-        return ['status' => 'error', 'msg' => '内网起始端口超过范围'];
-    }
-    
-    $isPortRange = $sport_end > 0 && $dport_end > 0;
-    
-    if ($isPortRange) {
-        if ($sport > $sport_end) {
-            return ['status' => 'error', 'msg' => '内网端口范围错误'];
-        }
-        
-        if ($dport > 0 && $dport > $dport_end) {
-            return ['status' => 'error', 'msg' => '外网端口范围错误'];
-        }
-        
-        $internal_range = $sport_end - $sport + 1;
-        $external_range = $dport_end - $dport + 1;
-        
-        if ($internal_range !== $external_range) {
-            return ['status' => 'error', 'msg' => '内网和外网端口数量必须一致'];
-        }
-        
-        if ($current_count + $internal_range > $nat_limit) {
-            return ['status' => 'error', 'msg' => "端口段包含 {$internal_range} 个端口，将超过NAT规则限制（剩余配额：" . ($nat_limit - $current_count) . "）"];
-        }
-        
-        $requestData = 'hostname=' . urlencode($params['domain']) . 
-                       '&dtype=' . urlencode($dtype) . 
-                       '&sport=' . $sport . 
-                       '&sport_end=' . $sport_end . 
-                       '&dport=' . $dport . 
-                       '&dport_end=' . $dport_end;
-        
-        if (!empty($description)) {
-            $requestData .= '&description=' . urlencode($description);
-        }
-        
-        $data = [
-            'url'  => '/api/addport',
-            'type' => 'application/x-www-form-urlencoded',
-            'data' => $requestData,
-        ];
-
-        $res = lxdserver_Curl($params, $data, 'POST');
-
-        $protocol_desc = 'TCP'; // 仅支持TCP协议
-        if (isset($res['code']) && $res['code'] == 200) {
-            return ['status' => 'success', 'msg' => "端口段添加成功（{$internal_range}个端口，{$protocol_desc}）"];
-        } else {
-            return ['status' => 'error', 'msg' => $res['msg'] ?? '端口段添加失败'];
-        }
+        return ['status' => 'error', 'msg' => '内网端口超过范围'];
     }
     
     if ($current_count >= $nat_limit) {
         return ['status' => 'error', 'msg' => "NAT规则数量已达到限制（{$nat_limit}条），无法添加更多规则"];
     }
 
-    $requestData = 'hostname=' . urlencode($params['domain']) . '&dtype=' . urlencode($dtype) . '&sport=' . $sport;
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
 
-    if ($dport > 0) {
-        if ($dport < 10000 || $dport > 65535) {
-            return ['status' => 'error', 'msg' => '外网端口范围为10000-65535'];
-        }
-        $checkData = [
-            'url'  => '/api/nat/check?hostname=' . urlencode($params['domain']) . '&protocol=' . urlencode($dtype) . '&port=' . $dport,
-            'type' => 'application/x-www-form-urlencoded',
-            'data' => [],
-        ];
-        $checkRes = lxdserver_Curl($params, $checkData, 'GET');
-        if (!isset($checkRes['code']) || $checkRes['code'] != 200 || empty($checkRes['data']['available'])) {
-            $reason = $checkRes['data']['reason'] ?? $checkRes['msg'] ?? '端口不可用';
-            return ['status' => 'error', 'msg' => $reason];
-        }
-        $requestData .= '&dport=' . $dport;
-    }
+    // 获取虚拟机IP地址
+    $lan_addr = '';
+    $vm_data = [
+        'url'  => '/api/client/detail/' . $hs_name . '/' . $vm_uuid,
+        'type' => 'application/x-www-form-urlencoded',
+        'data' => [],
+    ];
+    $vm_res = lxdserver_Curl($params, $vm_data, 'GET');
     
-    if (!empty($description)) {
-        $requestData .= '&description=' . urlencode($description);
+    if (isset($vm_res['code']) && $vm_res['code'] == 200 && isset($vm_res['data']['config']['nic_all'])) {
+        $nic_all = $vm_res['data']['config']['nic_all'];
+        foreach ($nic_all as $nic) {
+            if (!empty($nic['ip4_addr']) && $nic['ip4_addr'] !== '-') {
+                $lan_addr = $nic['ip4_addr'];
+                break;
+            }
+        }
+    }
+
+    if (empty($lan_addr)) {
+        return ['status' => 'error', 'msg' => '无法获取虚拟机IP地址'];
+    }
+
+    // 构建NAT规则数据
+    $nat_data = [
+        'lan_port' => $sport,
+        'wan_port' => $dport, // 0表示自动分配
+        'lan_addr' => $lan_addr,
+        'nat_tips' => $description,
+    ];
+
+    $data = [
+        'url'  => '/api/client/natadd/' . $hs_name . '/' . $vm_uuid,
+        'type' => 'application/json',
+        'data' => $nat_data,
+    ];
+
+    $res = lxdserver_JSONCurl($params, $data, 'POST');
+
+    if (isset($res['code']) && $res['code'] == 200) {
+        return ['status' => 'success', 'msg' => $res['msg'] ?? 'NAT转发添加成功'];
+    } else {
+        return ['status' => 'error', 'msg' => $res['msg'] ?? 'NAT转发添加失败'];
+    }
+}
     }
 
     $data = [
@@ -1020,76 +1016,56 @@ function lxdserver_natadd($params)
 // 删除NAT端口转发
 function lxdserver_natdel($params)
 {
-    
     parse_str(file_get_contents("php://input"), $post);
 
-    $dport = intval($post['dport'] ?? 0);
     $sport = intval($post['sport'] ?? 0);
-    $dport_end = intval($post['dport_end'] ?? 0);
-    $sport_end = intval($post['sport_end'] ?? 0);
-    $dtype = strtolower(trim($post['dtype'] ?? ''));
-    if (!in_array($dtype, ['tcp'])) {
-        return ['status' => 'error', 'msg' => '不支持的协议类型，仅支持TCP'];
-    }
-    
-    if ($dtype === 'udp') {
-        return ['status' => 'error', 'msg' => 'UDP协议已禁用'];
-    }
+    $dport = intval($post['dport'] ?? 0);
+
     if ($sport <= 0 || $sport > 65535) {
-        return ['status' => 'error', 'msg' => '容器内部端口超过范围'];
+        return ['status' => 'error', 'msg' => '内网端口超过范围'];
     }
-    if ($dport < 10000 || $dport > 65535) {
-        return ['status' => 'error', 'msg' => '外网端口映射范围为10000-65535'];
-    }
-
-    if ($dtype === 'both') {
-        $success_count = 0;
-        $error_msgs = [];
-        
-        foreach (['tcp', 'udp'] as $protocol) {
-            $requestData = 'hostname=' . urlencode($params['domain']) . '&dtype=' . urlencode($protocol) . '&dport=' . $dport . '&sport=' . $sport;
-            
-            if ($dport_end > 0 && $sport_end > 0) {
-                $requestData .= '&dport_end=' . $dport_end . '&sport_end=' . $sport_end;
-            }
-            
-            $data = [
-                'url'  => '/api/delport',
-                'type' => 'application/x-www-form-urlencoded',
-                'data' => $requestData,
-            ];
-            
-            $res = lxdserver_Curl($params, $data, 'POST');
-            
-            if (isset($res['code']) && $res['code'] == 200) {
-                $success_count++;
-            } else {
-                $error_msgs[] = $protocol . ': ' . ($res['msg'] ?? '删除失败');
-            }
-        }
-        
-        if ($success_count === 2) {
-            return ['status' => 'success', 'msg' => 'NAT转发删除成功'];
-        } else if ($success_count === 1) {
-            return ['status' => 'success', 'msg' => 'NAT转发部分删除成功：' . implode(', ', $error_msgs)];
-        } else {
-            return ['status' => 'error', 'msg' => 'NAT转发删除失败：' . implode(', ', $error_msgs)];
-        }
+    if ($dport <= 0 || $dport > 65535) {
+        return ['status' => 'error', 'msg' => '外网端口超过范围'];
     }
 
-    $requestData = 'hostname=' . urlencode($params['domain']) . '&dtype=' . urlencode($dtype) . '&dport=' . $dport . '&sport=' . $sport;
-    
-    if ($dport_end > 0 && $sport_end > 0) {
-        $requestData .= '&dport_end=' . $dport_end . '&sport_end=' . $sport_end;
-    }
-    
-    $data = [
-        'url'  => '/api/delport',
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
+
+    // 获取NAT规则列表，找到对应的规则索引
+    $list_data = [
+        'url'  => '/api/client/natget/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/x-www-form-urlencoded',
-        'data' => $requestData,
+        'data' => [],
+    ];
+    $list_res = lxdserver_Curl($params, $list_data, 'GET');
+
+    if (!isset($list_res['code']) || $list_res['code'] != 200 || !isset($list_res['data'])) {
+        return ['status' => 'error', 'msg' => '获取NAT规则列表失败'];
+    }
+
+    $rules = $list_res['data'];
+    $rule_index = -1;
+
+    // 查找匹配的规则
+    foreach ($rules as $index => $rule) {
+        if ($rule['lan_port'] == $sport && $rule['wan_port'] == $dport) {
+            $rule_index = $index;
+            break;
+        }
+    }
+
+    if ($rule_index === -1) {
+        return ['status' => 'error', 'msg' => '找不到匹配的NAT规则'];
+    }
+
+    // 删除NAT规则
+    $data = [
+        'url'  => '/api/client/natdel/' . $hs_name . '/' . $vm_uuid . '/' . $rule_index,
+        'type' => 'application/x-www-form-urlencoded',
+        'data' => [],
     ];
 
-    $res = lxdserver_Curl($params, $data, 'POST');
+    $res = lxdserver_Curl($params, $data, 'DELETE');
 
     if (isset($res['code']) && $res['code'] == 200) {
         return ['status' => 'success', 'msg' => $res['msg'] ?? 'NAT转发删除成功'];
@@ -1098,11 +1074,14 @@ function lxdserver_natdel($params)
     }
 }
 
-// 查询容器运行状态
+// 查询虚拟机运行状态
 function lxdserver_Status($params)
 {
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
+
     $data = [
-        'url'  => '/api/status?' . 'hostname=' . $params['domain'],
+        'url'  => '/api/client/status/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/x-www-form-urlencoded',
         'data' => [],
     ];
@@ -1111,20 +1090,27 @@ function lxdserver_Status($params)
     if (isset($res['code']) && $res['code'] == 200) {
         $result = ['status' => 'success'];
 
-        $containerStatus = $res['data']['status'] ?? '';
+        $vmStatus = $res['data']['status'] ?? '';
 
-        switch (strtoupper($containerStatus)) {
+        // 根据OpenIDCS API返回的状态进行映射
+        switch (strtoupper($vmStatus)) {
             case 'RUNNING':
+            case 'STARTED':
+            case 'ACTIVE':
                 $result['data']['status'] = 'on';
                 $result['data']['des'] = '开机';
                 break;
             case 'STOPPED':
+            case 'SHUTDOWN':
+            case 'INACTIVE':
                 $result['data']['status'] = 'off';
                 $result['data']['des'] = '关机';
                 break;
             case 'FROZEN':
+            case 'SUSPENDED':
+            case 'PAUSED':
                 $result['data']['status'] = 'suspend';
-                $result['data']['des'] = '流量超标-暂停';
+                $result['data']['des'] = '暂停';
                 break;
             default:
                 $result['data']['status'] = 'unknown';
@@ -1138,14 +1124,16 @@ function lxdserver_Status($params)
     }
 }
 
-// 重置容器密码
+// 重置虚拟机密码
 function lxdserver_CrackPassword($params, $new_pass)
 {
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
+
     $data = [
-        'url'  => '/api/password',
+        'url'  => '/api/client/password/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/json',
         'data' => [
-            'hostname' => $params['domain'],
             'password' => $new_pass,
         ],
     ];
@@ -1155,48 +1143,76 @@ function lxdserver_CrackPassword($params, $new_pass)
         try {
             Db::name('host')->where('id', $params['hostid'])->update(['password' => $new_pass]);
         } catch (\Exception $e) {
-            return ['status' => 'error', 'msg' => ($res['msg'] ?? $res['message'] ?? 'LXD容器密码重置成功，但同步新密码到面板数据库失败: ' . $e->getMessage())];
+            return ['status' => 'error', 'msg' => ($res['msg'] ?? '虚拟机密码重置成功，但同步新密码到面板数据库失败: ' . $e->getMessage())];
         }
-        return ['status' => 'success', 'msg' => $res['msg'] ?? $res['message'] ?? '密码重置成功'];
+        return ['status' => 'success', 'msg' => $res['msg'] ?? '密码重置成功'];
     } else {
-        return ['status' => 'error', 'msg' => $res['msg'] ?? $res['message'] ?? '密码重置失败'];
+        return ['status' => 'error', 'msg' => $res['msg'] ?? '密码重置失败'];
     }
 }
 
-// 重装容器操作系统
+// 重装虚拟机操作系统
 function lxdserver_Reinstall($params)
 {
     if (empty($params['reinstall_os'])) {
         return ['status' => 'error', 'msg' => '操作系统参数错误'];
     }
 
-    $reinstall_pass = $params['password'] ?? randStr(8);
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
+    $reinstall_pass = $params['password'] ?? randStr(16);
 
-    $data = [
-        'url'  => '/api/reinstall',
+    // 首先关机
+    $poweroff_data = [
+        'url'  => '/api/client/powers/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/json',
-        'data' => [
-            'hostname' => $params['domain'],
-            'system'   => $params['reinstall_os'],
-            'password' => $reinstall_pass,
-
-            'cpus'          => (int)($params['configoptions']['cpus'] ?? 1),
-            'memory'        => $params['configoptions']['memory'] ?? '512MB',
-            'disk'          => $params['configoptions']['disk'] ?? '10GB',
-            'ingress'       => $params['configoptions']['ingress'] ?? '100Mbit',
-            'egress'        => $params['configoptions']['egress'] ?? '100Mbit',
-            'allow_nesting' => ($params['configoptions']['allow_nesting'] ?? 'false') === 'true',
-            'traffic_limit' => (int)($params['configoptions']['traffic_limit'] ?? 0),
-            'cpu_allowance'  => $params['configoptions']['cpu_allowance'] ?? '100%',
-            'disk_io_limit'   => $params['configoptions']['disk_io_limit'] ?? '',
-        ],
+        'data' => ['action' => 'stop'],
     ];
-    $res = lxdserver_JSONCurl($params, $data, 'POST');
+    lxdserver_JSONCurl($params, $poweroff_data, 'POST');
+    sleep(3); // 等待关机完成
+
+    // 构建重装配置（字段名对应VMConfig）
+    $reinstall_config = [
+        'os_name' => $params['reinstall_os'],
+        'os_pass' => $reinstall_pass,
+        // 保持原有资源配置
+        'cpu_num' => (int)($params['configoptions']['cpus'] ?? 2),
+        'cpu_per' => (int)($params['configoptions']['cpu_allowance'] ?? 50),
+        'mem_num' => (int)($params['configoptions']['memory'] ?? 2048), // MB
+        'hdd_num' => (int)($params['configoptions']['disk'] ?? 8192), // MB
+        // 保持原有网络配置
+        'speed_u' => (int)($params['configoptions']['egress'] ?? 100), // Mbps
+        'speed_d' => (int)($params['configoptions']['ingress'] ?? 100), // Mbps
+        'flu_num' => (int)($params['configoptions']['traffic_limit'] ?? 102400), // MB
+    ];
+
+    // 调用更新API重装系统
+    $data = [
+        'url'  => '/api/client/update/' . $hs_name . '/' . $vm_uuid,
+        'type' => 'application/json',
+        'data' => $reinstall_config,
+    ];
+    $res = lxdserver_JSONCurl($params, $data, 'PUT');
 
     if (isset($res['code']) && $res['code'] == 200) {
-        return ['status' => 'success', 'msg' => $res['msg'] ?? $res['message'] ?? '重装成功'];
+        // 更新数据库中的密码
+        try {
+            Db::name('host')->where('id', $params['hostid'])->update(['password' => $reinstall_pass]);
+        } catch (\Exception $e) {
+            lxdserver_debug('更新密码失败', ['error' => $e->getMessage()]);
+        }
+
+        // 重启虚拟机
+        $poweron_data = [
+            'url'  => '/api/client/powers/' . $hs_name . '/' . $vm_uuid,
+            'type' => 'application/json',
+            'data' => ['action' => 'start'],
+        ];
+        lxdserver_JSONCurl($params, $poweron_data, 'POST');
+
+        return ['status' => 'success', 'msg' => $res['msg'] ?? '重装成功'];
     } else {
-        return ['status' => 'error', 'msg' => $res['msg'] ?? $res['message'] ?? '重装失败'];
+        return ['status' => 'error', 'msg' => $res['msg'] ?? '重装失败'];
     }
 }
 
@@ -1453,9 +1469,11 @@ function lxdserver_TransformAPIResponse($action, $response)
 // 获取NAT规则列表
 function lxdserver_natlist($params)
 {
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
     
     $requestData = [
-        'url'  => '/api/natlist?' . 'hostname=' . $params['domain'] . '&_t=' . time(),
+        'url'  => '/api/client/natget/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/x-www-form-urlencoded',
         'data' => [],
     ];
@@ -1463,6 +1481,21 @@ function lxdserver_natlist($params)
     if ($res === null) {
         return ['code' => 500, 'msg' => '连接API服务器失败', 'data' => []];
     }
+    
+    // 转换数据格式以兼容前端
+    if (isset($res['code']) && $res['code'] == 200 && isset($res['data'])) {
+        $formatted_data = [];
+        foreach ($res['data'] as $rule) {
+            $formatted_data[] = [
+                'sport' => $rule['lan_port'] ?? 0,
+                'dport' => $rule['wan_port'] ?? 0,
+                'dtype' => 'tcp',
+                'description' => $rule['nat_tips'] ?? '',
+            ];
+        }
+        $res['data'] = $formatted_data;
+    }
+    
     return $res;
 }
 
