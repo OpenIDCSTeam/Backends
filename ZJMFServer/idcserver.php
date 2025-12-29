@@ -4,11 +4,11 @@ use app\common\logic\RunMap;
 use app\common\model\HostModel;
 use think\Db;
 
-define('LXDSERVER_DEBUG', true);
+define('IDCSERVER_DEBUG', true);
 
 // 调试日志输出函数
-function lxdserver_debug($message, $data = null) {
-    if (!LXDSERVER_DEBUG) return;
+function idcserver_debug($message, $data = null) {
+    if (!IDCSERVER_DEBUG) return;
     $log = '[LXD-DEBUG] ' . $message;
     if ($data !== null) {
         $log .= ' | Data: ' . json_encode($data, JSON_UNESCAPED_UNICODE);
@@ -17,17 +17,17 @@ function lxdserver_debug($message, $data = null) {
 }
 
 // 插件元数据信息
-function lxdserver_MetaData()
+function idcserver_MetaData()
 {
     return [
-        'DisplayName' => '魔方财务 - Open IDC Service 对接模块',
+        'DisplayName' => '魔方财务-OpenIDCS对接模块',
         'APIVersion'  => '0.0.1',
         'HelpDoc'     => 'https://github.com/OpenIDCSTeam/OpenIDCS-Client',
     ];
 }
 
 // 产品配置选项定义
-function lxdserver_ConfigOptions()
+function idcserver_ConfigOptions()
 {
     return [
         'cpus' => [
@@ -159,13 +159,14 @@ function lxdserver_ConfigOptions()
             'default'     => 'true',
             'key'         => 'allow_nesting',
             'options'     => ['true' => '启用', 'false' => '禁用'],
+        ],
     ];
 }
 
 // 测试API连接
-function lxdserver_TestLink($params)
+function idcserver_TestLink($params)
 {
-    lxdserver_debug('开始测试API连接', $params);
+    idcserver_debug('开始测试API连接', $params);
 
     $data = [
         'url'  => '/api/system/statis',
@@ -173,7 +174,7 @@ function lxdserver_TestLink($params)
         'data' => [],
     ];
 
-    $res = lxdserver_Curl($params, $data, 'GET');
+    $res = idcserver_Curl($params, $data, 'GET');
 
 
     if ($res === null) {
@@ -228,7 +229,7 @@ function lxdserver_TestLink($params)
 }
 
 // 客户区页面定义
-function lxdserver_ClientArea($params)
+function idcserver_ClientArea($params)
 {
     $pages = [
         'info'     => ['name' => '产品信息'],
@@ -257,13 +258,13 @@ function lxdserver_ClientArea($params)
 }
 
 // 客户区输出处理
-function lxdserver_ClientAreaOutput($params, $key)
+function idcserver_ClientAreaOutput($params, $key)
 {
-    lxdserver_debug('ClientAreaOutput调用', ['key' => $key, 'action' => $_GET['action'] ?? null]);
+    idcserver_debug('ClientAreaOutput调用', ['key' => $key, 'action' => $_GET['action'] ?? null]);
 
     if (isset($_GET['action'])) {
         $action = $_GET['action'];
-        lxdserver_debug('处理API请求', ['action' => $action, 'domain' => $params['domain'] ?? null]);
+        idcserver_debug('处理API请求', ['action' => $action, 'domain' => $params['domain'] ?? null]);
 
         if (empty($params['domain'])) {
             header('Content-Type: application/json');
@@ -273,13 +274,13 @@ function lxdserver_ClientAreaOutput($params, $key)
 
         if ($action === 'natcheck') {
             header('Content-Type: application/json');
-            echo json_encode(lxdserver_natcheck($params));
+            echo json_encode(idcserver_natcheck($params));
             exit;
         }
 
         if ($action === 'proxycheck') {
             header('Content-Type: application/json');
-            echo json_encode(lxdserver_proxycheck($params));
+            echo json_encode(idcserver_proxycheck($params));
             exit;
         }
 
@@ -309,7 +310,7 @@ function lxdserver_ClientAreaOutput($params, $key)
         ];
 
 
-        $res = lxdserver_Curl($params, $requestData, 'GET');
+        $res = idcserver_Curl($params, $requestData, 'GET');
 
 
         if ($res === null) {
@@ -317,7 +318,7 @@ function lxdserver_ClientAreaOutput($params, $key)
         } elseif (!is_array($res)) {
             $res = ['code' => 500, 'msg' => '服务器返回了无效的响应格式'];
         } else {
-            $res = lxdserver_TransformAPIResponse($action, $res);
+            $res = idcserver_TransformAPIResponse($action, $res);
         }
 
         header('Content-Type: application/json');
@@ -339,15 +340,19 @@ function lxdserver_ClientAreaOutput($params, $key)
         $network_mode = $params['configoptions']['network_mode'] ?? 'mode1';
         $nat_enabled = in_array($network_mode, ['mode1', 'mode2', 'mode3', 'mode4']);
         
+        // 使用正确的API端点获取NAT列表
+        $hs_name = $params['configoptions']['host_name'] ?? 'default';
+        $vm_uuid = $params['domain'];
+        
         $requestData = [
-            'url'  => '/api/natlist?hostname=' . $params['domain'] . '&_t=' . time(),
+            'url'  => '/api/client/natget/' . $hs_name . '/' . $vm_uuid . '?_t=' . time(),
             'type' => 'application/x-www-form-urlencoded',
             'data' => [],
         ];
-        $res = lxdserver_Curl($params, $requestData, 'GET');
+        $res = idcserver_Curl($params, $requestData, 'GET');
 
         $nat_limit = intval($params['configoptions']['nat_limit'] ?? 5);
-        $current_count = lxdserver_getNATRuleCount($params);
+        $current_count = idcserver_getNATRuleCount($params);
 
         return [
             'template' => 'templates/nat.html',
@@ -367,15 +372,19 @@ function lxdserver_ClientAreaOutput($params, $key)
         $network_mode = $params['configoptions']['network_mode'] ?? 'mode1';
         $ipv4_enabled = in_array($network_mode, ['mode5', 'mode7']);
         
+        // 使用正确的API端点获取IPv4列表
+        $hs_name = $params['configoptions']['host_name'] ?? 'default';
+        $vm_uuid = $params['domain'];
+        
         $requestData = [
-            'url'  => '/api/ipv4/list?hostname=' . $params['domain'] . '&_t=' . time(),
+            'url'  => '/api/client/ipaddr/detail/' . $hs_name . '/' . $vm_uuid . '?_t=' . time(),
             'type' => 'application/x-www-form-urlencoded',
             'data' => [],
         ];
-        $res = lxdserver_Curl($params, $requestData, 'GET');
+        $res = idcserver_Curl($params, $requestData, 'GET');
 
         $ipv4_limit = intval($params['configoptions']['ipv4_limit'] ?? 1);
-        $current_count = lxdserver_getIPv4BindingCount($params);
+        $current_count = idcserver_getIPv4BindingCount($params);
 
         return [
             'template' => 'templates/ipv4.html',
@@ -396,15 +405,19 @@ function lxdserver_ClientAreaOutput($params, $key)
         $network_mode = $params['configoptions']['network_mode'] ?? 'mode1';
         $ipv6_enabled = in_array($network_mode, ['mode4', 'mode6', 'mode7']);
         
+        // 使用正确的API端点获取IPv6列表
+        $hs_name = $params['configoptions']['host_name'] ?? 'default';
+        $vm_uuid = $params['domain'];
+        
         $requestData = [
-            'url'  => '/api/ipv6/list?hostname=' . $params['domain'] . '&_t=' . time(),
+            'url'  => '/api/client/ipaddr/detail/' . $hs_name . '/' . $vm_uuid . '?_t=' . time(),
             'type' => 'application/x-www-form-urlencoded',
             'data' => [],
         ];
-        $res = lxdserver_Curl($params, $requestData, 'GET');
+        $res = idcserver_Curl($params, $requestData, 'GET');
 
         $ipv6_limit = intval($params['configoptions']['ipv6_limit'] ?? 1);
-        $current_count = lxdserver_getIPv6BindingCount($params);
+        $current_count = idcserver_getIPv6BindingCount($params);
 
         return [
             'template' => 'templates/ipv6.html',
@@ -424,13 +437,17 @@ function lxdserver_ClientAreaOutput($params, $key)
     if ($key == 'proxy_acl') {
         $proxy_enabled = ($params['configoptions']['proxy_enabled'] ?? 'false') === 'true';
         
+        // 使用正确的API端点获取反向代理列表
+        $hs_name = $params['configoptions']['host_name'] ?? 'default';
+        $vm_uuid = $params['domain'];
+        
         $requestData = [
-            'url'  => '/api/proxy/list?hostname=' . $params['domain'] . '&_t=' . time(),
+            'url'  => '/api/client/proxys/detail/' . $hs_name . '/' . $vm_uuid . '?_t=' . time(),
             'type' => 'application/x-www-form-urlencoded',
             'data' => [],
         ];
         
-        $res = lxdserver_curl($params, $requestData);
+        $res = idcserver_Curl($params, $requestData, 'GET');
         
         $proxy_limit = intval($params['configoptions']['proxy_limit'] ?? 1);
         $current_count = is_array($res['data']) ? count($res['data']) : 0;
@@ -450,7 +467,7 @@ function lxdserver_ClientAreaOutput($params, $key)
     }
 }
 
-function lxdserver_getContainerIPs($params, $hostname) {
+function idcserver_getContainerIPs($params, $hostname) {
     $hs_name = $params['configoptions']['host_name'] ?? 'default';
     $vm_uuid = $hostname;
     $network_mode = $params['configoptions']['network_mode'] ?? 'mode1';
@@ -460,36 +477,35 @@ function lxdserver_getContainerIPs($params, $hostname) {
     $dedicatedip = '';
     $assignedips = '';
     
-    // 尝试从虚拟机配置中获取IP地址
+    // 尝试从虚拟机配置中获取IP地址（对齐Python的API端点）
     try {
         $data = [
             'url'  => '/api/client/detail/' . $hs_name . '/' . $vm_uuid,
             'type' => 'application/x-www-form-urlencoded',
             'data' => [],
         ];
-        $res = lxdserver_Curl($params, $data, 'GET');
+        $res = idcserver_Curl($params, $data, 'GET');
         
         if (isset($res['code']) && $res['code'] == 200 && isset($res['data']['config'])) {
             $vm_config = $res['data']['config'];
             
-            // 从IP地址列表中获取IP
-            if (isset($vm_config['ip_all']) && is_array($vm_config['ip_all'])) {
+            // 从nic_all中获取IP地址（对齐Python的NCConfig结构）
+            if (isset($vm_config['nic_all']) && is_array($vm_config['nic_all'])) {
                 $ipv4_addresses = [];
                 $ipv6_addresses = [];
                 
-                foreach ($vm_config['ip_all'] as $ip) {
-                    if (isset($ip['type'])) {
-                        if ($ip['type'] === 'ipv4' && !empty($ip['address'])) {
-                            $ipv4_addresses[] = $ip['address'];
-                        } elseif ($ip['type'] === 'ipv6' && !empty($ip['address'])) {
-                            $ipv6_addresses[] = $ip['address'];
-                        }
+                foreach ($vm_config['nic_all'] as $nic_name => $nic_config) {
+                    if (isset($nic_config['ip4_addr']) && !empty($nic_config['ip4_addr'])) {
+                        $ipv4_addresses[] = $nic_config['ip4_addr'];
+                    }
+                    if (isset($nic_config['ip6_addr']) && !empty($nic_config['ip6_addr'])) {
+                        $ipv6_addresses[] = $nic_config['ip6_addr'];
                     }
                 }
             }
         }
     } catch (Exception $e) {
-        lxdserver_debug('获取虚拟机IP失败', ['error' => $e->getMessage()]);
+        idcserver_debug('获取虚拟机IP失败', ['error' => $e->getMessage()]);
     }
     
     switch ($network_mode) {
@@ -507,22 +523,22 @@ function lxdserver_getContainerIPs($params, $hostname) {
             break;
         case 'mode4':
             $dedicatedip = $server_ipv4;
-            $ipv6_list = lxdserver_getIndependentIPv6List($params);
+            $ipv6_list = idcserver_getIndependentIPv6List($params);
             $assignedips = !empty($ipv6_list) ? $ipv6_list[0] : '';
             break;
         case 'mode5':
-            $ipv4_list = lxdserver_getIndependentIPv4List($params);
+            $ipv4_list = idcserver_getIndependentIPv4List($params);
             $dedicatedip = !empty($ipv4_list) ? $ipv4_list[0] : '';
             $assignedips = '';
             break;
         case 'mode6':
-            $ipv6_list = lxdserver_getIndependentIPv6List($params);
+            $ipv6_list = idcserver_getIndependentIPv6List($params);
             $dedicatedip = !empty($ipv6_list) ? $ipv6_list[0] : '';
             $assignedips = '';
             break;
         case 'mode7':
-            $ipv4_list = lxdserver_getIndependentIPv4List($params);
-            $ipv6_list = lxdserver_getIndependentIPv6List($params);
+            $ipv4_list = idcserver_getIndependentIPv4List($params);
+            $ipv6_list = idcserver_getIndependentIPv6List($params);
             $dedicatedip = !empty($ipv4_list) ? $ipv4_list[0] : '';
             $assignedips = !empty($ipv6_list) ? $ipv6_list[0] : '';
             break;
@@ -534,15 +550,18 @@ function lxdserver_getContainerIPs($params, $hostname) {
     ];
 }
 
-function lxdserver_getIndependentIPv4List($params)
+function idcserver_getIndependentIPv4List($params)
 {
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
+    
     $data = [
-        'url'  => '/api/ipv4/list?hostname=' . urlencode($params['domain']),
+        'url'  => '/api/client/ipaddr/detail/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/x-www-form-urlencoded',
         'data' => [],
     ];
 
-    $res = lxdserver_Curl($params, $data, 'GET');
+    $res = idcserver_Curl($params, $data, 'GET');
 
     if (isset($res['code']) && $res['code'] == 200 && isset($res['data']) && is_array($res['data'])) {
         $ipv4_addresses = [];
@@ -557,15 +576,18 @@ function lxdserver_getIndependentIPv4List($params)
     return [];
 }
 
-function lxdserver_getIndependentIPv6List($params)
+function idcserver_getIndependentIPv6List($params)
 {
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
+    
     $data = [
-        'url'  => '/api/ipv6/list?hostname=' . urlencode($params['domain']),
+        'url'  => '/api/client/ipaddr/detail/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/x-www-form-urlencoded',
         'data' => [],
     ];
 
-    $res = lxdserver_Curl($params, $data, 'GET');
+    $res = idcserver_Curl($params, $data, 'GET');
 
     if (isset($res['code']) && $res['code'] == 200 && isset($res['data']) && is_array($res['data'])) {
         $ipv6_addresses = [];
@@ -581,7 +603,7 @@ function lxdserver_getIndependentIPv6List($params)
 }
 
 // 允许客户端调用的函数列表
-function lxdserver_AllowFunction()
+function idcserver_AllowFunction()
 {
     return [
         'client' => ['natadd', 'natdel', 'natlist', 'natcheck', 'ipv4add', 'ipv4del', 'ipv4list', 'ipv6add', 'ipv6del', 'ipv6list', 'proxyadd', 'proxydel', 'proxylist', 'proxycheck'],
@@ -589,9 +611,9 @@ function lxdserver_AllowFunction()
 }
 
 // 创建虚拟机
-function lxdserver_CreateAccount($params)
+function idcserver_CreateAccount($params)
 {
-    lxdserver_debug('开始创建虚拟机', ['domain' => $params['domain']]);
+    idcserver_debug('开始创建虚拟机', ['domain' => $params['domain']]);
 
     $hs_name = $params['configoptions']['host_name'] ?? 'default';
     $vm_uuid = $params['domain']; // 使用domain作为虚拟机UUID
@@ -600,90 +622,85 @@ function lxdserver_CreateAccount($params)
     $vc_port = rand(10000, 59999);
     $vc_pass = $params['password'] ?? randStr(16);
 
-    // 构建虚拟机配置（字段名对应VMConfig）
+    // 解析内存和硬盘配置（支持MB/GB单位）
+    $memory_str = $params['configoptions']['memory'] ?? '512MB';
+    $disk_str = $params['configoptions']['disk'] ?? '8192MB';
+    
+    $mem_num = idcserver_parseSize($memory_str);
+    $hdd_num = idcserver_parseSize($disk_str);
+    
+    // 解析带宽配置（支持Mbit/Gbit单位）
+    $ingress_str = $params['configoptions']['ingress'] ?? '100Mbit';
+    $egress_str = $params['configoptions']['egress'] ?? '100Mbit';
+    
+    $speed_d = idcserver_parseBandwidth($ingress_str);
+    $speed_u = idcserver_parseBandwidth($egress_str);
+    
+    // 解析流量限制（GB转MB）
+    $traffic_limit_gb = (int)($params['configoptions']['traffic_limit'] ?? 100);
+    $flu_num = $traffic_limit_gb * 1024;
+    
+    // 解析CPU使用率限制
+    $cpu_allowance_str = $params['configoptions']['cpu_allowance'] ?? '50%';
+    $cpu_per = (int)str_replace('%', '', $cpu_allowance_str);
+
+    // 构建虚拟机配置（完全对齐Python的VMConfig结构）
     $vm_config = [
         'vm_uuid' => $vm_uuid,
-        'os_name' => $params['configoptions']['image'] ?? 'ubuntu24',
+        'os_name' => $params['configoptions']['image'] ?? 'debian12',
         'os_pass' => $vc_pass,
-        // 远程连接配置
         'vc_port' => $vc_port,
         'vc_pass' => $vc_pass,
         // 资源配置
-        'cpu_num' => (int)($params['configoptions']['cpus'] ?? 2),
-        'cpu_per' => (int)($params['configoptions']['cpu_allowance'] ?? 50),
-        'mem_num' => (int)($params['configoptions']['memory'] ?? 2048), // MB
-        'hdd_num' => (int)($params['configoptions']['disk'] ?? 8192), // MB
+        'cpu_num' => (int)($params['configoptions']['cpus'] ?? 1),
+        'cpu_per' => $cpu_per,
         'gpu_num' => 0,
         'gpu_mem' => 0,
+        'mem_num' => $mem_num,
+        'hdd_num' => $hdd_num,
         // 网络配置
-        'speed_u' => (int)($params['configoptions']['egress'] ?? 100), // Mbps
-        'speed_d' => (int)($params['configoptions']['ingress'] ?? 100), // Mbps
-        'flu_num' => (int)($params['configoptions']['traffic_limit'] ?? 102400), // MB
+        'speed_u' => $speed_u,
+        'speed_d' => $speed_d,
+        'flu_num' => $flu_num,
         'nat_num' => (int)($params['configoptions']['nat_limit'] ?? 100),
         'web_num' => (int)($params['configoptions']['proxy_limit'] ?? 100),
+        // 附加配置（空数组/列表）
+        'nic_all' => [],
+        'hdd_all' => [],
+        'iso_all' => [],
+        'nat_all' => [],
+        'web_all' => [],
+        'backups' => [],
+        'own_all' => ['admin'],
     ];
 
     // 处理网卡配置
     $network_mode = $params['configoptions']['network_mode'] ?? 'mode1';
     $nic_configs = [];
 
-    // 根据网络模式配置网卡
+    // 根据网络模式配置网卡（对齐Python的NCConfig结构）
     switch ($network_mode) {
-        case 'mode1': // IPv4 NAT共享
+        case 'mode1':
+        case 'mode2':
+        case 'mode3':
+        case 'mode4':
+            // NAT模式
             $nic_configs['eth0'] = [
                 'nic_type' => 'nat',
                 'mac_addr' => generateRandomMac(),
-                'ip4_mode' => 'nat',
+                'ip4_addr' => '',
+                'ip6_addr' => '',
             ];
             break;
-        case 'mode2': // IPv6 NAT共享
-            $nic_configs['eth0'] = [
-                'nic_type' => 'nat',
-                'mac_addr' => generateRandomMac(),
-                'ip6_mode' => 'nat',
-            ];
-            break;
-        case 'mode3': // IPv4/IPv6 NAT共享
-            $nic_configs['eth0'] = [
-                'nic_type' => 'nat',
-                'mac_addr' => generateRandomMac(),
-                'ip4_mode' => 'nat',
-                'ip6_mode' => 'nat',
-            ];
-            break;
-        case 'mode4': // IPv4 NAT共享 + IPv6独立
+        case 'mode5':
+        case 'mode6':
+        case 'mode7':
+            // 独立IP模式（bridge）
             $nic_configs['eth0'] = [
                 'nic_type' => 'bridge',
                 'mac_addr' => generateRandomMac(),
-                'ip4_mode' => 'nat',
-                'ip6_mode' => 'static',
-                'ip6_addr' => '', // 将在后续分配
-            ];
-            break;
-        case 'mode5': // IPv4独立
-            $nic_configs['eth0'] = [
-                'nic_type' => 'bridge',
-                'mac_addr' => generateRandomMac(),
-                'ip4_mode' => 'static',
-                'ip4_addr' => '', // 将在后续分配
-            ];
-            break;
-        case 'mode6': // IPv6独立
-            $nic_configs['eth0'] = [
-                'nic_type' => 'bridge',
-                'mac_addr' => generateRandomMac(),
-                'ip6_mode' => 'static',
-                'ip6_addr' => '', // 将在后续分配
-            ];
-            break;
-        case 'mode7': // IPv4独立 + IPv6独立
-            $nic_configs['eth0'] = [
-                'nic_type' => 'bridge',
-                'mac_addr' => generateRandomMac(),
-                'ip4_mode' => 'static',
-                'ip4_addr' => '', // 将在后续分配
-                'ip6_mode' => 'static',
-                'ip6_addr' => '', // 将在后续分配
+                'ip4_addr' => '',
+                'ip6_addr' => '',
             ];
             break;
     }
@@ -696,15 +713,15 @@ function lxdserver_CreateAccount($params)
         'data' => $vm_config,
     ];
 
-    lxdserver_debug('发送创建请求', $data);
-    $res = lxdserver_JSONCurl($params, $data, 'POST');
-    lxdserver_debug('创建响应', $res);
+    idcserver_debug('发送创建请求', $data);
+    $res = idcserver_JSONCurl($params, $data, 'POST');
+    idcserver_debug('创建响应', $res);
 
     if (isset($res['code']) && $res['code'] == 200) {
         sleep(2);
 
         // 构建IP信息
-        $ipInfo = lxdserver_getContainerIPs($params, $params['domain']);
+        $ipInfo = idcserver_getContainerIPs($params, $params['domain']);
         $dedicatedip = $ipInfo['dedicatedip'];
         $assignedips = $ipInfo['assignedips'];
 
@@ -721,7 +738,7 @@ function lxdserver_CreateAccount($params)
 
         try {
             Db::name('host')->where('id', $params['hostid'])->update($update);
-            lxdserver_debug('数据库更新成功', $update);
+            idcserver_debug('数据库更新成功', $update);
         } catch (\Exception $e) {
              return ['status' => 'error', 'msg' => ($res['msg'] ?? '创建成功，但同步数据到面板失败: ' . $e->getMessage())];
         }
@@ -742,8 +759,36 @@ function generateRandomMac() {
     return $mac;
 }
 
+// 解析大小字符串（支持MB/GB单位）
+function idcserver_parseSize($size_str) {
+    $size_str = trim(strtoupper($size_str));
+    if (preg_match('/(\d+)\s*(MB|GB)?/', $size_str, $matches)) {
+        $value = (int)$matches[1];
+        $unit = $matches[2] ?? 'MB';
+        if ($unit === 'GB') {
+            return $value * 1024; // 转换为MB
+        }
+        return $value;
+    }
+    return (int)$size_str; // 默认当作MB
+}
+
+// 解析带宽字符串（支持Mbit/Gbit单位）
+function idcserver_parseBandwidth($bandwidth_str) {
+    $bandwidth_str = trim(strtoupper($bandwidth_str));
+    if (preg_match('/(\d+)\s*(MBIT|GBIT)?/', $bandwidth_str, $matches)) {
+        $value = (int)$matches[1];
+        $unit = $matches[2] ?? 'MBIT';
+        if ($unit === 'GBIT') {
+            return $value * 1000; // 转换为Mbit
+        }
+        return $value;
+    }
+    return (int)$bandwidth_str; // 默认当作Mbit
+}
+
 // 同步虚拟机信息
-function lxdserver_Sync($params)
+function idcserver_Sync($params)
 {
     $hs_name = $params['configoptions']['host_name'] ?? 'default';
     $vm_uuid = $params['domain'];
@@ -753,12 +798,12 @@ function lxdserver_Sync($params)
         'type' => 'application/x-www-form-urlencoded',
         'data' => [],
     ];
-    $res = lxdserver_Curl($params, $data, 'GET');
+    $res = idcserver_Curl($params, $data, 'GET');
 
     if (isset($res['code']) && $res['code'] == 200) {
         if (class_exists('think\Db') && isset($params['hostid'])) {
             try {
-                $ipInfo = lxdserver_getContainerIPs($params, $params['domain']);
+                $ipInfo = idcserver_getContainerIPs($params, $params['domain']);
                 
                 $update_data = [
                     'dedicatedip' => $ipInfo['dedicatedip'],
@@ -772,7 +817,7 @@ function lxdserver_Sync($params)
 
                 Db::name('host')->where('id', $params['hostid'])->update($update_data);
             } catch (Exception $e) {
-                lxdserver_debug('同步数据库失败', ['error' => $e->getMessage()]);
+                idcserver_debug('同步数据库失败', ['error' => $e->getMessage()]);
             }
         }
         return ['status' => 'success', 'msg' => $res['msg'] ?? '同步成功'];
@@ -782,7 +827,7 @@ function lxdserver_Sync($params)
 }
 
 // 删除虚拟机
-function lxdserver_TerminateAccount($params)
+function idcserver_TerminateAccount($params)
 {
     $hs_name = $params['configoptions']['host_name'] ?? 'default';
     $vm_uuid = $params['domain'];
@@ -792,15 +837,15 @@ function lxdserver_TerminateAccount($params)
         'type' => 'application/x-www-form-urlencoded',
         'data' => [],
     ];
-    $res = lxdserver_Curl($params, $data, 'DELETE');
+    $res = idcserver_Curl($params, $data, 'DELETE');
 
     return isset($res['code']) && $res['code'] == 200
         ? ['status' => 'success', 'msg' => $res['msg'] ?? '删除成功']
         : ['status' => 'error', 'msg' => $res['msg'] ?? '删除失败'];
 }
 
-// 启动虚拟机
-function lxdserver_On($params)
+// 启动虚拟机（对齐Python的API端点）
+function idcserver_On($params)
 {
     $hs_name = $params['configoptions']['host_name'] ?? 'default';
     $vm_uuid = $params['domain'];
@@ -808,17 +853,17 @@ function lxdserver_On($params)
     $data = [
         'url'  => '/api/client/powers/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/json',
-        'data' => ['action' => 'start'],
+        'data' => ['action' => 'S_START'], // 对齐Python的VMPowers操作
     ];
-    $res = lxdserver_JSONCurl($params, $data, 'POST');
+    $res = idcserver_JSONCurl($params, $data, 'POST');
 
     return isset($res['code']) && $res['code'] == 200
         ? ['status' => 'success', 'msg' => $res['msg'] ?? '开机成功']
         : ['status' => 'error', 'msg' => $res['msg'] ?? '开机失败'];
 }
 
-// 关闭虚拟机
-function lxdserver_Off($params)
+// 关闭虚拟机（对齐Python的API端点）
+function idcserver_Off($params)
 {
     $hs_name = $params['configoptions']['host_name'] ?? 'default';
     $vm_uuid = $params['domain'];
@@ -826,9 +871,9 @@ function lxdserver_Off($params)
     $data = [
         'url'  => '/api/client/powers/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/json',
-        'data' => ['action' => 'stop'],
+        'data' => ['action' => 'H_CLOSE'], // 对齐Python的VMPowers操作
     ];
-    $res = lxdserver_JSONCurl($params, $data, 'POST');
+    $res = idcserver_JSONCurl($params, $data, 'POST');
 
     if (isset($res['code']) && $res['code'] == 200) {
         return ['status' => 'success', 'msg' => $res['msg'] ?? '关机成功'];
@@ -837,10 +882,10 @@ function lxdserver_Off($params)
     }
 }
 
-// 暂停虚拟机（停机）
-function lxdserver_SuspendAccount($params)
+// 暂停虚拟机（对齐Python的API端点）
+function idcserver_SuspendAccount($params)
 {
-    lxdserver_debug('开始暂停虚拟机', ['domain' => $params['domain']]);
+    idcserver_debug('开始暂停虚拟机', ['domain' => $params['domain']]);
 
     $hs_name = $params['configoptions']['host_name'] ?? 'default';
     $vm_uuid = $params['domain'];
@@ -848,9 +893,9 @@ function lxdserver_SuspendAccount($params)
     $data = [
         'url'  => '/api/client/powers/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/json',
-        'data' => ['action' => 'stop'],
+        'data' => ['action' => 'S_PAUSE'], // 对齐Python的VMPowers操作
     ];
-    $res = lxdserver_JSONCurl($params, $data, 'POST');
+    $res = idcserver_JSONCurl($params, $data, 'POST');
 
     if (isset($res['code']) && $res['code'] == 200) {
         return ['status' => 'success', 'msg' => $res['msg'] ?? '虚拟机暂停成功'];
@@ -859,10 +904,10 @@ function lxdserver_SuspendAccount($params)
     }
 }
 
-// 恢复虚拟机（开机）
-function lxdserver_UnsuspendAccount($params)
+// 恢复虚拟机（对齐Python的API端点）
+function idcserver_UnsuspendAccount($params)
 {
-    lxdserver_debug('开始恢复虚拟机', ['domain' => $params['domain']]);
+    idcserver_debug('开始解除暂停虚拟机', ['domain' => $params['domain']]);
 
     $hs_name = $params['configoptions']['host_name'] ?? 'default';
     $vm_uuid = $params['domain'];
@@ -870,9 +915,9 @@ function lxdserver_UnsuspendAccount($params)
     $data = [
         'url'  => '/api/client/powers/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/json',
-        'data' => ['action' => 'start'],
+        'data' => ['action' => 'S_START'], // 恢复就是启动
     ];
-    $res = lxdserver_JSONCurl($params, $data, 'POST');
+    $res = idcserver_JSONCurl($params, $data, 'POST');
 
     if (isset($res['code']) && $res['code'] == 200) {
         return ['status' => 'success', 'msg' => $res['msg'] ?? '虚拟机恢复成功'];
@@ -881,8 +926,8 @@ function lxdserver_UnsuspendAccount($params)
     }
 }
 
-// 重启虚拟机
-function lxdserver_Reboot($params)
+// 重启虚拟机（对齐Python的API端点）
+function idcserver_Reboot($params)
 {
     $hs_name = $params['configoptions']['host_name'] ?? 'default';
     $vm_uuid = $params['domain'];
@@ -890,9 +935,9 @@ function lxdserver_Reboot($params)
     $data = [
         'url'  => '/api/client/powers/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/json',
-        'data' => ['action' => 'restart'],
+        'data' => ['action' => 'S_RESET'], // 对齐Python的VMPowers操作
     ];
-    $res = lxdserver_JSONCurl($params, $data, 'POST');
+    $res = idcserver_JSONCurl($params, $data, 'POST');
 
     if (isset($res['code']) && $res['code'] == 200) {
         return ['status' => 'success', 'msg' => $res['msg'] ?? '重启成功'];
@@ -901,29 +946,63 @@ function lxdserver_Reboot($params)
     }
 }
 
-// 获取虚拟机NAT规则数量
-function lxdserver_getNATRuleCount($params)
+// 获取容器NAT规则数量（对齐Python的API端点）
+function idcserver_getNATRuleCount($params)
 {
     $hs_name = $params['configoptions']['host_name'] ?? 'default';
     $vm_uuid = $params['domain'];
-
+    
     $data = [
         'url'  => '/api/client/natget/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/x-www-form-urlencoded',
         'data' => [],
     ];
 
-    $res = lxdserver_Curl($params, $data, 'GET');
+    $res = idcserver_Curl($params, $data, 'GET');
 
     if (isset($res['code']) && $res['code'] == 200 && isset($res['data']) && is_array($res['data'])) {
-        return count($res['data']);
+        $rules = $res['data'];
+        
+        $counted = [];
+        
+        foreach ($rules as $rule) {
+            $external_port = $rule['external_port'] ?? $rule['dport'] ?? '';
+            $internal_port = $rule['internal_port'] ?? $rule['sport'] ?? '';
+            $external_port_end = $rule['external_port_end'] ?? $rule['dport_end'] ?? 0;
+            $internal_port_end = $rule['internal_port_end'] ?? $rule['sport_end'] ?? 0;
+            $protocol = strtolower($rule['protocol'] ?? $rule['dtype'] ?? '');
+            
+            $key = $external_port . '_' . $internal_port . '_' . $external_port_end . '_' . $internal_port_end;
+            
+            if (!isset($counted[$key])) {
+                $counted[$key] = [
+                    'external_port' => $external_port,
+                    'external_port_end' => $external_port_end,
+                    'protocols' => []
+                ];
+            }
+            
+            $counted[$key]['protocols'][] = $protocol;
+        }
+        
+        $totalCount = 0;
+        foreach ($counted as $item) {
+            if ($item['external_port_end'] > 0) {
+                $portCount = $item['external_port_end'] - $item['external_port'] + 1;
+                $totalCount += $portCount;
+            } else {
+                $totalCount += 1;
+            }
+        }
+        
+        return $totalCount;
     }
 
     return 0;
 }
 
-// 添加NAT端口转发
-function lxdserver_natadd($params)
+// 添加NAT端口转发（对齐Python的API端点和PortData结构）
+function idcserver_natadd($params)
 {
     $network_mode = $params['configoptions']['network_mode'] ?? 'mode1';
     if (!in_array($network_mode, ['mode1', 'mode2', 'mode3', 'mode4'])) {
@@ -932,14 +1011,15 @@ function lxdserver_natadd($params)
     
     parse_str(file_get_contents("php://input"), $post);
 
-    $sport = intval($post['sport'] ?? 0);
-    $dport = intval($post['dport'] ?? 0);
+    $lan_port = intval($post['sport'] ?? 0); // 内网端口
+    $wan_port = intval($post['dport'] ?? 0); // 外网端口
     $description = trim($post['description'] ?? '');
+    $protocol = 'tcp'; // 默认仅支持TCP
 
     $nat_limit = intval($params['configoptions']['nat_limit'] ?? 5);
-    $current_count = lxdserver_getNATRuleCount($params);
+    $current_count = idcserver_getNATRuleCount($params);
     
-    if ($sport <= 0 || $sport > 65535) {
+    if ($lan_port <= 0 || $lan_port > 65535) {
         return ['status' => 'error', 'msg' => '内网端口超过范围'];
     }
     
@@ -947,125 +1027,55 @@ function lxdserver_natadd($params)
         return ['status' => 'error', 'msg' => "NAT规则数量已达到限制（{$nat_limit}条），无法添加更多规则"];
     }
 
+    // 构建PortData结构（对齐Python）
+    $port_data = [
+        'lan_port' => $lan_port,
+        'wan_port' => $wan_port,
+        'lan_addr' => '', // 由后端自动填充
+        'wan_addr' => '', // 由后端自动填充
+        'protocol' => $protocol,
+        'port_tips' => $description,
+    ];
+
     $hs_name = $params['configoptions']['host_name'] ?? 'default';
     $vm_uuid = $params['domain'];
-
-    // 获取虚拟机IP地址
-    $lan_addr = '';
-    $vm_data = [
-        'url'  => '/api/client/detail/' . $hs_name . '/' . $vm_uuid,
-        'type' => 'application/x-www-form-urlencoded',
-        'data' => [],
-    ];
-    $vm_res = lxdserver_Curl($params, $vm_data, 'GET');
-    
-    if (isset($vm_res['code']) && $vm_res['code'] == 200 && isset($vm_res['data']['config']['nic_all'])) {
-        $nic_all = $vm_res['data']['config']['nic_all'];
-        foreach ($nic_all as $nic) {
-            if (!empty($nic['ip4_addr']) && $nic['ip4_addr'] !== '-') {
-                $lan_addr = $nic['ip4_addr'];
-                break;
-            }
-        }
-    }
-
-    if (empty($lan_addr)) {
-        return ['status' => 'error', 'msg' => '无法获取虚拟机IP地址'];
-    }
-
-    // 构建NAT规则数据
-    $nat_data = [
-        'lan_port' => $sport,
-        'wan_port' => $dport, // 0表示自动分配
-        'lan_addr' => $lan_addr,
-        'nat_tips' => $description,
-    ];
 
     $data = [
         'url'  => '/api/client/natadd/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/json',
-        'data' => $nat_data,
+        'data' => $port_data,
     ];
 
-    $res = lxdserver_JSONCurl($params, $data, 'POST');
+    $res = idcserver_JSONCurl($params, $data, 'POST');
 
     if (isset($res['code']) && $res['code'] == 200) {
-        return ['status' => 'success', 'msg' => $res['msg'] ?? 'NAT转发添加成功'];
-    } else {
-        return ['status' => 'error', 'msg' => $res['msg'] ?? 'NAT转发添加失败'];
-    }
-}
-    }
-
-    $data = [
-        'url'  => '/api/addport',
-        'type' => 'application/x-www-form-urlencoded',
-        'data' => $requestData,
-    ];
-
-    $res = lxdserver_Curl($params, $data, 'POST');
-
-    $protocol_desc = 'TCP'; // 仅支持TCP协议
-    if (isset($res['code']) && $res['code'] == 200) {
-        return ['status' => 'success', 'msg' => "NAT转发添加成功（{$protocol_desc}）"];
+        return ['status' => 'success', 'msg' => "NAT转发添加成功（{$protocol}）"];
     } else {
         return ['status' => 'error', 'msg' => $res['msg'] ?? 'NAT转发添加失败'];
     }
 }
 
-// 删除NAT端口转发
-function lxdserver_natdel($params)
+// 删除NAT端口转发（对齐Python的API端点）
+function idcserver_natdel($params)
 {
     parse_str(file_get_contents("php://input"), $post);
 
-    $sport = intval($post['sport'] ?? 0);
-    $dport = intval($post['dport'] ?? 0);
-
-    if ($sport <= 0 || $sport > 65535) {
-        return ['status' => 'error', 'msg' => '内网端口超过范围'];
-    }
-    if ($dport <= 0 || $dport > 65535) {
-        return ['status' => 'error', 'msg' => '外网端口超过范围'];
+    $rule_index = intval($post['rule_index'] ?? -1);
+    
+    if ($rule_index < 0) {
+        return ['status' => 'error', 'msg' => '缺少规则索引参数'];
     }
 
     $hs_name = $params['configoptions']['host_name'] ?? 'default';
     $vm_uuid = $params['domain'];
-
-    // 获取NAT规则列表，找到对应的规则索引
-    $list_data = [
-        'url'  => '/api/client/natget/' . $hs_name . '/' . $vm_uuid,
-        'type' => 'application/x-www-form-urlencoded',
-        'data' => [],
-    ];
-    $list_res = lxdserver_Curl($params, $list_data, 'GET');
-
-    if (!isset($list_res['code']) || $list_res['code'] != 200 || !isset($list_res['data'])) {
-        return ['status' => 'error', 'msg' => '获取NAT规则列表失败'];
-    }
-
-    $rules = $list_res['data'];
-    $rule_index = -1;
-
-    // 查找匹配的规则
-    foreach ($rules as $index => $rule) {
-        if ($rule['lan_port'] == $sport && $rule['wan_port'] == $dport) {
-            $rule_index = $index;
-            break;
-        }
-    }
-
-    if ($rule_index === -1) {
-        return ['status' => 'error', 'msg' => '找不到匹配的NAT规则'];
-    }
-
-    // 删除NAT规则
+    
     $data = [
         'url'  => '/api/client/natdel/' . $hs_name . '/' . $vm_uuid . '/' . $rule_index,
         'type' => 'application/x-www-form-urlencoded',
-        'data' => [],
+        'data' => '',
     ];
 
-    $res = lxdserver_Curl($params, $data, 'DELETE');
+    $res = idcserver_Curl($params, $data, 'DELETE');
 
     if (isset($res['code']) && $res['code'] == 200) {
         return ['status' => 'success', 'msg' => $res['msg'] ?? 'NAT转发删除成功'];
@@ -1074,48 +1084,53 @@ function lxdserver_natdel($params)
     }
 }
 
-// 查询虚拟机运行状态
-function lxdserver_Status($params)
+// 查询虚拟机运行状态（对齐Python的API端点）
+function idcserver_Status($params)
 {
     $hs_name = $params['configoptions']['host_name'] ?? 'default';
     $vm_uuid = $params['domain'];
-
+    
     $data = [
         'url'  => '/api/client/status/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/x-www-form-urlencoded',
         'data' => [],
     ];
-    $res = lxdserver_Curl($params, $data, 'GET');
+    $res = idcserver_Curl($params, $data, 'GET');
 
     if (isset($res['code']) && $res['code'] == 200) {
         $result = ['status' => 'success'];
 
-        $vmStatus = $res['data']['status'] ?? '';
-
-        // 根据OpenIDCS API返回的状态进行映射
-        switch (strtoupper($vmStatus)) {
-            case 'RUNNING':
-            case 'STARTED':
-            case 'ACTIVE':
-                $result['data']['status'] = 'on';
-                $result['data']['des'] = '开机';
-                break;
-            case 'STOPPED':
-            case 'SHUTDOWN':
-            case 'INACTIVE':
-                $result['data']['status'] = 'off';
-                $result['data']['des'] = '关机';
-                break;
-            case 'FROZEN':
-            case 'SUSPENDED':
-            case 'PAUSED':
-                $result['data']['status'] = 'suspend';
-                $result['data']['des'] = '暂停';
-                break;
-            default:
-                $result['data']['status'] = 'unknown';
-                $result['data']['des'] = '未知状态';
-                break;
+        // Python后端返回的是HWStatus列表，取第一个状态
+        $status_list = $res['data'] ?? [];
+        if (!empty($status_list) && is_array($status_list)) {
+            $hw_status = $status_list[0];
+            $vmStatus = $hw_status['vm_status'] ?? '';
+            
+            switch (strtoupper($vmStatus)) {
+                case 'RUNNING':
+                case 'STARTED':
+                    $result['data']['status'] = 'on';
+                    $result['data']['des'] = '运行中';
+                    break;
+                case 'STOPPED':
+                case 'SHUTDOWN':
+                    $result['data']['status'] = 'off';
+                    $result['data']['des'] = '已关机';
+                    break;
+                case 'FROZEN':
+                case 'SUSPENDED':
+                case 'PAUSED':
+                    $result['data']['status'] = 'suspend';
+                    $result['data']['des'] = '已暂停';
+                    break;
+                default:
+                    $result['data']['status'] = 'unknown';
+                    $result['data']['des'] = '未知状态';
+                    break;
+            }
+        } else {
+            $result['data']['status'] = 'unknown';
+            $result['data']['des'] = '无法获取状态';
         }
 
         return $result;
@@ -1124,100 +1139,66 @@ function lxdserver_Status($params)
     }
 }
 
-// 重置虚拟机密码
-function lxdserver_CrackPassword($params, $new_pass)
+// 重置容器密码
+function idcserver_CrackPassword($params, $new_pass)
 {
-    $hs_name = $params['configoptions']['host_name'] ?? 'default';
-    $vm_uuid = $params['domain'];
-
     $data = [
-        'url'  => '/api/client/password/' . $hs_name . '/' . $vm_uuid,
+        'url'  => '/api/password',
         'type' => 'application/json',
         'data' => [
+            'hostname' => $params['domain'],
             'password' => $new_pass,
         ],
     ];
-    $res = lxdserver_JSONCurl($params, $data, 'POST');
+    $res = idcserver_JSONCurl($params, $data, 'POST');
 
     if (isset($res['code']) && $res['code'] == 200) {
         try {
             Db::name('host')->where('id', $params['hostid'])->update(['password' => $new_pass]);
         } catch (\Exception $e) {
-            return ['status' => 'error', 'msg' => ($res['msg'] ?? '虚拟机密码重置成功，但同步新密码到面板数据库失败: ' . $e->getMessage())];
+            return ['status' => 'error', 'msg' => ($res['msg'] ?? $res['message'] ?? 'LXD容器密码重置成功，但同步新密码到面板数据库失败: ' . $e->getMessage())];
         }
-        return ['status' => 'success', 'msg' => $res['msg'] ?? '密码重置成功'];
+        return ['status' => 'success', 'msg' => $res['msg'] ?? $res['message'] ?? '密码重置成功'];
     } else {
-        return ['status' => 'error', 'msg' => $res['msg'] ?? '密码重置失败'];
+        return ['status' => 'error', 'msg' => $res['msg'] ?? $res['message'] ?? '密码重置失败'];
     }
 }
 
-// 重装虚拟机操作系统
-function lxdserver_Reinstall($params)
+// 重装容器操作系统
+function idcserver_Reinstall($params)
 {
-    if (empty($params['reinstall_os'])) {
+    if (empty($params['configoption1'])) {
         return ['status' => 'error', 'msg' => '操作系统参数错误'];
     }
 
-    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $hs_name = $params['customfields']['host_name'] ?? '';
     $vm_uuid = $params['domain'];
     $reinstall_pass = $params['password'] ?? randStr(16);
+    $os_name = $params['configoption1']; // 从产品配置中获取操作系统
 
-    // 首先关机
-    $poweroff_data = [
-        'url'  => '/api/client/powers/' . $hs_name . '/' . $vm_uuid,
-        'type' => 'application/json',
-        'data' => ['action' => 'stop'],
-    ];
-    lxdserver_JSONCurl($params, $poweroff_data, 'POST');
-    sleep(3); // 等待关机完成
-
-    // 构建重装配置（字段名对应VMConfig）
+    // 构建重装配置（使用VMConfig格式）
     $reinstall_config = [
-        'os_name' => $params['reinstall_os'],
+        'os_name' => $os_name,
         'os_pass' => $reinstall_pass,
-        // 保持原有资源配置
-        'cpu_num' => (int)($params['configoptions']['cpus'] ?? 2),
-        'cpu_per' => (int)($params['configoptions']['cpu_allowance'] ?? 50),
-        'mem_num' => (int)($params['configoptions']['memory'] ?? 2048), // MB
-        'hdd_num' => (int)($params['configoptions']['disk'] ?? 8192), // MB
-        // 保持原有网络配置
-        'speed_u' => (int)($params['configoptions']['egress'] ?? 100), // Mbps
-        'speed_d' => (int)($params['configoptions']['ingress'] ?? 100), // Mbps
-        'flu_num' => (int)($params['configoptions']['traffic_limit'] ?? 102400), // MB
     ];
 
-    // 调用更新API重装系统
     $data = [
         'url'  => '/api/client/update/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/json',
         'data' => $reinstall_config,
     ];
-    $res = lxdserver_JSONCurl($params, $data, 'PUT');
+    
+    $res = idcserver_JSONCurl($params, $data, 'PUT');
 
     if (isset($res['code']) && $res['code'] == 200) {
-        // 更新数据库中的密码
-        try {
-            Db::name('host')->where('id', $params['hostid'])->update(['password' => $reinstall_pass]);
-        } catch (\Exception $e) {
-            lxdserver_debug('更新密码失败', ['error' => $e->getMessage()]);
-        }
-
-        // 重启虚拟机
-        $poweron_data = [
-            'url'  => '/api/client/powers/' . $hs_name . '/' . $vm_uuid,
-            'type' => 'application/json',
-            'data' => ['action' => 'start'],
-        ];
-        lxdserver_JSONCurl($params, $poweron_data, 'POST');
-
-        return ['status' => 'success', 'msg' => $res['msg'] ?? '重装成功'];
+        return ['status' => 'success', 'msg' => $res['msg'] ?? $res['message'] ?? '重装成功'];
     } else {
-        return ['status' => 'error', 'msg' => $res['msg'] ?? '重装失败'];
+        return ['status' => 'error', 'msg' => $res['msg'] ?? $res['message'] ?? '重装失败'];
     }
 }
 
 // 发送JSON格式的cURL请求
-function lxdserver_JSONCurl($params, $data = [], $request = 'POST')
+function idcserver_JSONCurl($params, $data = [], $request = 'POST')
 {
     $curl = curl_init();
 
@@ -1260,14 +1241,14 @@ function lxdserver_JSONCurl($params, $data = [], $request = 'POST')
 }
 
 // 发送通用的cURL请求
-function lxdserver_Curl($params, $data = [], $request = 'POST')
+function idcserver_Curl($params, $data = [], $request = 'POST')
 {
     $curl = curl_init();
 
     $protocol = 'https';
     $url = $protocol . '://' . $params['server_ip'] . ':' . $params['port'] . $data['url'];
 
-    lxdserver_debug('发送请求', [
+    idcserver_debug('发送请求', [
         'url' => $url,
         'method' => $request
     ]);
@@ -1312,7 +1293,7 @@ function lxdserver_Curl($params, $data = [], $request = 'POST')
 
     curl_close($curl);
 
-    lxdserver_debug('请求响应', [
+    idcserver_debug('请求响应', [
         'http_code' => $httpCode,
         'response_length' => strlen($response),
         'curl_errno' => $errno,
@@ -1320,7 +1301,7 @@ function lxdserver_Curl($params, $data = [], $request = 'POST')
     ]);
 
     if ($errno) {
-        lxdserver_debug('CURL错误', [
+        idcserver_debug('CURL错误', [
             'errno' => $errno,
             'error' => $curlError,
             'error_desc' => curl_strerror($errno)
@@ -1329,12 +1310,12 @@ function lxdserver_Curl($params, $data = [], $request = 'POST')
     }
 
     $decoded = json_decode($response, true);
-    lxdserver_debug('解析响应', ['code' => $decoded['code'] ?? 'NO CODE']);
+    idcserver_debug('解析响应', ['code' => $decoded['code'] ?? 'NO CODE']);
     return $decoded;
 }
 
 // 转换API响应以适配前端
-function lxdserver_TransformAPIResponse($action, $response)
+function idcserver_TransformAPIResponse($action, $response)
 {
     if (isset($response['error'])) {
         return [
@@ -1466,40 +1447,25 @@ function lxdserver_TransformAPIResponse($action, $response)
     return $response;
 }
 
-// 获取NAT规则列表
-function lxdserver_natlist($params)
+// 获取NAT规则列表（对齐Python的API端点）
+function idcserver_natlist($params)
 {
     $hs_name = $params['configoptions']['host_name'] ?? 'default';
     $vm_uuid = $params['domain'];
     
     $requestData = [
-        'url'  => '/api/client/natget/' . $hs_name . '/' . $vm_uuid,
+        'url'  => '/api/client/natget/' . $hs_name . '/' . $vm_uuid . '?_t=' . time(),
         'type' => 'application/x-www-form-urlencoded',
         'data' => [],
     ];
-    $res = lxdserver_Curl($params, $requestData, 'GET');
+    $res = idcserver_Curl($params, $requestData, 'GET');
     if ($res === null) {
         return ['code' => 500, 'msg' => '连接API服务器失败', 'data' => []];
     }
-    
-    // 转换数据格式以兼容前端
-    if (isset($res['code']) && $res['code'] == 200 && isset($res['data'])) {
-        $formatted_data = [];
-        foreach ($res['data'] as $rule) {
-            $formatted_data[] = [
-                'sport' => $rule['lan_port'] ?? 0,
-                'dport' => $rule['wan_port'] ?? 0,
-                'dtype' => 'tcp',
-                'description' => $rule['nat_tips'] ?? '',
-            ];
-        }
-        $res['data'] = $formatted_data;
-    }
-    
     return $res;
 }
 
-function lxdserver_natcheck($params)
+function idcserver_natcheck($params)
 {
     // 先尝试从URL查询参数获取
     $dport = intval($_GET['dport'] ?? 0);
@@ -1539,7 +1505,7 @@ function lxdserver_natcheck($params)
         $hostname = trim($params['domain'] ?? '');
     }
 
-    lxdserver_debug('natcheck参数解析', [
+    idcserver_debug('natcheck参数解析', [
         'dport' => $dport, 
         'dtype' => $dtype, 
         'hostname' => $hostname,
@@ -1576,7 +1542,7 @@ function lxdserver_natcheck($params)
         'data' => '',
     ];
 
-    $res = lxdserver_Curl($params, $requestData, 'GET');
+    $res = idcserver_Curl($params, $requestData, 'GET');
 
     if ($res === null) {
         return ['code' => 500, 'msg' => '连接服务器失败', 'data' => ['available' => false, 'reason' => '连接服务器失败']];
@@ -1589,48 +1555,54 @@ function lxdserver_natcheck($params)
     return $res;
 }
 
-// 获取Web控制台URL
-function lxdserver_vnc($params) {
-    lxdserver_debug('VNC控制台请求', ['domain' => $params['domain']]);
+// 获取VNC控制台URL（对齐Python的API端点）
+function idcserver_vnc($params) {
+    idcserver_debug('VNC控制台请求', ['domain' => $params['domain']]);
 
-    $data = [
-        'url'  => '/api/status?hostname=' . $params['domain'],
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
+
+    // 检查虚拟机状态
+    $statusData = [
+        'url'  => '/api/client/status/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/x-www-form-urlencoded',
         'data' => [],
     ];
-    $res = lxdserver_Curl($params, $data, 'GET');
+    $statusRes = idcserver_Curl($params, $statusData, 'GET');
 
-    if (!isset($res['code']) || $res['code'] != '200') {
-        return ['status' => 'error', 'msg' => $res['msg'] ?? '无法获取容器状态'];
+    if (!isset($statusRes['code']) || $statusRes['code'] != 200) {
+        return ['status' => 'error', 'msg' => $statusRes['msg'] ?? '无法获取虚拟机状态'];
     }
 
-    if (!isset($res['data']['status']) || $res['data']['status'] !== 'RUNNING') {
-        return ['status' => 'error', 'msg' => '容器未运行，无法连接控制台'];
+    // 检查虚拟机是否运行
+    $status_list = $statusRes['data'] ?? [];
+    if (!empty($status_list) && is_array($status_list)) {
+        $hw_status = $status_list[0];
+        $vmStatus = strtoupper($hw_status['vm_status'] ?? '');
+        if (!in_array($vmStatus, ['RUNNING', 'STARTED'])) {
+            return ['status' => 'error', 'msg' => '虚拟机未运行，无法连接控制台'];
+        }
+    } else {
+        return ['status' => 'error', 'msg' => '无法获取虚拟机状态'];
     }
 
-    $tokenData = [
-        'url'  => '/api/console/create-token',
-        'type' => 'application/json',
-        'data' => [
-            'hostname' => $params['domain'],
-            'user_id' => (int)($params['userid'] ?? 0),
-            'service_id' => (int)($params['serviceid'] ?? 0),
-            'server_ip' => $params['server_ip'] ?? '',
-            'expires_in' => 3600
-        ],
+    // 获取VNC访问地址
+    $remoteData = [
+        'url'  => '/api/client/remote/' . $hs_name . '/' . $vm_uuid,
+        'type' => 'application/x-www-form-urlencoded',
+        'data' => [],
     ];
 
-    $tokenRes = lxdserver_JSONCurl($params, $tokenData, 'POST');
+    $remoteRes = idcserver_Curl($params, $remoteData, 'GET');
 
-
-    if (!isset($tokenRes['code']) || $tokenRes['code'] != 200) {
-        return ['status' => 'error', 'msg' => $tokenRes['msg'] ?? '生成控制台令牌失败'];
+    if (!isset($remoteRes['code']) || $remoteRes['code'] != 200) {
+        return ['status' => 'error', 'msg' => $remoteRes['msg'] ?? '生成控制台访问地址失败'];
     }
 
-    $protocol = 'https';
-    $consoleUrl = $protocol . '://' . $params['server_ip'] . ':' . $params['port'] . '/console?token=' . $tokenRes['data']['token'];
-
-
+    $consoleUrl = $remoteRes['data']['url'] ?? '';
+    if (empty($consoleUrl)) {
+        return ['status' => 'error', 'msg' => '控制台访问地址为空'];
+    }
 
     return [
         'status' => 'success',
@@ -1640,7 +1612,7 @@ function lxdserver_vnc($params) {
 }
 
 // 后台自定义按钮定义
-function lxdserver_AdminButton($params)
+function idcserver_AdminButton($params)
 {
     if (!empty($params['domain'])) {
         return [
@@ -1651,9 +1623,9 @@ function lxdserver_AdminButton($params)
 }
 
 // 处理流量重置请求
-function lxdserver_TrafficReset($params)
+function idcserver_TrafficReset($params)
 {
-    lxdserver_debug('流量重置请求', ['domain' => $params['domain']]);
+    idcserver_debug('流量重置请求', ['domain' => $params['domain']]);
 
     if (empty($params['domain'])) {
         return ['status' => 'error', 'msg' => '容器域名参数缺失'];
@@ -1665,7 +1637,7 @@ function lxdserver_TrafficReset($params)
         'data' => [],
     ];
 
-    $res = lxdserver_Curl($params, $data, 'POST');
+    $res = idcserver_Curl($params, $data, 'POST');
 
 
     if (isset($res['code']) && $res['code'] == 200) {
@@ -1675,16 +1647,19 @@ function lxdserver_TrafficReset($params)
     }
 }
 
-// 获取IPv6绑定数量
-function lxdserver_getIPv6BindingCount($params)
+// 获取IPv6绑定数量（对齐Python的API端点）
+function idcserver_getIPv6BindingCount($params)
 {
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
+    
     $data = [
-        'url'  => '/api/ipv6/list?hostname=' . urlencode($params['domain']),
+        'url'  => '/api/client/ipaddr/detail/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/x-www-form-urlencoded',
         'data' => [],
     ];
 
-    $res = lxdserver_Curl($params, $data, 'GET');
+    $res = idcserver_Curl($params, $data, 'GET');
 
     if (isset($res['code']) && $res['code'] == 200 && isset($res['data']) && is_array($res['data'])) {
         return count($res['data']);
@@ -1693,8 +1668,8 @@ function lxdserver_getIPv6BindingCount($params)
     return 0;
 }
 
-// 添加IPv4独立绑定
-function lxdserver_ipv4add($params)
+// 添加IPv4独立绑定（对齐Python的API端点）
+function idcserver_ipv4add($params)
 {
     $network_mode = $params['configoptions']['network_mode'] ?? 'mode1';
     if (!in_array($network_mode, ['mode5', 'mode7'])) {
@@ -1706,21 +1681,31 @@ function lxdserver_ipv4add($params)
     $description = trim($post['description'] ?? '');
 
     $ipv4_limit = intval($params['configoptions']['ipv4_limit'] ?? 1);
-    $current_count = lxdserver_getIPv4BindingCount($params);
+    $current_count = idcserver_getIPv4BindingCount($params);
     
     if ($current_count >= $ipv4_limit) {
         return ['status' => 'error', 'msg' => "IPv4绑定数量已达到限制（{$ipv4_limit}个），无法添加更多绑定"];
     }
 
-    $requestData = 'hostname=' . urlencode($params['domain']) . '&description=' . urlencode($description);
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
 
-    $data = [
-        'url'  => '/api/ipv4/add',
-        'type' => 'application/x-www-form-urlencoded',
-        'data' => $requestData,
+    // 构建NCConfig结构（对齐Python）
+    $nic_data = [
+        'nic_type' => 'bridge',
+        'mac_addr' => generateRandomMac(),
+        'ip4_addr' => '', // 由后端自动分配
+        'ip6_addr' => '',
+        'nic_tips' => $description,
     ];
 
-    $res = lxdserver_Curl($params, $data, 'POST');
+    $data = [
+        'url'  => '/api/client/ipaddr/create/' . $hs_name . '/' . $vm_uuid,
+        'type' => 'application/json',
+        'data' => $nic_data,
+    ];
+
+    $res = idcserver_JSONCurl($params, $data, 'POST');
 
     if (isset($res['code']) && $res['code'] == 200) {
         return ['status' => 'success', 'msg' => $res['msg'] ?? 'IPv4绑定添加成功'];
@@ -1729,28 +1714,27 @@ function lxdserver_ipv4add($params)
     }
 }
 
-// 删除IPv4独立绑定
-function lxdserver_ipv4del($params)
+// 删除IPv4独立绑定（对齐Python的API端点）
+function idcserver_ipv4del($params)
 {
-    // 默认允许删除IPv4地址
-    
     parse_str(file_get_contents("php://input"), $post);
 
-    $public_ipv4 = trim($post['public_ipv4'] ?? '');
+    $nic_index = intval($post['nic_index'] ?? -1);
 
-    if (empty($public_ipv4)) {
-        return ['status' => 'error', 'msg' => '缺少IPv4地址参数'];
+    if ($nic_index < 0) {
+        return ['status' => 'error', 'msg' => '缺少网卡索引参数'];
     }
 
-    $requestData = 'hostname=' . urlencode($params['domain']) . '&public_ipv4=' . urlencode($public_ipv4);
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
 
     $data = [
-        'url'  => '/api/ipv4/delete',
+        'url'  => '/api/client/ipaddr/delete/' . $hs_name . '/' . $vm_uuid . '/' . $nic_index,
         'type' => 'application/x-www-form-urlencoded',
-        'data' => $requestData,
+        'data' => '',
     ];
 
-    $res = lxdserver_Curl($params, $data, 'POST');
+    $res = idcserver_Curl($params, $data, 'DELETE');
 
     if (isset($res['code']) && $res['code'] == 200) {
         return ['status' => 'success', 'msg' => $res['msg'] ?? 'IPv4绑定删除成功'];
@@ -1759,17 +1743,19 @@ function lxdserver_ipv4del($params)
     }
 }
 
-// 获取IPv4绑定列表
-function lxdserver_ipv4list($params)
+// 获取IPv4绑定列表（对齐Python的API端点）
+function idcserver_ipv4list($params)
 {
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
     
     $data = [
-        'url'  => '/api/ipv4/list?hostname=' . urlencode($params['domain']),
+        'url'  => '/api/client/ipaddr/detail/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/x-www-form-urlencoded', 
         'data' => [],
     ];
 
-    $res = lxdserver_Curl($params, $data, 'GET');
+    $res = idcserver_Curl($params, $data, 'GET');
 
     if (isset($res['code']) && $res['code'] == 200) {
         $ipv4_limit = intval($params['configoptions']['ipv4_limit'] ?? 1);
@@ -1788,16 +1774,19 @@ function lxdserver_ipv4list($params)
     }
 }
 
-// 获取IPv4绑定数量
-function lxdserver_getIPv4BindingCount($params)
+// 获取IPv4绑定数量（对齐Python的API端点）
+function idcserver_getIPv4BindingCount($params)
 {
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
+    
     $data = [
-        'url'  => '/api/ipv4/list?hostname=' . urlencode($params['domain']),
+        'url'  => '/api/client/ipaddr/detail/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/x-www-form-urlencoded',
         'data' => [],
     ];
 
-    $res = lxdserver_Curl($params, $data, 'GET');
+    $res = idcserver_Curl($params, $data, 'GET');
 
     if (isset($res['code']) && $res['code'] == 200 && isset($res['data'])) {
         return count($res['data']);
@@ -1806,8 +1795,8 @@ function lxdserver_getIPv4BindingCount($params)
     return 0;
 }
 
-// 添加IPv6独立绑定
-function lxdserver_ipv6add($params)
+// 添加IPv6独立绑定（对齐Python的API端点）
+function idcserver_ipv6add($params)
 {
     $network_mode = $params['configoptions']['network_mode'] ?? 'mode1';
     if (!in_array($network_mode, ['mode4', 'mode6', 'mode7'])) {
@@ -1819,21 +1808,31 @@ function lxdserver_ipv6add($params)
     $description = trim($post['description'] ?? '');
 
     $ipv6_limit = intval($params['configoptions']['ipv6_limit'] ?? 1);
-    $current_count = lxdserver_getIPv6BindingCount($params);
+    $current_count = idcserver_getIPv6BindingCount($params);
     
     if ($current_count >= $ipv6_limit) {
         return ['status' => 'error', 'msg' => "IPv6绑定数量已达到限制（{$ipv6_limit}个），无法添加更多绑定"];
     }
 
-    $requestData = 'hostname=' . urlencode($params['domain']) . '&description=' . urlencode($description);
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
 
-    $data = [
-        'url'  => '/api/ipv6/add',
-        'type' => 'application/x-www-form-urlencoded',
-        'data' => $requestData,
+    // 构建NCConfig结构（对齐Python）
+    $nic_data = [
+        'nic_type' => 'bridge',
+        'mac_addr' => generateRandomMac(),
+        'ip4_addr' => '',
+        'ip6_addr' => '', // 由后端自动分配
+        'nic_tips' => $description,
     ];
 
-    $res = lxdserver_Curl($params, $data, 'POST');
+    $data = [
+        'url'  => '/api/client/ipaddr/create/' . $hs_name . '/' . $vm_uuid,
+        'type' => 'application/json',
+        'data' => $nic_data,
+    ];
+
+    $res = idcserver_JSONCurl($params, $data, 'POST');
 
     if (isset($res['code']) && $res['code'] == 200) {
         return ['status' => 'success', 'msg' => $res['msg'] ?? 'IPv6绑定添加成功'];
@@ -1842,28 +1841,27 @@ function lxdserver_ipv6add($params)
     }
 }
 
-// 删除IPv6独立绑定
-function lxdserver_ipv6del($params)
+// 删除IPv6独立绑定（对齐Python的API端点）
+function idcserver_ipv6del($params)
 {
-    // 默认允许删除IPv6地址
-    
     parse_str(file_get_contents("php://input"), $post);
 
-    $public_ipv6 = trim($post['public_ipv6'] ?? '');
+    $nic_index = intval($post['nic_index'] ?? -1);
 
-    if (empty($public_ipv6)) {
-        return ['status' => 'error', 'msg' => '缺少IPv6地址参数'];
+    if ($nic_index < 0) {
+        return ['status' => 'error', 'msg' => '缺少网卡索引参数'];
     }
 
-    $requestData = 'hostname=' . urlencode($params['domain']) . '&public_ipv6=' . urlencode($public_ipv6);
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
 
     $data = [
-        'url'  => '/api/ipv6/delete',
+        'url'  => '/api/client/ipaddr/delete/' . $hs_name . '/' . $vm_uuid . '/' . $nic_index,
         'type' => 'application/x-www-form-urlencoded',
-        'data' => $requestData,
+        'data' => '',
     ];
 
-    $res = lxdserver_Curl($params, $data, 'POST');
+    $res = idcserver_Curl($params, $data, 'DELETE');
 
     if (isset($res['code']) && $res['code'] == 200) {
         return ['status' => 'success', 'msg' => $res['msg'] ?? 'IPv6绑定删除成功'];
@@ -1872,17 +1870,19 @@ function lxdserver_ipv6del($params)
     }
 }
 
-// 获取IPv6绑定列表
-function lxdserver_ipv6list($params)
+// 获取IPv6绑定列表（对齐Python的API端点）
+function idcserver_ipv6list($params)
 {
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
     
     $data = [
-        'url'  => '/api/ipv6/list?hostname=' . urlencode($params['domain']),
+        'url'  => '/api/client/ipaddr/detail/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/x-www-form-urlencoded', 
         'data' => [],
     ];
 
-    $res = lxdserver_Curl($params, $data, 'GET');
+    $res = idcserver_Curl($params, $data, 'GET');
 
     if (isset($res['code']) && $res['code'] == 200) {
         return ['status' => 'success', 'data' => $res['data'] ?? [], 'msg' => $res['msg'] ?? ''];
@@ -1891,8 +1891,8 @@ function lxdserver_ipv6list($params)
     }
 }
 
-// 添加反向代理
-function lxdserver_proxyadd($params)
+// 添加反向代理（对齐Python的API端点和WebProxy结构）
+function idcserver_proxyadd($params)
 {
     $proxy_enabled = ($params['configoptions']['proxy_enabled'] ?? 'false') === 'true';
     if (!$proxy_enabled) {
@@ -1902,12 +1902,9 @@ function lxdserver_proxyadd($params)
     parse_str(file_get_contents("php://input"), $post);
 
     $domain = trim($post['domain'] ?? '');
-    $container_port = intval($post['container_port'] ?? 80);
+    $lan_port = intval($post['container_port'] ?? 80);
     $description = trim($post['description'] ?? '');
-    $ssl_enabled = ($post['ssl_enabled'] ?? 'false') === 'true';
-    $ssl_type = trim($post['ssl_type'] ?? 'self-signed');
-    $ssl_cert = trim($post['ssl_cert'] ?? '');
-    $ssl_key = trim($post['ssl_key'] ?? '');
+    $is_https = ($post['ssl_enabled'] ?? 'false') === 'true';
 
     if (empty($domain)) {
         return ['status' => 'error', 'msg' => '请输入域名'];
@@ -1920,37 +1917,32 @@ function lxdserver_proxyadd($params)
 
     // 检查数量限制
     $proxy_limit = intval($params['configoptions']['proxy_limit'] ?? 1);
-    $current_count = lxdserver_getProxyCount($params);
+    $current_count = idcserver_getProxyCount($params);
     
     if ($current_count >= $proxy_limit) {
         return ['status' => 'error', 'msg' => "已达到反向代理数量上限（{$proxy_limit}个），无法继续添加"];
     }
 
-    // 如果启用SSL且类型是custom，检查证书和私钥
-    if ($ssl_enabled && $ssl_type === 'custom' && (empty($ssl_cert) || empty($ssl_key))) {
-        return ['status' => 'error', 'msg' => '启用自定义SSL证书时，必须提供证书和私钥内容'];
-    }
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
 
-    $requestData = 'hostname=' . urlencode($params['domain']) . 
-                   '&domain=' . urlencode($domain) . 
-                   '&container_port=' . $container_port .
-                   '&description=' . urlencode($description) .
-                   '&ssl_enabled=' . ($ssl_enabled ? 'true' : 'false') .
-                   '&ssl_type=' . urlencode($ssl_type);
-    
-    // 如果是自定义证书，添加证书内容
-    if ($ssl_enabled && $ssl_type === 'custom') {
-        $requestData .= '&ssl_cert=' . urlencode($ssl_cert) .
-                       '&ssl_key=' . urlencode($ssl_key);
-    }
-
-    $data = [
-        'url'  => '/api/proxy/add',
-        'type' => 'application/x-www-form-urlencoded',
-        'data' => $requestData,
+    // 构建WebProxy结构（对齐Python）
+    $proxy_data = [
+        'web_addr' => $domain,
+        'lan_port' => $lan_port,
+        'lan_addr' => '', // 由后端自动填充
+        'wan_addr' => '', // 由后端自动填充
+        'is_https' => $is_https,
+        'web_tips' => $description,
     ];
 
-    $res = lxdserver_Curl($params, $data);
+    $data = [
+        'url'  => '/api/client/proxys/create/' . $hs_name . '/' . $vm_uuid,
+        'type' => 'application/json',
+        'data' => $proxy_data,
+    ];
+
+    $res = idcserver_JSONCurl($params, $data, 'POST');
 
     if (isset($res['code']) && $res['code'] == 200) {
         return ['status' => 'success', 'msg' => '反向代理添加成功'];
@@ -1959,26 +1951,27 @@ function lxdserver_proxyadd($params)
     }
 }
 
-// 删除反向代理
-function lxdserver_proxydel($params)
+// 删除反向代理（对齐Python的API端点）
+function idcserver_proxydel($params)
 {
     parse_str(file_get_contents("php://input"), $post);
 
-    $domain = trim($post['domain'] ?? '');
+    $proxy_index = intval($post['proxy_index'] ?? -1);
 
-    if (empty($domain)) {
-        return ['status' => 'error', 'msg' => '缺少域名参数'];
+    if ($proxy_index < 0) {
+        return ['status' => 'error', 'msg' => '缺少代理索引参数'];
     }
 
-    $requestData = 'hostname=' . urlencode($params['domain']) . '&domain=' . urlencode($domain);
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
 
     $data = [
-        'url'  => '/api/proxy/delete',
+        'url'  => '/api/client/proxys/delete/' . $hs_name . '/' . $vm_uuid . '/' . $proxy_index,
         'type' => 'application/x-www-form-urlencoded',
-        'data' => $requestData,
+        'data' => '',
     ];
 
-    $res = lxdserver_Curl($params, $data);
+    $res = idcserver_Curl($params, $data, 'DELETE');
 
     if (isset($res['code']) && $res['code'] == 200) {
         return ['status' => 'success', 'msg' => '反向代理删除成功'];
@@ -1987,16 +1980,19 @@ function lxdserver_proxydel($params)
     }
 }
 
-// 获取反向代理列表
-function lxdserver_proxylist($params)
+// 获取反向代理列表（对齐Python的API端点）
+function idcserver_proxylist($params)
 {
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
+    
     $data = [
-        'url'  => '/api/proxy/list?hostname=' . urlencode($params['domain']),
+        'url'  => '/api/client/proxys/detail/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/x-www-form-urlencoded',
         'data' => [],
     ];
 
-    $res = lxdserver_Curl($params, $data, 'GET');
+    $res = idcserver_Curl($params, $data, 'GET');
 
     if (isset($res['code']) && $res['code'] == 200) {
         return ['status' => 'success', 'data' => $res['data'] ?? [], 'msg' => $res['msg'] ?? ''];
@@ -2006,7 +2002,7 @@ function lxdserver_proxylist($params)
 }
 
 // 检查域名是否可用
-function lxdserver_proxycheck($params)
+function idcserver_proxycheck($params)
 {
     parse_str(file_get_contents("php://input"), $post);
     
@@ -2022,7 +2018,7 @@ function lxdserver_proxycheck($params)
         'data' => [],
     ];
     
-    $res = lxdserver_Curl($params, $data, 'GET');
+    $res = idcserver_Curl($params, $data, 'GET');
     
     if (isset($res['code']) && $res['code'] == 200) {
         return ['status' => 'success', 'data' => $res['data'] ?? [], 'msg' => $res['msg'] ?? ''];
@@ -2031,16 +2027,19 @@ function lxdserver_proxycheck($params)
     }
 }
 
-// 获取反向代理数量
-function lxdserver_getProxyCount($params)
+// 获取反向代理数量（对齐Python的API端点）
+function idcserver_getProxyCount($params)
 {
+    $hs_name = $params['configoptions']['host_name'] ?? 'default';
+    $vm_uuid = $params['domain'];
+    
     $data = [
-        'url'  => '/api/proxy/list?hostname=' . urlencode($params['domain']),
+        'url'  => '/api/client/proxys/detail/' . $hs_name . '/' . $vm_uuid,
         'type' => 'application/x-www-form-urlencoded',
         'data' => [],
     ];
 
-    $res = lxdserver_Curl($params, $data, 'GET');
+    $res = idcserver_Curl($params, $data, 'GET');
 
     if (isset($res['code']) && $res['code'] == 200 && is_array($res['data'])) {
         return count($res['data']);
