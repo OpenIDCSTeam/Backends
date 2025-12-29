@@ -8,8 +8,7 @@ build_nuitka/
 *.build/
 *.dist/
 *.onefile-build/
-.idea
 build_cxfreeze
 start_wrapper.py
 BuildCache
-.idea
+.idea/CopilotChatTabs.xml
