@@ -1,4 +1,6 @@
 import json
+import time
+
 from MainObject.Config.VMPowers import VMPowers as VPower
 
 
@@ -6,6 +8,7 @@ class HWStatus:
     def __init__(self, config=None, /, **kwargs):
         # 基础数据 ============================
         self.ac_status: VPower = VPower.UNKNOWN
+        self.on_update: int = 0  # 上报更新时间
         self.cpu_model: str = ""  # 当前CPU名称
         self.cpu_total: int = 0  # 当前核心总计
         self.cpu_usage: int = 0  # 当前核心已用
@@ -17,10 +20,6 @@ class HWStatus:
         # 网络信息 ============================
         self.flu_total: int = 0  # 当前流量总计
         self.flu_usage: int = 0  # 当前流量已用
-        self.nat_total: int = 0  # 当前端口总计
-        self.nat_usage: int = 0  # 当前端口已用
-        self.web_total: int = 0  # 当前代理总计
-        self.web_usage: int = 0  # 当前代理已用
         # 其他信息 ============================
         self.gpu_usage: dict = {}  # GPU 使用率
         self.gpu_total: int = 0  # 当前显卡数量
@@ -30,6 +29,8 @@ class HWStatus:
         self.cpu_heats: int = 0  # 当前核心温度
         self.cpu_power: int = 0  # 当前核心功耗
         # 加载传入的参数 ======================
+        self.on_update = int(time.time())
+
         if config is not None:
             self.__read__(config)
         self.__load__(**kwargs)
@@ -58,6 +59,7 @@ class HWStatus:
         return {
             "ac_status": VPower.to_json(
                 self.ac_status),
+            "on_update": self.on_update,
             "cpu_model": self.cpu_model,
             "cpu_total": self.cpu_total,
             "cpu_usage": self.cpu_usage,
@@ -68,10 +70,6 @@ class HWStatus:
             "ext_usage": self.ext_usage,
             "flu_total": self.flu_total,
             "flu_usage": self.flu_usage,
-            "nat_total": self.nat_total,
-            "nat_usage": self.nat_usage,
-            "web_total": self.web_total,
-            "web_usage": self.web_usage,
             "gpu_usage": self.gpu_usage,
             "gpu_total": self.gpu_total,
             "network_u": self.network_u,

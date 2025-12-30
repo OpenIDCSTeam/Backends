@@ -496,9 +496,9 @@ class BasicServer:
     # 虚拟机状态 ####################################################################
     # :params select: 虚拟机UUID，为空则返回所有虚拟机状态
     # ###############################################################################
-    def VMStatus(self, vm_name: str = "") -> dict[str, list[HWStatus]]:
+    def VMStatus(self, vm_name: str = "", start_timestamp: int = None, end_timestamp: int = None) -> dict[str, list[HWStatus]]:
         if self.save_data and self.hs_config.server_name:
-            all_status = self.save_data.get_vm_status(self.hs_config.server_name)
+            all_status = self.save_data.get_vm_status(self.hs_config.server_name, start_timestamp=start_timestamp, end_timestamp=end_timestamp)
             if vm_name:
                 return {vm_name: all_status.get(vm_name, [])}
             return all_status

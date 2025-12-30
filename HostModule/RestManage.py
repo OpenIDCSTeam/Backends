@@ -1032,23 +1032,6 @@ class RestManager:
             if current_username not in owners:
                 return self.api_response(403, '没有访问该虚拟机的权限')
 
-        status_dict = server.VMStatus(vm_uuid)
-        # VMStatus返回dict[str, list[HWStatus]]，需要将每个HWStatus对象转换为字典
-        status_result = []
-        if status_dict and vm_uuid in status_dict:
-            status_list = status_dict[vm_uuid]
-            for hw_status in status_list:
-                if hw_status is not None:
-                    # 如果已经是字典则直接使用，否则调用__save__()方法
-                    if isinstance(hw_status, dict):
-                        status_result.append(hw_status)
-                    elif hasattr(hw_status, '__save__') and callable(getattr(hw_status, '__save__', None)):
-                        status_result.append(hw_status.__save__())
-                    else:
-                        status_result.append(hw_status)
-                else:
-                    status_result.append(None)
-
         # 如果vm_config已经是字典则直接使用，否则调用__save__()方法
         if isinstance(vm_config, dict):
             config_data = vm_config
@@ -1059,11 +1042,10 @@ class RestManager:
 
         return self.api_response(200, 'success', {
             'uuid': vm_uuid,
-            'config': config_data,
-            'status': status_result
+            'config': config_data
         })
 
-    # 创建虚拟机 ########################################################################
+    # 获取虚拟机详情 ########################################################################
     # :param hs_name: 主机名称
     # :return: 虚拟机创建结果的API响应
     # ####################################################################################
@@ -1901,21 +1883,45 @@ class RestManager:
         if not server:
             return self.api_response(404, '主机不存在')
 
-        status_dict = server.VMStatus(vm_uuid)
+        # 从请求参数中获取时间范围（分钟数，默认30分钟）
+        time_range_minutes = request.args.get('limit', type=int, default=30)
+        
+        # 计算时间戳范围
+        import time
+        import inspect
+        current_timestamp = int(time.time())
+        start_timestamp = current_timestamp - (time_range_minutes * 60)  # 转换为秒
+
+        # 检查VMStatus方法是否支持时间戳参数
+        vm_status_sig = inspect.signature(server.VMStatus)
+        if 'start_timestamp' in vm_status_sig.parameters:
+            # 支持时间戳参数的服务器（如BasicServer）
+            status_dict = server.VMStatus(vm_uuid, start_timestamp=start_timestamp, end_timestamp=current_timestamp)
+        else:
+            # 不支持时间戳参数的服务器（如Workstation, OCInterface等）
+            status_dict = server.VMStatus(vm_uuid)
+        
         # VMStatus返回dict[str, list[HWStatus]]，需要将每个HWStatus对象转换为字典
         if vm_uuid not in status_dict:
             return self.api_response(404, '虚拟机不存在')
 
         # 处理HWStatus列表
         status_list = status_dict[vm_uuid]
+        
         result = []
         if status_list:
             for hw_status in status_list:
                 if hw_status is not None:
-                    try:
-                        result.append(hw_status.__save__())
-                    except (TypeError, AttributeError):
-                        result.append(vars(hw_status))
+                    # 检查是否已经是字典类型
+                    if isinstance(hw_status, dict):
+                        result.append(hw_status)
+                    else:
+                        # 如果是HWStatus对象，调用__save__()方法转换为字典
+                        try:
+                            result.append(hw_status.__save__())
+                        except (TypeError, AttributeError):
+                            # 如果__save__()失败，尝试使用vars()
+                            result.append(vars(hw_status))
                 else:
                     result.append(None)
         return self.api_response(200, 'success', result)
@@ -1993,6 +1999,10 @@ class RestManager:
                         logger.info(f"[虚拟机上报] 找到匹配的虚拟机! 主机: {hs_name}, UUID: {vm_uuid}")
                         logger.debug(f"[虚拟机上报] 状态数据: {status_data}")
                         try:
+                            # 添加上报时间戳（秒级）
+                            import time
+                            status_data['on_update'] = int(time.time())
+                            
                             hw_status = HWStatus(**status_data)
                             logger.debug(f"[虚拟机上报] HWStatus对象创建成功: {hw_status}")
 

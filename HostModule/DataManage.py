@@ -418,21 +418,39 @@ class HostDatabase:
         :param status: 状态对象（HWStatus）
         :return: 是否成功
         """
+        conn = self.get_db_sqlite()
         try:
-            # 获取现有状态
-            all_status = self.get_vm_status(hs_name)
-
-            # 添加新状态到列表
-            if vm_uuid not in all_status:
-                all_status[vm_uuid] = []
+            # 获取该虚拟机的现有状态
+            cursor = conn.execute(
+                "SELECT status_data FROM vm_status WHERE hs_name = ? AND vm_uuid = ?",
+                (hs_name, vm_uuid)
+            )
+            row = cursor.fetchone()
+            
+            # 解析现有状态列表
+            if row:
+                status_data_raw = json.loads(row["status_data"])
+                # 确保status_list是列表类型
+                if isinstance(status_data_raw, list):
+                    status_list = status_data_raw
+                elif isinstance(status_data_raw, dict):
+                    # 如果是字典，转换为包含单个元素的列表
+                    status_list = [status_data_raw]
+                    logger.warning(f"[DataManage] 虚拟机 {vm_uuid} 的状态数据格式异常（字典），已转换为列表")
+                else:
+                    # 其他情况，初始化为空列表
+                    status_list = []
+                    logger.warning(f"[DataManage] 虚拟机 {vm_uuid} 的状态数据格式未知，已重置为空列表")
+            else:
+                status_list = []
 
             # 转换状态对象为字典
             status_dict = status.__save__() if hasattr(status, '__save__') else status
             
             # 累加流量消耗：从数据库取出之前的flu_usage，加上当前的
-            if vm_uuid in all_status and len(all_status[vm_uuid]) > 0:
+            if len(status_list) > 0:
                 # 获取最后一条状态记录中的flu_usage
-                last_status = all_status[vm_uuid][-1]
+                last_status = status_list[-1]
                 previous_flu_usage = last_status.get('flu_usage', 0) if isinstance(last_status, dict) else 0
                 current_flu_usage = status_dict.get('flu_usage', 0) if isinstance(status_dict, dict) else 0
                 # 累加流量
@@ -441,19 +459,43 @@ class HostDatabase:
             else:
                 logger.debug(f"[DataManage] 首次上报流量: {status_dict.get('flu_usage', 0)}MB")
             
-            all_status[vm_uuid].append(status_dict)
+            # 添加新状态到列表
+            status_list.append(status_dict)
 
             # 限制状态历史记录数量（保留最近100条）
-            if len(all_status[vm_uuid]) > 100:
-                all_status[vm_uuid] = all_status[vm_uuid][-100:]
+            if len(status_list) > 43200:
+                status_list = status_list[-43200:]
 
-            # 立即保存到数据库
-            return self.set_vm_status(hs_name, all_status)
+            # 序列化状态列表
+            status_data = json.dumps(status_list)
+            
+            # 更新或插入该虚拟机的状态（使用REPLACE语句，会更新recorded_at为当前时间）
+            if row:
+                # 更新现有记录
+                conn.execute(
+                    "UPDATE vm_status SET status_data = ?, recorded_at = CURRENT_TIMESTAMP WHERE hs_name = ? AND vm_uuid = ?",
+                    (status_data, hs_name, vm_uuid)
+                )
+                logger.debug(f"[DataManage] 更新虚拟机 {vm_uuid} 状态，记录数: {len(status_list)}")
+            else:
+                # 插入新记录
+                conn.execute(
+                    "INSERT INTO vm_status (hs_name, vm_uuid, status_data) VALUES (?, ?, ?)",
+                    (hs_name, vm_uuid, status_data)
+                )
+                logger.debug(f"[DataManage] 插入虚拟机 {vm_uuid} 状态，记录数: {len(status_list)}")
+            
+            conn.commit()
+            logger.debug(f"[DataManage] 虚拟机 {vm_uuid} 状态保存成功")
+            return True
         except Exception as e:
             logger.error(f"[DataManage] 添加虚拟机状态失败: {e}")
             import traceback
             traceback.print_exc()
+            conn.rollback()
             return False
+        finally:
+            conn.close()
 
     def set_vm_status(self, hs_name: str, vm_status: Dict[str, List[Any]]) -> bool:
         """保存虚拟机状态"""
@@ -488,14 +530,76 @@ class HostDatabase:
         finally:
             conn.close()
 
-    def get_vm_status(self, hs_name: str) -> Dict[str, List[Any]]:
-        """获取虚拟机状态"""
+    def get_vm_status(self, hs_name: str, start_timestamp: int = None, end_timestamp: int = None) -> Dict[str, List[Any]]:
+        """获取虚拟机状态
+        
+        Args:
+            hs_name: 主机名称
+            start_timestamp: 开始时间戳（秒），None表示不限制
+            end_timestamp: 结束时间戳（秒），None表示不限制
+        
+        Returns:
+            Dict[str, List[Any]]: 虚拟机UUID到状态列表的映射
+        """
         conn = self.get_db_sqlite()
         try:
-            cursor = conn.execute("SELECT vm_uuid, status_data FROM vm_status WHERE hs_name = ?", (hs_name,))
+            from datetime import datetime, timedelta
+            
+            cursor = conn.execute("SELECT vm_uuid, status_data, recorded_at FROM vm_status WHERE hs_name = ?", (hs_name,))
             result = {}
+            
             for row in cursor.fetchall():
-                result[row["vm_uuid"]] = json.loads(row["status_data"])
+                vm_uuid = row["vm_uuid"]
+                status_list = json.loads(row["status_data"])
+                recorded_at_str = row["recorded_at"]
+                
+                # 解析recorded_at时间戳
+                try:
+                    # SQLite的CURRENT_TIMESTAMP返回UTC时间，需要转换为本地时间
+                    from datetime import timezone, timedelta as td
+                    
+                    # 解析数据库中的UTC时间
+                    recorded_at_utc = datetime.strptime(recorded_at_str, "%Y-%m-%d %H:%M:%S")
+                    
+                    # 转换为本地时间（UTC+8）
+                    # 假设数据库存储的是UTC时间，加8小时转换为北京时间
+                    recorded_at_local = recorded_at_utc + td(hours=8)
+                    
+                    # 获取当前本地时间
+                    current_time = datetime.now()
+                    
+                    # 计算时间差
+                    time_diff = (current_time - recorded_at_local).total_seconds()
+                    
+                    # 如果超过10分钟（600秒）没有上报，标记为离线
+                    if time_diff > 600:
+                        logger.debug(f"[DataManage] 虚拟机 {vm_uuid} 已离线，最后上报时间(UTC): {recorded_at_str}, 本地时间: {recorded_at_local.strftime('%Y-%m-%d %H:%M:%S')}, 距今: {int(time_diff)}秒")
+                        # 将所有状态记录的ac_status设置为STOPPED
+                        for status in status_list:
+                            if isinstance(status, dict):
+                                status['ac_status'] = 'STOPPED'
+                except Exception as e:
+                    logger.warning(f"[DataManage] 解析时间戳失败: {e}, recorded_at={recorded_at_str}")
+                
+                # 按时间戳范围过滤状态数据
+                if start_timestamp is not None or end_timestamp is not None:
+                    filtered_list = []
+                    for status in status_list:
+                        if isinstance(status, dict) and 'on_update' in status:
+                            on_update = status['on_update']
+                            # 检查是否在时间范围内
+                            if start_timestamp is not None and on_update < start_timestamp:
+                                continue
+                            if end_timestamp is not None and on_update > end_timestamp:
+                                continue
+                            filtered_list.append(status)
+                        else:
+                            # 如果没有on_update字段，保留该状态（向后兼容）
+                            filtered_list.append(status)
+                    status_list = filtered_list
+                
+                result[vm_uuid] = status_list
+            
             return result
         finally:
             conn.close()

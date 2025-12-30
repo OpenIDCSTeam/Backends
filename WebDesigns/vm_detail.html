@@ -411,10 +411,27 @@
 
         <!-- 数据监控 -->
         <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4 w-full">
-            <h2 class="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                <span class="iconify text-gray-500" data-icon="mdi:chart-line" data-width="20"></span>
-                数据监控
-            </h2>
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-base font-semibold text-gray-800 flex items-center gap-2">
+                    <span class="iconify text-gray-500" data-icon="mdi:chart-line" data-width="20"></span>
+                    数据监控
+                </h2>
+                <!-- 时间范围选择器 -->
+                <div class="flex items-center gap-2">
+                    <label class="text-sm text-gray-600">时间范围:</label>
+                    <select id="timeRangeSelector" onchange="onTimeRangeChange()" 
+                            class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        <option value="30">30分钟</option>
+                        <option value="180">3小时</option>
+                        <option value="360">6小时</option>
+                        <option value="720">12小时</option>
+                        <option value="1440">24小时</option>
+                        <option value="10080">7天</option>
+                        <option value="20160">14天</option>
+                        <option value="43200">30天</option>
+                    </select>
+                </div>
+            </div>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
                 <!-- CPU使用率 -->
                 <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 w-full">
@@ -2099,17 +2116,35 @@
 
     // 加载虚拟机信息
     async function loadVMInfo() {
-        const result = await apiRequest(`/api/client/detail/${hostName}/${vmUuid}`);
-        if (result && result.code === 200) {
-            vmData = result.data;
-            renderVMInfo(vmData);
-
-            // 初始化操作系统选项（用于编辑时）
-            const config = vmData.config || {};
-            updateOsOptions(config.os_name || '');
-        } else {
-            showToast(result?.msg || '加载失败', 'error');
+        // 1. 先获取虚拟机详情（配置信息）
+        const detailResult = await apiRequest(`/api/client/detail/${hostName}/${vmUuid}`);
+        if (!detailResult || detailResult.code !== 200) {
+            showToast(detailResult?.msg || '加载虚拟机详情失败', 'error');
+            return;
         }
+        
+        // 2. 再获取虚拟机状态数据
+        // 根据当前时间范围计算需要的数据点数量
+        let limit = currentTimeRange; // 默认等于时间范围（分钟数）
+        
+        const statusResult = await apiRequest(`/api/client/status/${hostName}/${vmUuid}?limit=${limit}`);
+        if (!statusResult || statusResult.code !== 200) {
+            showToast(statusResult?.msg || '加载虚拟机状态失败', 'error');
+            return;
+        }
+        
+        // 3. 合并详情和状态数据
+        vmData = {
+            uuid: detailResult.data.uuid,
+            config: detailResult.data.config,
+            status: statusResult.data // 状态API直接返回状态数组
+        };
+        
+        renderVMInfo(vmData);
+
+        // 初始化操作系统选项（用于编辑时）
+        const config = vmData.config || {};
+        updateOsOptions(config.os_name || '');
     }
 
     // 更新操作系统下拉选项
@@ -2240,7 +2275,7 @@
 
         // 更新资源配置 - 反向代理
         const webNum = config.web_num || 0;
-        const webUsage = firstStatus.web_usage || 0;
+        const webUsage = (config.web_all && Array.isArray(config.web_all)) ? config.web_all.length : 0;
         const webPer = webNum > 0 ? Math.round(webUsage / webNum * 100) : 0;
         $('#vmWebNum').text(webNum + ' 个');
         $('#vmWebUsageText').text('已用 ' + webUsage + ' 个');
@@ -2251,7 +2286,7 @@
 
         // 更新网络配置 - NAT端口数
         const natNum = config.nat_num || 0;
-        const natUsage = firstStatus.nat_usage || 0;
+        const natUsage = (config.nat_all && Array.isArray(config.nat_all)) ? config.nat_all.length : 0;
         const natPer = natNum > 0 ? Math.round(natUsage / natNum * 100) : 0;
         $('#vmNatNum').text(natNum + ' 个');
         $('#vmNatUsageText').text('已用 ' + natUsage + ' 个');
@@ -4864,13 +4899,24 @@
 
     // ECharts 实例存储
     const chartInstances = {};
+    
+    // 全局变量：当前选择的时间范围（分钟）
+    let currentTimeRange = 30;
+
+    // 时间范围变更处理
+    function onTimeRangeChange() {
+        const selector = document.getElementById('timeRangeSelector');
+        currentTimeRange = parseInt(selector.value);
+        // 重新加载虚拟机信息（会触发图表重绘）
+        loadVMInfo();
+    }
 
     // 绘制历史数据图表
     function drawHistoryCharts(statusList) {
         if (!statusList || statusList.length === 0) return;
 
         // 准备数据 - 提取最近的历史数据
-        const chartData = prepareChartData(statusList);
+        const chartData = prepareChartData(statusList, currentTimeRange);
 
         // 绘制各个图表
         drawEChart('cpuChart', chartData.cpu, chartData.labels, 'CPU使用率', '%', '#3B82F6');
@@ -4882,8 +4928,7 @@
     }
 
     // 准备图表数据
-    function prepareChartData(statusList) {
-        const maxPoints = 4320; // 最多显示4320个数据点 (144*30)
+    function prepareChartData(statusList, timeRangeMinutes) {
         const data = {
             cpu: [],
             mem: [],
@@ -4892,44 +4937,110 @@
             netU: [],
             netD: [],
             labels: [],
-            timestamps: [] // 保存完整的时间戳用于智能显示
+            timestamps: []
         };
 
-        // 取最近的数据点
-        const recentData = statusList.slice(-maxPoints);
+        if (!statusList || statusList.length === 0) {
+            return data;
+        }
 
-        // 获取当前时间
-        const now = new Date();
-
-        recentData.forEach((status, index) => {
-            // CPU使用率
-            data.cpu.push(status.cpu_usage || 0);
-
-            // 内存使用率 (百分比)
-            const memUsagePercent = status.mem_total > 0 ? (status.mem_usage / status.mem_total * 100) : 0;
-            data.mem.push(memUsagePercent);
-
-            // 硬盘使用率 (百分比)
-            const hddUsagePercent = status.hdd_total > 0 ? (status.hdd_usage / status.hdd_total * 100) : 0;
-            data.hdd.push(hddUsagePercent);
-
-            // GPU使用率 (MB)
-            data.gpu.push(status.gpu_total || 0);
-
-            // 上行带宽
-            data.netU.push(status.network_u || 0);
-
-            // 下行带宽
-            data.netD.push(status.network_d || 0);
-
-            // 时间标签 - 每1分钟一个数据点，从当前时间往前推
-            const timeOffset = (recentData.length - 1 - index) * 1; // 分钟偏移
-            const time = new Date(now.getTime() - timeOffset * 60000);
+        // 找到最新数据的on_update时间戳作为基准点
+        let latestTimestamp = null;
+        statusList.forEach(status => {
+            if (status.on_update) {
+                if (!latestTimestamp || status.on_update > latestTimestamp) {
+                    latestTimestamp = status.on_update;
+                }
+            }
+        });
+        
+        // 如果没有找到有效时间戳，使用当前时间
+        if (!latestTimestamp) {
+            latestTimestamp = Math.floor(Date.now() / 1000);
+        }
+        
+        // 将时间戳转换为分钟级别（去掉秒）
+        const latestMinuteTimestamp = Math.floor(latestTimestamp / 60) * 60;
+        
+        // 确定采样间隔（分钟）
+        let sampleInterval = 1; // 默认每分钟
+        if (timeRangeMinutes > 360 && timeRangeMinutes <= 1440) {
+            // 12小时~24小时：每10分钟
+            sampleInterval = 10;
+        } else if (timeRangeMinutes > 1440) {
+            // 7天~30天：每30分钟
+            sampleInterval = 30;
+        }
+        
+        // 计算需要的数据点数量
+        const totalPoints = Math.ceil(timeRangeMinutes / sampleInterval);
+        
+        // 创建时间戳（分钟级别）到数据的映射
+        const dataMap = new Map();
+        statusList.forEach(status => {
+            if (status.on_update) {
+                // 转换为分钟级别的时间戳
+                const minuteTimestamp = Math.floor(status.on_update / 60) * 60;
+                dataMap.set(minuteTimestamp, status);
+            }
+        });
+        
+        // 获取当前时间的分钟级别时间戳
+        const currentMinuteTimestamp = Math.floor(Date.now() / 1000 / 60) * 60;
+        
+        // 从最新数据时间往前推，生成时间序列（从旧到新）
+        for (let i = 0; i < totalPoints; i++) {
+            const minuteOffset = (totalPoints - 1 - i) * sampleInterval; // 分钟偏移
+            const minuteTimestamp = latestMinuteTimestamp - minuteOffset * 60; // 秒级时间戳
+            
+            // 查找该时间点的数据
+            const status = dataMap.get(minuteTimestamp);
+            
+            // 判断是否是当前分钟
+            const isCurrentMinute = minuteTimestamp === currentMinuteTimestamp;
+            
+            if (status) {
+                // 有数据，使用实际值
+                data.cpu.push(status.cpu_usage || 0);
+                const memUsagePercent = status.mem_total > 0 ? (status.mem_usage / status.mem_total * 100) : 0;
+                data.mem.push(memUsagePercent);
+                const hddUsagePercent = status.hdd_total > 0 ? (status.hdd_usage / status.hdd_total * 100) : 0;
+                data.hdd.push(hddUsagePercent);
+                data.gpu.push(status.gpu_total || 0);
+                data.netU.push(status.network_u || 0);
+                data.netD.push(status.network_d || 0);
+            } else if (isCurrentMinute) {
+                // 当前分钟没有数据，填充null（还没上报）
+                data.cpu.push(null);
+                data.mem.push(null);
+                data.hdd.push(null);
+                data.gpu.push(null);
+                data.netU.push(null);
+                data.netD.push(null);
+            } else {
+                // 历史时间没有数据，填充0
+                data.cpu.push(0);
+                data.mem.push(0);
+                data.hdd.push(0);
+                data.gpu.push(0);
+                data.netU.push(0);
+                data.netD.push(0);
+            }
+            
+            // 生成时间标签
+            const time = new Date(minuteTimestamp * 1000);
             const hours = String(time.getHours()).padStart(2, '0');
             const minutes = String(time.getMinutes()).padStart(2, '0');
-            data.labels.push(`${hours}:${minutes}`);
+            if (timeRangeMinutes > 1440) {
+                // 超过1天，显示日期
+                const month = String(time.getMonth() + 1).padStart(2, '0');
+                const day = String(time.getDate()).padStart(2, '0');
+                data.labels.push(`${month}/${day} ${hours}:${minutes}`);
+            } else {
+                data.labels.push(`${hours}:${minutes}`);
+            }
             data.timestamps.push(time);
-        });
+        }
 
         return data;
     }
@@ -4973,7 +5084,9 @@
                 trigger: 'axis',
                 formatter: function (params) {
                     const param = params[0];
-                    return `${param.axisValue}<br/>${param.marker}${param.seriesName}: ${param.value.toFixed(2)} ${unit}`;
+                    // 处理null或undefined值
+                    const value = param.value != null ? param.value.toFixed(2) : '无数据';
+                    return `${param.axisValue}<br/>${param.marker}${param.seriesName}: ${value} ${unit}`;
                 },
                 axisPointer: {
                     type: 'cross',
@@ -5086,6 +5199,7 @@
                     symbol: 'circle',
                     symbolSize: 4,
                     sampling: 'lttb',
+                    connectNulls: false, // 不连接null值，显示断点
                     itemStyle: {
                         color: color
                     },

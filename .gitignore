@@ -12,3 +12,4 @@ build_cxfreeze
 start_wrapper.py
 BuildCache
 .idea/CopilotChatTabs.xml
+.idea/CopilotChatHistory.xml
