@@ -231,18 +231,18 @@ class BasicServer:
     # 虚拟机控制台 ##################################################################
     # :params vm_uuid: 虚拟机UUID
     # ###############################################################################
-    def VCRemote(self, vm_uuid: str, ip_addr: str = "127.0.0.1") -> str:
+    def VCRemote(self, vm_uuid: str, ip_addr: str = "127.0.0.1") -> ZMessage:
         if vm_uuid not in self.vm_saving:
-            return ""
+            return ZMessage(success=False, action="VCRemote", message="虚拟机不存在")
         logger.debug(f"[DEBUG VCRemote] vm_saving 内容: {self.vm_saving}")
         logger.debug(f"[DEBUG VCRemote] {vm_uuid} 的类型: {type(self.vm_saving[vm_uuid])}")
         logger.debug(f"[DEBUG VCRemote] {vm_uuid} 的值: {self.vm_saving[vm_uuid]}")
         if self.vm_saving[vm_uuid].vc_port == "":
             logger.warning(f"[VCRemote] {vm_uuid} 的 vc_port 为空")
-            return ""
+            return ZMessage(success=False, action="VCRemote", message="VNC端口为空")
         if self.vm_saving[vm_uuid].vc_pass == "":
             logger.warning(f"[VCRemote] {vm_uuid} 的 vc_pass 为空")
-            return ""
+            return ZMessage(success=False, action="VCRemote", message="VNC密码为空")
         public_addr = self.hs_config.public_addr[0]
         if len(self.vm_saving[vm_uuid].vc_pass) == 0:
             public_addr = "127.0.0.1"
@@ -496,9 +496,11 @@ class BasicServer:
     # 虚拟机状态 ####################################################################
     # :params select: 虚拟机UUID，为空则返回所有虚拟机状态
     # ###############################################################################
-    def VMStatus(self, vm_name: str = "", start_timestamp: int = None, end_timestamp: int = None) -> dict[str, list[HWStatus]]:
+    def VMStatus(self, vm_name: str = "", start_timestamp: int = None, end_timestamp: int = None) -> dict[
+        str, list[HWStatus]]:
         if self.save_data and self.hs_config.server_name:
-            all_status = self.save_data.get_vm_status(self.hs_config.server_name, start_timestamp=start_timestamp, end_timestamp=end_timestamp)
+            all_status = self.save_data.get_vm_status(self.hs_config.server_name, start_timestamp=start_timestamp,
+                                                      end_timestamp=end_timestamp)
             if vm_name:
                 return {vm_name: all_status.get(vm_name, [])}
             return all_status
@@ -875,11 +877,11 @@ class BasicServer:
         # 检查虚拟机是否存在
         if vm_name not in self.vm_saving:
             return ZMessage(
-                success=False, 
-                action="Transfer", 
+                success=False,
+                action="Transfer",
                 message="虚拟机不存在"
             )
-        
+
         vm_config = self.vm_saving[vm_name]
         owners = vm_config.own_all.copy()
 
@@ -887,29 +889,30 @@ class BasicServer:
         if new_owner == owners[0]:
             return ZMessage(
                 success=False,
-                action="Transfer", 
+                action="Transfer",
                 message="用户已经是虚拟机所有者"
             )
-        
+
         # 获取当前主所有者
         current_primary_owner = owners[0]
-        
+
         # 移交所有权：将新所有者移到第一位
         owners.remove(new_owner) if new_owner in owners else None
         owners.insert(0, new_owner)
-        
+
         # 如果不保留原所有者权限，从列表中移除原主所有者
         if not keep_access and current_primary_owner in owners:
             owners.remove(current_primary_owner)
-        
+
         # 更新所有者列表
         vm_config.own_all = owners
-        
+
         # 保存配置
         self.data_set()
-        
-        logger.info(f"[{self.hs_config.server_name}] 虚拟机 {vm_name} 所有权从 {current_primary_owner} 移交给 {new_owner}，保留权限: {keep_access}")
-        
+
+        logger.info(
+            f"[{self.hs_config.server_name}] 虚拟机 {vm_name} 所有权从 {current_primary_owner} 移交给 {new_owner}，保留权限: {keep_access}")
+
         return ZMessage(
             success=True,
             action="Transfer",

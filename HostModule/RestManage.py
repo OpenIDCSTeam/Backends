@@ -60,14 +60,14 @@ class RestManager:
         """
         # 获取服务器配置
         server_config = HEConfig.get(server_type, {})
-        
+
         # 获取要禁止的字段列表
         banned_fields = []
         if mode == 'init':
             banned_fields = server_config.get('Ban_Init', [])
         elif mode == 'edit':
             banned_fields = server_config.get('Ban_Edit', [])
-        
+
         # 过滤掉被禁用的字段
         filtered_data = {}
         for key, value in data.items():
@@ -75,7 +75,7 @@ class RestManager:
             if key in banned_fields:
                 continue
             filtered_data[key] = value
-        
+
         return filtered_data
 
     @staticmethod
@@ -118,37 +118,37 @@ class RestManager:
         """计算用户的IP使用量"""
         if not username or not self.db:
             return {'used_nat_ips': 0, 'used_pub_ips': 0}
-        
+
         # 如果是admin用户，返回0（不受配额限制）
         if username == 'admin':
             return {'used_nat_ips': 0, 'used_pub_ips': 0}
-        
+
         # 获取用户信息
         user_data = self.db.get_user_by_username(username)
         if not user_data:
             return {'used_nat_ips': 0, 'used_pub_ips': 0}
-        
+
         # 初始化计数器
         used_nat_ips = 0
         used_pub_ips = 0
-        
+
         # 遍历所有主机的虚拟机，计算该用户的IP使用量
         for hs_name, server in self.hs_manage.engine.items():
             if not server:
                 continue
-                
+
             # 重新加载虚拟机配置
             try:
                 server.data_get()
             except Exception as e:
                 logger.error(f"[IP统计] 主机 {hs_name} 加载配置失败: {e}")
                 continue
-            
+
             # 遍历该主机下的所有虚拟机
             for vm_uuid, vm_config in server.vm_saving.items():
                 if not vm_config:
                     continue
-                
+
                 # 检查虚拟机的所有者列表
                 owners = getattr(vm_config, 'own_all', [])
                 if username in owners:
@@ -162,7 +162,7 @@ class RestManager:
                                 used_nat_ips += 1
                             elif nic_type == 'pub':
                                 used_pub_ips += 1
-        
+
         return {
             'used_nat_ips': used_nat_ips,
             'used_pub_ips': used_pub_ips
@@ -180,7 +180,7 @@ class RestManager:
                 'is_admin': True,
                 'is_token_login': True
             }
-        
+
         # 检查Session登录
         if self.db and session.get('logged_in'):
             user_id = session.get('user_id')
@@ -188,7 +188,7 @@ class RestManager:
             if user_data:
                 user_data['is_token_login'] = False
                 return user_data
-        
+
         return None
 
     def _check_host_permission(self, hs_name):
@@ -196,15 +196,15 @@ class RestManager:
         user_data = self._get_current_user()
         if not user_data:
             return False, self.api_response(401, '未授权访问')
-        
+
         # 管理员或Token登录有所有权限
         if user_data.get('is_admin') or user_data.get('is_token_login'):
             return True, user_data
-        
+
         # 检查主机访问权限
         if not check_host_access(hs_name, user_data):
             return False, self.api_response(403, '没有访问该主机的权限')
-        
+
         return True, user_data
 
     def _check_vm_permission(self, action, hs_name):
@@ -212,37 +212,37 @@ class RestManager:
         has_host_perm, user_data_or_response = self._check_host_permission(hs_name)
         if not has_host_perm:
             return False, user_data_or_response
-        
+
         user_data = user_data_or_response
-        
+
         # 检查虚拟机操作权限
         has_perm, error_msg = check_vm_permission(action, user_data)
         if not has_perm:
             return False, self.api_response(403, error_msg)
-        
+
         return True, user_data
-    
+
     def _check_vm_ownership(self, hs_name, vm_uuid, user_data):
         """检查虚拟机所有权"""
         # 管理员或Token登录有所有权限
         if user_data.get('is_admin') or user_data.get('is_token_login'):
             return True, None
-        
+
         server = self.hs_manage.get_host(hs_name)
         if not server:
             return False, self.api_response(404, '主机不存在')
-        
+
         vm_config = server.vm_saving.get(vm_uuid)
         if not vm_config:
             return False, self.api_response(404, '虚拟机不存在')
-        
+
         # 检查用户是否是虚拟机的所有者
         owners = getattr(vm_config, 'own_all', [])
         current_username = user_data.get('username', '')
-        
+
         if current_username not in owners:
             return False, self.api_response(403, '没有访问该虚拟机的权限')
-        
+
         return True, None
 
     def _check_vm_delete_permission(self, hs_name, vm_uuid, user_data):
@@ -250,27 +250,27 @@ class RestManager:
         # 管理员或Token登录有所有权限
         if user_data.get('is_admin') or user_data.get('is_token_login'):
             return True, None
-        
+
         server = self.hs_manage.get_host(hs_name)
         if not server:
             return False, self.api_response(404, '主机不存在')
-        
+
         vm_config = server.vm_saving.get(vm_uuid)
         if not vm_config:
             return False, self.api_response(404, '虚拟机不存在')
-        
+
         # 检查用户是否是虚拟机的所有者
         owners = getattr(vm_config, 'own_all', [])
         current_username = user_data.get('username', '')
-        
+
         if current_username not in owners:
             return False, self.api_response(403, '没有访问该虚拟机的权限')
-        
+
         # 检查用户是否是主用户（第一个所有者）
         first_owner = owners[0] if owners else None
         if current_username != first_owner:
             return False, self.api_response(403, '只有主用户可以删除虚拟机')
-        
+
         return True, None
 
     def _check_resource_quota(self, user_data, **resources):
@@ -279,7 +279,7 @@ class RestManager:
         if not has_quota:
             return False, self.api_response(403, error_msg)
         return True, None
-    
+
     def _validate_vm_resources(self, data, user_data=None, min_disk_gb=10):
         """验证虚拟机资源配置
         
@@ -293,26 +293,26 @@ class RestManager:
         if cpu_num < 1:
             return self.api_response(400, 'CPU核心数不能少于1核')
         data['cpu_num'] = cpu_num
-        
+
         # 内存验证：最低1G（注意单位是MB）
         ram_num = int(data.get('ram_num', 2048))  # 默认2G
         if ram_num < 1024:  # 最低1G
             return self.api_response(400, '内存不能少于1GB')
         data['ram_num'] = ram_num
-        
+
         # 显存验证：最低1G（注意单位是MB）
         gpu_mem = int(data.get('gpu_mem', 0))
         if gpu_mem < 1024 and gpu_mem > 0:  # 如果使用GPU，最低1G
             return self.api_response(400, 'GPU显存不能少于1GB')
         data['gpu_mem'] = gpu_mem
-        
+
         # 硬盘验证：使用传入的最小磁盘要求
         hdd_num = int(data.get('hdd_num', 8192))  # 默认8G
         min_disk_mb = min_disk_gb * 1024  # 转换为MB
         if hdd_num < min_disk_mb:
             return self.api_response(400, f'硬盘大小不能少于{min_disk_gb}GB')
         data['hdd_num'] = hdd_num
-        
+
         # 检查镜像要求（如果提供了镜像）
         iso_all = data.get('iso_all', {})
         if iso_all:
@@ -330,25 +330,25 @@ class RestManager:
                                 return self.api_response(400, f'硬盘大小不能少于镜像最低要求{match.group(0)}')
                     except:
                         pass  # 如果解析失败，跳过镜像要求检查
-        
+
         # NAT数量验证：最低1，默认10
         nat_num = int(data.get('nat_num', 10))
         if nat_num < 1:
             return self.api_response(400, 'NAT端口数量不能少于1')
         data['nat_num'] = nat_num
-        
+
         # Web代理数量验证：最低0，默认10
         web_num = int(data.get('web_num', 10))
         if web_num < 0:
             return self.api_response(400, 'Web代理数量不能少于0')
         data['web_num'] = web_num
-        
+
         # 流量验证：最低0
         flu_num = int(data.get('flu_num', 0))
         if flu_num < 0:
             return self.api_response(400, '流量不能少于0')
         data['flu_num'] = flu_num
-        
+
         # 带宽验证：最低0
         speed_u = int(data.get('speed_u', 0))
         speed_d = int(data.get('speed_d', 0))
@@ -358,7 +358,7 @@ class RestManager:
             return self.api_response(400, '下行带宽不能少于0')
         data['speed_u'] = speed_u
         data['speed_d'] = speed_d
-        
+
         # 如果提供了用户数据，进行配额检查
         if user_data and not (user_data.get('is_admin') or user_data.get('is_token_login')):
             # 检查CPU配额
@@ -368,23 +368,25 @@ class RestManager:
                 return self.api_response(400, 'CPU配额为0，不允许创建虚拟机')
             if cpu_num > (quota_cpu - used_cpu):
                 return self.api_response(400, f'CPU配额不足，需要{cpu_num}核，可用{quota_cpu - used_cpu}核')
-            
+
             # 检查内存配额
             quota_ram = user_data.get('quota_ram', 0)
             used_ram = user_data.get('used_ram', 0)
             if quota_ram <= 0:
                 return self.api_response(400, '内存配额为0，不允许创建虚拟机')
             if ram_num > (quota_ram - used_ram):
-                return self.api_response(400, f'内存配额不足，需要{ram_num//1024}GB，可用{(quota_ram - used_ram)//1024}GB')
-            
+                return self.api_response(400,
+                                         f'内存配额不足，需要{ram_num // 1024}GB，可用{(quota_ram - used_ram) // 1024}GB')
+
             # 检查硬盘配额
             quota_ssd = user_data.get('quota_ssd', 0)
             used_ssd = user_data.get('used_ssd', 0)
             if quota_ssd <= 0:
                 return self.api_response(400, '硬盘配额为0，不允许创建虚拟机')
             if hdd_num > (quota_ssd - used_ssd):
-                return self.api_response(400, f'硬盘配额不足，需要{hdd_num//1024}GB，可用{(quota_ssd - used_ssd)//1024}GB')
-            
+                return self.api_response(400,
+                                         f'硬盘配额不足，需要{hdd_num // 1024}GB，可用{(quota_ssd - used_ssd) // 1024}GB')
+
             # 检查GPU配额（如果使用GPU）
             if gpu_mem > 0:
                 quota_gpu = user_data.get('quota_gpu', 0)
@@ -392,8 +394,9 @@ class RestManager:
                 if quota_gpu <= 0:
                     return self.api_response(400, 'GPU配额为0，不允许创建虚拟机')
                 if gpu_mem > (quota_gpu - used_gpu):
-                    return self.api_response(400, f'GPU显存配额不足，需要{gpu_mem//1024}GB，可用{(quota_gpu - used_gpu)//1024}GB')
-            
+                    return self.api_response(400,
+                                             f'GPU显存配额不足，需要{gpu_mem // 1024}GB，可用{(quota_gpu - used_gpu) // 1024}GB')
+
             # 检查流量配额
             quota_traffic = user_data.get('quota_traffic', 0)
             used_traffic = user_data.get('used_traffic', 0)
@@ -401,23 +404,25 @@ class RestManager:
                 return self.api_response(400, '流量配额为0，不允许创建虚拟机')
             if flu_num > (quota_traffic - used_traffic):
                 return self.api_response(400, f'流量配额不足，需要{flu_num}GB，可用{quota_traffic - used_traffic}GB')
-            
+
             # 检查上行带宽配额
             quota_upload_bw = user_data.get('quota_bandwidth_up', 0)
             used_upload_bw = user_data.get('used_bandwidth_up', 0)
             if quota_upload_bw <= 0:
                 return self.api_response(400, '上行带宽配额为0，不允许创建虚拟机')
             if speed_u > (quota_upload_bw - used_upload_bw):
-                return self.api_response(400, f'上行带宽配额不足，需要{speed_u}Mbps，可用{quota_upload_bw - used_upload_bw}Mbps')
-            
+                return self.api_response(400,
+                                         f'上行带宽配额不足，需要{speed_u}Mbps，可用{quota_upload_bw - used_upload_bw}Mbps')
+
             # 检查下行带宽配额
             quota_download_bw = user_data.get('quota_bandwidth_down', 0)
             used_download_bw = user_data.get('used_bandwidth_down', 0)
             if quota_download_bw <= 0:
                 return self.api_response(400, '下行带宽配额为0，不允许创建虚拟机')
             if speed_d > (quota_download_bw - used_download_bw):
-                return self.api_response(400, f'下行带宽配额不足，需要{speed_d}Mbps，可用{quota_download_bw - used_download_bw}Mbps')
-            
+                return self.api_response(400,
+                                         f'下行带宽配额不足，需要{speed_d}Mbps，可用{quota_download_bw - used_download_bw}Mbps')
+
             # 检查NAT端口配额
             quota_nat = user_data.get('quota_nat_ports', 0)
             used_nat = user_data.get('used_nat_ports', 0)
@@ -425,7 +430,7 @@ class RestManager:
                 return self.api_response(400, 'NAT端口配额为0，不允许创建虚拟机')
             if nat_num > (quota_nat - used_nat):
                 return self.api_response(400, f'NAT端口配额不足，需要{nat_num}个，可用{quota_nat - used_nat}个')
-            
+
             # 检查Web代理配额
             quota_web = user_data.get('quota_web_proxy', 0)
             used_web = user_data.get('used_web_proxy', 0)
@@ -433,17 +438,17 @@ class RestManager:
                 return self.api_response(400, 'Web代理配额为0，不允许创建虚拟机')
             if web_num > (quota_web - used_web):
                 return self.api_response(400, f'Web代理配额不足，需要{web_num}个，可用{quota_web - used_web}个')
-            
+
             # 检查IP配额
             quota_nat_ips = user_data.get('quota_nat_ips', 0)
             quota_pub_ips = user_data.get('quota_pub_ips', 0)
-            
+
             # 使用_calculate_user_ip_usage获取准确的IP使用量
             username = user_data.get('username', '')
             ip_usage = self._calculate_user_ip_usage(username)
             used_nat_ips = ip_usage.get('used_nat_ips', 0)
             used_pub_ips = ip_usage.get('used_pub_ips', 0)
-            
+
             # 计算需要的IP数量
             nic_all = data.get('nic_all', {})
             nat_ips_needed = 0
@@ -454,15 +459,15 @@ class RestManager:
                     nat_ips_needed += 1
                 elif nic_type == 'pub':
                     pub_ips_needed += 1
-            
+
             # 如果没有配置网卡，根据配额默认创建
             if nat_ips_needed == 0 and pub_ips_needed == 0:
                 available_nat_ips = quota_nat_ips - used_nat_ips
                 available_pub_ips = quota_pub_ips - used_pub_ips
-                
+
                 if available_nat_ips <= 0 and available_pub_ips <= 0:
                     return self.api_response(400, '无可用IP配额，不允许创建虚拟机')
-                
+
                 # 优先使用内网IP，如果没有则使用公网IP
                 if available_nat_ips > 0:
                     nat_ips_needed = 1
@@ -476,15 +481,17 @@ class RestManager:
                     if quota_nat_ips <= 0:
                         return self.api_response(400, '内网IP配额为0，不允许创建虚拟机')
                     if nat_ips_needed > (quota_nat_ips - used_nat_ips):
-                        return self.api_response(400, f'内网IP配额不足，需要{nat_ips_needed}个，可用{quota_nat_ips - used_nat_ips}个')
-                
+                        return self.api_response(400,
+                                                 f'内网IP配额不足，需要{nat_ips_needed}个，可用{quota_nat_ips - used_nat_ips}个')
+
                 # 检查公网IP配额
                 if pub_ips_needed > 0:
                     if quota_pub_ips <= 0:
                         return self.api_response(400, '公网IP配额为0，不允许创建虚拟机')
                     if pub_ips_needed > (quota_pub_ips - used_pub_ips):
-                        return self.api_response(400, f'公网IP配额不足，需要{pub_ips_needed}个，可用{quota_pub_ips - used_pub_ips}个')
-        
+                        return self.api_response(400,
+                                                 f'公网IP配额不足，需要{pub_ips_needed}个，可用{quota_pub_ips - used_pub_ips}个')
+
         return None  # 验证通过
 
     # ========================================================================
@@ -522,11 +529,11 @@ class RestManager:
     def get_engine_types(self):
         """获取支持的主机引擎类型"""
         import platform
-        
+
         # 获取当前系统平台和架构
         current_system = platform.system()
         current_arch = platform.machine()
-        
+
         # 平台映射
         platform_map = {
             'Windows': 'Windows',
@@ -534,7 +541,7 @@ class RestManager:
             'Darwin': 'MacOS'
         }
         current_platform = platform_map.get(current_system, current_system)
-        
+
         # 架构映射
         arch_map = {
             'AMD64': 'x86_64',
@@ -543,27 +550,27 @@ class RestManager:
             'arm64': 'aarch64'
         }
         current_cpu_arch = arch_map.get(current_arch, current_arch)
-        
+
         types_data = {}
         for engine_type, config in HEConfig.items():
             # 检查是否启用
             if not config.get('isEnable', False):
                 continue
-                
+
             # 如果isRemote为False，需要检查平台和架构是否匹配
             is_remote = config.get('isRemote', False)
             if not is_remote:
                 supported_platforms = config.get('Platform', [])
                 supported_archs = config.get('CPU_Arch', [])
-                
+
                 # 检查平台是否匹配
                 if current_platform not in supported_platforms:
                     continue
-                    
+
                 # 检查架构是否匹配
                 if current_cpu_arch not in supported_archs:
                     continue
-            
+
             types_data[engine_type] = {
                 'name': engine_type,
                 'description': config.get('Descript', ''),
@@ -574,7 +581,7 @@ class RestManager:
                 'options': config.get('Optional', {}),
                 'messages': config.get('Messages', [])
             }
-        
+
         # 返回当前系统信息和可用的引擎类型
         return self.api_response(200, 'success', {
             'current_platform': current_platform,
@@ -616,10 +623,10 @@ class RestManager:
 
         for server in self.hs_manage.engine.values():
             total_vms += len(server.vm_saving)
-            
+
             # 获取所有虚拟机状态
             all_vm_status = server.save_data.get_vm_status(server.hs_config.server_name)
-            
+
             # 统计运行中的虚拟机数量
             for vm_uuid in server.vm_saving.keys():
                 vm_status_list = all_vm_status.get(vm_uuid, [])
@@ -781,7 +788,7 @@ class RestManager:
         ban_init = []
         ban_edit = []
         messages = []
-        
+
         if server.hs_config:
             if hasattr(server.hs_config, 'system_maps'):
                 system_maps = server.hs_config.system_maps or {}
@@ -789,7 +796,7 @@ class RestManager:
                 images_maps = server.hs_config.images_maps or {}
             if hasattr(server.hs_config, 'server_type'):
                 server_type = server.hs_config.server_type or ''
-            
+
             # 获取Ban_Init和Ban_Edit
             from MainObject.Server.HSEngine import HEConfig
             if server_type:
@@ -802,7 +809,7 @@ class RestManager:
         filter_name = ''
         if server.hs_config and hasattr(server.hs_config, 'filter_name'):
             filter_name = server.hs_config.filter_name or ''
-        
+
         return self.api_response(200, 'success', {
             'host_name': hs_name,
             'server_type': server_type,
@@ -829,14 +836,14 @@ class RestManager:
         # 构建配置
         config_data = data.get('config', {})
         config_data['server_type'] = hs_type
-        
+
         # 调试日志：打印images_maps
         logger.debug(f"[add_host] 接收到的config_data.images_maps: {config_data.get('images_maps')}")
         logger.debug(f"[add_host] images_maps类型: {type(config_data.get('images_maps'))}")
-        
+
         hs_conf = HSConfig(**config_data)
         hs_conf.server_name = hs_name  # 设置server_name，确保save_data能正常工作
-        
+
         # 调试日志：打印HSConfig对象的images_maps
         logger.debug(f"[add_host] HSConfig.images_maps: {hs_conf.images_maps}")
         logger.debug(f"[add_host] HSConfig.images_maps类型: {type(hs_conf.images_maps)}")
@@ -964,7 +971,7 @@ class RestManager:
 
         # 从数据库重新加载数据
         server.data_get()
-        
+
         # 获取当前用户信息
         user_data = UserAuth.get_current_user_from_session()
         is_admin = user_data.get('is_admin', False) if user_data else False
@@ -1033,13 +1040,13 @@ class RestManager:
         vm_config = server.vm_saving.get(vm_uuid)
         if not vm_config:
             return self.api_response(404, '虚拟机不存在')
-        
+
         # 权限验证：普通用户只能访问自己拥有的虚拟机
         user_data = UserAuth.get_current_user_from_session()
         is_admin = user_data.get('is_admin', False) if user_data else False
         is_token_login = user_data.get('is_token_login', False) if user_data else False
         current_username = user_data.get('username', '') if user_data else ''
-        
+
         if not (is_admin or is_token_login):
             owners = getattr(vm_config, 'own_all', [])
             if current_username not in owners:
@@ -1068,28 +1075,28 @@ class RestManager:
         has_host_perm, user_data_or_response = self._check_host_permission(hs_name)
         if not has_host_perm:
             return user_data_or_response
-        
+
         user_data = user_data_or_response
-        
+
         # 检查创建虚拟机权限
         has_vm_perm, user_data_or_response = self._check_vm_permission('create', hs_name)
         if not has_vm_perm:
             return user_data_or_response
-        
+
         user_data = user_data_or_response
-        
+
         server = self.hs_manage.get_host(hs_name)
         if not server:
             return self.api_response(404, '主机不存在')
 
         data = request.get_json() or {}
-        
+
         # 获取system_maps，确定最小磁盘要求
         min_disk_gb = 10  # 默认10GB
         system_maps = {}
         if server.hs_config and hasattr(server.hs_config, 'system_maps'):
             system_maps = server.hs_config.system_maps or {}
-        
+
         # 根据选择的操作系统获取最小磁盘要求
         # system_maps结构：{"Ubuntu22.04": ["ubuntu-22.04.iso", 20], ...}
         # [0]是镜像文件名，[1]是最小磁盘GB
@@ -1101,24 +1108,24 @@ class RestManager:
                     min_disk_gb = int(system_map[1])  # system_map[1]是最小磁盘大小（GB）
                 except (ValueError, TypeError):
                     min_disk_gb = 10  # 解析失败使用默认值
-        
+
         # 验证和设置资源限制（包含配额检查），传入最小磁盘要求
         validation_result = self._validate_vm_resources(data, user_data, min_disk_gb=min_disk_gb)
         if validation_result:
             return validation_result
-        
+
         # 映射os_name为实际文件名
         original_os_name = data.get('os_name', '')
         if original_os_name and original_os_name in system_maps:
             system_map = system_maps[original_os_name]
             if isinstance(system_map, list) and len(system_map) >= 1:
                 data['os_name'] = system_map[0]  # 获取映射的实际文件名
-        
+
         # 根据服务器类型过滤被禁用的字段（创建模式 - Ban_Init）
         if server.hs_config and hasattr(server.hs_config, 'server_type'):
             server_type = server.hs_config.server_type
             data = self._filter_banned_fields(data, server_type, mode='init')
-        
+
         # 处理网卡配置
         nic_all = {}
         nic_data = data.pop('nic_all', {})
@@ -1126,26 +1133,26 @@ class RestManager:
             nic_all[nic_name] = NCConfig(**nic_conf)
         # 创建虚拟机配置
         vm_config = VMConfig(**data, nic_all=nic_all)
-        
+
         # 如果没有指定虚拟机名称，生成随机名称
         if not vm_config.vm_uuid or vm_config.vm_uuid == '':
             # 获取主机配置的前缀
             prefix = ''
             if server.hs_config and hasattr(server.hs_config, 'filter_name'):
                 prefix = server.hs_config.filter_name or ''
-            
+
             # 如果没有配置前缀，使用默认前缀 'VM-'
             if not prefix:
                 prefix = 'vmx_'
             elif not prefix.endswith('_'):
                 # 如果前缀不以 '_' 结尾，添加 '_'
                 prefix = prefix + '_'
-            
+
             # 生成格式: <前缀><8位随机字符>
             random_suffix = ''.join(
                 random.sample(string.ascii_letters + string.digits, 8))
             vm_config.vm_uuid = f'{prefix}{random_suffix}'
-        
+
         # 设置虚拟机所有者
         if not (user_data.get('is_admin') or user_data.get('is_token_login')):
             # 普通用户创建虚拟机，设置所有者为用户名
@@ -1158,19 +1165,19 @@ class RestManager:
         else:
             # 管理员或token登录创建虚拟机，保持默认所有者["admin"]
             pass
-        
+
         vm_config.vc_port = random.randint(10000, 59999)
         if vm_config.vc_pass == '':
             vm_config.vc_pass = ''.join(
                 random.sample(string.ascii_letters + string.digits, 8))
-        
+
         result = server.VMCreate(vm_config)
-        
+
         # 如果创建成功，更新虚拟机第一个所有者的资源使用量
         if result and result.success:
             # 获取虚拟机的第一个所有者
             first_owner = vm_config.own_all[0] if vm_config.own_all else None
-            
+
             # 计算资源使用量
             cpu_needed = int(data.get('cpu_num', 0))
             ram_needed = int(data.get('ram_num', 0))
@@ -1181,7 +1188,7 @@ class RestManager:
             web_proxy_needed = int(data.get('web_num', 0))
             bandwidth_up_needed = int(data.get('speed_u', 0))
             bandwidth_down_needed = int(data.get('speed_d', 0))
-            
+
             # 计算IP数量
             nic_all = data.get('nic_all', {})
             nat_ips_count = 0
@@ -1192,7 +1199,7 @@ class RestManager:
                     nat_ips_count += 1
                 elif nic_type == 'pub':
                     pub_ips_count += 1
-            
+
             # 只有第一个所有者才占用配额（跳过admin用户）
             if first_owner and first_owner != 'admin':
                 owner_user = self.db.get_user_by_username(first_owner)
@@ -1210,7 +1217,7 @@ class RestManager:
                         used_bandwidth_down=owner_user.get('used_bandwidth_down', 0) + bandwidth_down_needed
                         # 注意：IP使用量通过_calculate_user_ip_usage函数实时计算，无需在数据库中维护
                     )
-        
+
         self.hs_manage.all_save()
         return self.api_response(200 if result and result.success else 400, result.message)
 
@@ -1225,35 +1232,36 @@ class RestManager:
         has_host_perm, user_data_or_response = self._check_host_permission(hs_name)
         if not has_host_perm:
             return user_data_or_response
-        
+
         user_data = user_data_or_response
-        
+
         # 检查修改虚拟机权限
         has_vm_perm, user_data_or_response = self._check_vm_permission('modify', hs_name)
         if not has_vm_perm:
             return user_data_or_response
-        
+
         user_data = user_data_or_response
-        
+
         # 检查虚拟机所有权
         has_ownership, error_response = self._check_vm_ownership(hs_name, vm_uuid, user_data)
         if not has_ownership:
             return error_response
-        
+
         server = self.hs_manage.get_host(hs_name)
         if not server:
             return self.api_response(404, '主机不存在')
 
         # 获取旧的虚拟机配置
         old_vm_config = None
-        old_resource_usage = {'cpu': 0, 'ram': 0, 'ssd': 0, 'gpu': 0, 'traffic': 0, 'nat_ports': 0, 'web_proxy': 0, 'bandwidth_up': 0, 'bandwidth_down': 0, 'nat_ips': 0, 'pub_ips': 0}
+        old_resource_usage = {'cpu': 0, 'ram': 0, 'ssd': 0, 'gpu': 0, 'traffic': 0, 'nat_ports': 0, 'web_proxy': 0,
+                              'bandwidth_up': 0, 'bandwidth_down': 0, 'nat_ips': 0, 'pub_ips': 0}
         vm_owners = []
         if hasattr(server, 'vm_saving') and vm_uuid in server.vm_saving:
             old_vm_config = server.vm_saving[vm_uuid]
             if hasattr(old_vm_config, '__dict__'):
                 old_resource_usage = {
                     'cpu': getattr(old_vm_config, 'cpu_num', 0),
-                    'ram': getattr(old_vm_config, 'ram_num', 0), 
+                    'ram': getattr(old_vm_config, 'ram_num', 0),
                     'ssd': getattr(old_vm_config, 'hdd_num', 0),
                     'gpu': getattr(old_vm_config, 'gpu_mem', 0),
                     'traffic': getattr(old_vm_config, 'flu_num', 0),
@@ -1277,7 +1285,7 @@ class RestManager:
 
         data = request.get_json() or {}
         data['vm_uuid'] = vm_uuid
-        
+
         # 检查资源配额（非管理员用户）
         if not (user_data.get('is_admin') or user_data.get('is_token_login')):
             # 计算资源变化
@@ -1290,7 +1298,7 @@ class RestManager:
             web_proxy_change = int(data.get('web_num', 0)) - old_resource_usage.get('web_proxy', 0)
             bandwidth_up_change = int(data.get('speed_u', 0)) - old_resource_usage.get('bandwidth_up', 0)
             bandwidth_down_change = int(data.get('speed_d', 0)) - old_resource_usage.get('bandwidth_down', 0)
-            
+
             # 计算IP数量变化
             nic_all = data.get('nic_all', {})
             new_nat_ips = 0
@@ -1301,13 +1309,14 @@ class RestManager:
                     new_nat_ips += 1
                 elif nic_type == 'pub':
                     new_pub_ips += 1
-            
+
             nat_ips_change = new_nat_ips - old_resource_usage.get('nat_ips', 0)
             pub_ips_change = new_pub_ips - old_resource_usage.get('pub_ips', 0)
-            
+
             # 如果资源增加，检查配额
-            if any(change > 0 for change in [cpu_change, ram_change, ssd_change, gpu_change, traffic_change, 
-                                             nat_ports_change, web_proxy_change, bandwidth_up_change, bandwidth_down_change,
+            if any(change > 0 for change in [cpu_change, ram_change, ssd_change, gpu_change, traffic_change,
+                                             nat_ports_change, web_proxy_change, bandwidth_up_change,
+                                             bandwidth_down_change,
                                              nat_ips_change, pub_ips_change]):
                 has_quota, error_response = self._check_resource_quota(
                     user_data,
@@ -1331,7 +1340,7 @@ class RestManager:
         nic_data = data.pop('nic_all', {})
         for nic_name, nic_conf in nic_data.items():
             nic_all[nic_name] = NCConfig(**nic_conf)
-        
+
         # 根据服务器类型过滤被禁用的字段（编辑模式 - Ban_Edit）
         if server.hs_config and hasattr(server.hs_config, 'server_type'):
             server_type = server.hs_config.server_type
@@ -1340,7 +1349,7 @@ class RestManager:
         vm_config = VMConfig(**data, nic_all=nic_all)
 
         result = server.VMUpdate(vm_config, old_vm_config)
-        
+
         # 如果更新成功，更新第一个所有者（排除admin）的资源使用量
         if result and result.success and vm_owners:
             cpu_change = int(data.get('cpu_num', 0)) - old_resource_usage['cpu']
@@ -1352,7 +1361,7 @@ class RestManager:
             web_proxy_change = int(data.get('web_num', 0)) - old_resource_usage.get('web_proxy', 0)
             bandwidth_up_change = int(data.get('speed_u', 0)) - old_resource_usage.get('bandwidth_up', 0)
             bandwidth_down_change = int(data.get('speed_d', 0)) - old_resource_usage.get('bandwidth_down', 0)
-            
+
             # 计算IP数量变化
             nic_all = data.get('nic_all', {})
             new_nat_ips = 0
@@ -1363,10 +1372,10 @@ class RestManager:
                     new_nat_ips += 1
                 elif nic_type == 'pub':
                     new_pub_ips += 1
-            
+
             nat_ips_change = new_nat_ips - old_resource_usage.get('nat_ips', 0)
             pub_ips_change = new_pub_ips - old_resource_usage.get('pub_ips', 0)
-            
+
             # 只更新第一个所有者的配额（跳过admin用户）
             first_owner = vm_owners[0] if vm_owners else None
             if first_owner and first_owner != 'admin':
@@ -1404,27 +1413,28 @@ class RestManager:
         has_host_perm, user_data_or_response = self._check_host_permission(hs_name)
         if not has_host_perm:
             return user_data_or_response
-        
+
         user_data = user_data_or_response
-        
+
         # 检查删除虚拟机权限
         has_vm_perm, user_data_or_response = self._check_vm_permission('delete', hs_name)
         if not has_vm_perm:
             return user_data_or_response
-        
+
         user_data = user_data_or_response
-        
+
         # 检查虚拟机删除权限（普通用户只能删除自己是主用户的虚拟机）
         has_delete_perm, error_response = self._check_vm_delete_permission(hs_name, vm_uuid, user_data)
         if not has_delete_perm:
             return error_response
-        
+
         server = self.hs_manage.get_host(hs_name)
         if not server:
             return self.api_response(404, '主机不存在')
 
         # 获取虚拟机配置以便释放资源
-        vm_resource_usage = {'cpu': 0, 'ram': 0, 'ssd': 0, 'gpu': 0, 'traffic': 0, 'nat_ports': 0, 'web_proxy': 0, 'bandwidth_up': 0, 'bandwidth_down': 0, 'nat_ips': 0, 'pub_ips': 0}
+        vm_resource_usage = {'cpu': 0, 'ram': 0, 'ssd': 0, 'gpu': 0, 'traffic': 0, 'nat_ports': 0, 'web_proxy': 0,
+                             'bandwidth_up': 0, 'bandwidth_down': 0, 'nat_ips': 0, 'pub_ips': 0}
         vm_owners = []
         if hasattr(server, 'vm_saving') and vm_uuid in server.vm_saving:
             vm_config = server.vm_saving[vm_uuid]
@@ -1454,7 +1464,7 @@ class RestManager:
                 vm_owners = getattr(vm_config, 'own_all', [])
 
         result = server.VMDelete(vm_uuid)
-        
+
         # 如果删除成功，从数据库删除虚拟机状态数据
         if result and result.success and server.save_data:
             if hasattr(server.save_data, 'delete_vm_status'):
@@ -1465,7 +1475,7 @@ class RestManager:
                     logger.warning(f"删除虚拟机 {vm_uuid} 状态数据失败")
             else:
                 logger.warning("save_data 对象不支持 delete_vm_status 方法")
-        
+
         # 如果删除成功，释放第一个所有者（排除admin）的资源使用量
         if result and result.success and vm_owners:
             # 只释放第一个所有者的配额（跳过admin用户）
@@ -1484,7 +1494,8 @@ class RestManager:
                         used_nat_ports=owner_user.get('used_nat_ports', 0) - vm_resource_usage['nat_ports'],
                         used_web_proxy=owner_user.get('used_web_proxy', 0) - vm_resource_usage['web_proxy'],
                         used_bandwidth_up=owner_user.get('used_bandwidth_up', 0) - vm_resource_usage['bandwidth_up'],
-                        used_bandwidth_down=owner_user.get('used_bandwidth_down', 0) - vm_resource_usage['bandwidth_down']
+                        used_bandwidth_down=owner_user.get('used_bandwidth_down', 0) - vm_resource_usage[
+                            'bandwidth_down']
                         # 注意：IP使用量通过_calculate_user_ip_usage函数实时计算，无需在数据库中维护
                     )
 
@@ -1504,13 +1515,13 @@ class RestManager:
         server = self.hs_manage.get_host(hs_name)
         if not server:
             return self.api_response(404, '主机不存在')
-        
+
         vm_config = server.vm_saving.get(vm_uuid)
         if not vm_config:
             return self.api_response(404, '虚拟机不存在')
-        
+
         owners = getattr(vm_config, 'own_all', [])
-        
+
         # 获取每个所有者的详细信息
         owner_details = []
         for username in owners:
@@ -1528,7 +1539,7 @@ class RestManager:
                     'email': '',
                     'is_admin': username == 'admin'
                 })
-        
+
         return self.api_response(200, 'success', {'owners': owner_details})
 
     # 添加虚拟机所有者 ########################################################################
@@ -1540,32 +1551,32 @@ class RestManager:
         """添加虚拟机所有者"""
         data = request.get_json() or {}
         username = data.get('username', '').strip()
-        
+
         if not username:
             return self.api_response(400, '用户名不能为空')
-        
+
         # 检查用户是否存在
         user = self.db.get_user_by_username(username)
         if not user and username != 'admin':
             return self.api_response(404, '用户不存在')
-        
+
         server = self.hs_manage.get_host(hs_name)
         if not server:
             return self.api_response(404, '主机不存在')
-        
+
         vm_config = server.vm_saving.get(vm_uuid)
         if not vm_config:
             return self.api_response(404, '虚拟机不存在')
-        
+
         owners = getattr(vm_config, 'own_all', [])
         if username in owners:
             return self.api_response(400, '用户已经是所有者')
-        
+
         owners.append(username)
         vm_config.own_all = owners
-        
+
         # 注意：只有第一个所有者才占用配额，添加其他所有者不影响配额
-        
+
         self.hs_manage.all_save()
         return self.api_response(200, '添加成功')
 
@@ -1578,36 +1589,36 @@ class RestManager:
         """删除虚拟机所有者"""
         data = request.get_json() or {}
         username = data.get('username', '').strip()
-        
+
         if not username:
             return self.api_response(400, '用户名不能为空')
-        
+
         server = self.hs_manage.get_host(hs_name)
         if not server:
             return self.api_response(404, '主机不存在')
-        
+
         vm_config = server.vm_saving.get(vm_uuid)
         if not vm_config:
             return self.api_response(404, '虚拟机不存在')
-        
+
         owners = getattr(vm_config, 'own_all', [])
         if username not in owners:
             return self.api_response(400, '用户不是所有者')
-        
+
         # 不允许删除第一个所有者（主所有者）
         if len(owners) > 0 and owners[0] == username:
             return self.api_response(400, '不能删除主所有者（第一个所有者）')
-        
+
         # 如果只有一个所有者，不允许删除
         if len(owners) <= 1:
             return self.api_response(400, '至少需要保留一个所有者')
-        
+
         owners.remove(username)
         vm_config.own_all = owners
-        
+
         # 注意：只有第一个所有者才占用配额，删除其他所有者不影响配额
         # 而且第一个所有者已经被禁止删除了
-        
+
         self.hs_manage.all_save()
         return self.api_response(200, '删除成功')
 
@@ -1622,17 +1633,17 @@ class RestManager:
         new_owner = data.get('new_owner', '').strip()
         keep_access = data.get('keep_access', False)
         confirm_transfer = data.get('confirm_transfer', False)
-        
+
         # 参数验证
         if not new_owner:
             return self.api_response(400, '新所有者用户名不能为空')
-        
+
         if not confirm_transfer:
             return self.api_response(400, '必须确认移交所有权')
-        
+
         # 获取当前用户信息 - 从session中获取认证用户
         current_username = session.get('username', '')
-        
+
         # 检查主机是否存在
         server = self.hs_manage.get_host(hs_name)
         if not server:
@@ -1647,8 +1658,8 @@ class RestManager:
         owners = getattr(vm_config, 'own_all', [])
         if not owners or owners[0] != current_username:
             return self.api_response(403, '只有主所有者可以移交虚拟机所有权')
-        
-# 检查新用户是否存在
+
+        # 检查新用户是否存在
         new_user = self.db.get_user_by_username(new_owner)
         if not new_user and new_owner != 'admin':
             return self.api_response(404, f'用户 "{new_owner}" 不存在')
@@ -1672,7 +1683,7 @@ class RestManager:
             'nat_ips': 0,
             'pub_ips': 0
         }
-        
+
         # 计算IP数量
         nic_all = getattr(vm_config, 'nic_all', {})
         for nic_name, nic_conf in nic_all.items():
@@ -1681,28 +1692,28 @@ class RestManager:
                 resource_usage['nat_ips'] += 1
             elif nic_type == 'pub':
                 resource_usage['pub_ips'] += 1
-        
+
         # 检查新所有者配额是否足够（管理员用户不受限制）
         if new_owner != 'admin':
             has_quota, quota_error_msg = self._check_resource_quota(new_user, **resource_usage)
             if not has_quota:
                 return self.api_response(400, f'移交失败：新所有者资源配额不足 - {quota_error_msg}')
-        
+
         # 调用Transfer函数移交所有权
         result = server.Transfer(vm_uuid, new_owner, keep_access)
         if not result.success:
             return self.api_response(500, f'移交失败: {result.message}')
-        
+
         # 保存配置
         self.hs_manage.all_save()
-        
+
         # 处理资源配额变更
         try:
             # 如果不保留原所有者权限，需要调整资源配额
             if not keep_access:
                 old_owner_user = self.db.get_user_by_username(current_username)
                 new_owner_user = self.db.get_user_by_username(new_owner)
-                
+
                 if old_owner_user and new_owner_user:
                     # 获取虚拟机资源使用情况
                     resource_usage = {
@@ -1718,7 +1729,7 @@ class RestManager:
                         'nat_ips': 0,
                         'pub_ips': 0
                     }
-                    
+
                     # 计算IP数量
                     nic_all = getattr(vm_config, 'nic_all', {})
                     for nic_name, nic_conf in nic_all.items():
@@ -1727,7 +1738,7 @@ class RestManager:
                             resource_usage['nat_ips'] += 1
                         elif nic_type == 'pub':
                             resource_usage['pub_ips'] += 1
-                    
+
                     # 从原所有者配额中扣除
                     self.db.update_user_resource_usage(
                         old_owner_user['id'],
@@ -1739,10 +1750,11 @@ class RestManager:
                         used_nat_ports=old_owner_user.get('used_nat_ports', 0) - resource_usage['nat_ports'],
                         used_web_proxy=old_owner_user.get('used_web_proxy', 0) - resource_usage['web_proxy'],
                         used_bandwidth_up=old_owner_user.get('used_bandwidth_up', 0) - resource_usage['bandwidth_up'],
-                        used_bandwidth_down=old_owner_user.get('used_bandwidth_down', 0) - resource_usage['bandwidth_down']
+                        used_bandwidth_down=old_owner_user.get('used_bandwidth_down', 0) - resource_usage[
+                            'bandwidth_down']
                         # 注意：IP使用量通过_calculate_user_ip_usage函数实时计算，无需在数据库中维护
                     )
-                    
+
                     # 添加到新所有者配额中
                     self.db.update_user_resource_usage(
                         new_owner_user['id'],
@@ -1754,13 +1766,14 @@ class RestManager:
                         used_nat_ports=new_owner_user.get('used_nat_ports', 0) + resource_usage['nat_ports'],
                         used_web_proxy=new_owner_user.get('used_web_proxy', 0) + resource_usage['web_proxy'],
                         used_bandwidth_up=new_owner_user.get('used_bandwidth_up', 0) + resource_usage['bandwidth_up'],
-                        used_bandwidth_down=new_owner_user.get('used_bandwidth_down', 0) + resource_usage['bandwidth_down']
+                        used_bandwidth_down=new_owner_user.get('used_bandwidth_down', 0) + resource_usage[
+                            'bandwidth_down']
                         # 注意：IP使用量通过_calculate_user_ip_usage函数实时计算，无需在数据库中维护
                     )
         except Exception as e:
             logger.error(f"更新资源配额失败: {str(e)}")
             # 不影响主要功能，记录错误即可
-        
+
         return self.api_response(200, f'虚拟机所有权已成功移交给 {new_owner}')
 
     # 虚拟机密码修改 ########################################################################
@@ -1774,21 +1787,21 @@ class RestManager:
         has_host_perm, user_data_or_response = self._check_host_permission(hs_name)
         if not has_host_perm:
             return user_data_or_response
-        
+
         user_data = user_data_or_response
-        
+
         # 检查虚拟机操作权限
         has_vm_perm, user_data_or_response = self._check_vm_permission('modify', hs_name)
         if not has_vm_perm:
             return user_data_or_response
-        
+
         user_data = user_data_or_response
-        
+
         # 检查虚拟机所有权
         has_ownership, error_response = self._check_vm_ownership(hs_name, vm_uuid, user_data)
         if not has_ownership:
             return error_response
-        
+
         server = self.hs_manage.get_host(hs_name)
         if not server:
             return self.api_response(404, '主机不存在')
@@ -1820,21 +1833,21 @@ class RestManager:
         has_host_perm, user_data_or_response = self._check_host_permission(hs_name)
         if not has_host_perm:
             return user_data_or_response
-        
+
         user_data = user_data_or_response
-        
+
         # 检查虚拟机操作权限
         has_vm_perm, user_data_or_response = self._check_vm_permission('power', hs_name)
         if not has_vm_perm:
             return user_data_or_response
-        
+
         user_data = user_data_or_response
-        
+
         # 检查虚拟机所有权
         has_ownership, error_response = self._check_vm_ownership(hs_name, vm_uuid, user_data)
         if not has_ownership:
             return error_response
-        
+
         server = self.hs_manage.get_host(hs_name)
         if not server:
             return self.api_response(404, '主机不存在')
@@ -1875,21 +1888,24 @@ class RestManager:
         has_host_perm, user_data_or_response = self._check_host_permission(hs_name)
         if not has_host_perm:
             return user_data_or_response
-        
+
         user_data = user_data_or_response
-        
+
         # 检查虚拟机所有权
         has_ownership, error_response = self._check_vm_ownership(hs_name, vm_uuid, user_data)
         if not has_ownership:
             return error_response
-        
+
         server = self.hs_manage.get_host(hs_name)
         if not server:
             return self.api_response(404, '主机不存在')
         try:
             if server.vm_remote is None:
                 server.VCLoader()
-            console_url = server.VCRemote(vm_uuid)
+            result = server.VCRemote(vm_uuid)
+            if not result.success:
+                return self.api_response(400, result.message)
+            console_url = result.message
             logger.info(f"[VNC控制台地址] {console_url}")
             if console_url:
                 return self.api_response(200, '获取成功', console_url)
@@ -1911,7 +1927,7 @@ class RestManager:
 
         # 从请求参数中获取时间范围（分钟数，默认30分钟）
         time_range_minutes = request.args.get('limit', type=int, default=30)
-        
+
         # 计算时间戳范围
         import time
         import inspect
@@ -1926,14 +1942,14 @@ class RestManager:
         else:
             # 不支持时间戳参数的服务器（如Workstation, OCInterface等）
             status_dict = server.VMStatus(vm_uuid)
-        
+
         # VMStatus返回dict[str, list[HWStatus]]，需要将每个HWStatus对象转换为字典
         if vm_uuid not in status_dict:
             return self.api_response(404, '虚拟机不存在')
 
         # 处理HWStatus列表
         status_list = status_dict[vm_uuid]
-        
+
         result = []
         if status_list:
             for hw_status in status_list:
@@ -2028,7 +2044,7 @@ class RestManager:
                             # 添加上报时间戳（秒级）
                             import time
                             status_data['on_update'] = int(time.time())
-                            
+
                             hw_status = HWStatus(**status_data)
                             logger.debug(f"[虚拟机上报] HWStatus对象创建成功: {hw_status}")
 
@@ -2170,7 +2186,7 @@ class RestManager:
 
         # 获取要删除的端口映射信息
         port_data = vm_config.nat_all[rule_index]
-        
+
         # 调用PortsMap删除端口映射
         try:
             if hasattr(port_data, 'lan_addr') and hasattr(port_data, 'lan_port') and hasattr(port_data, 'wan_port'):
@@ -2244,7 +2260,7 @@ class RestManager:
         from flask import session
         from HostModule.UserManage import check_resource_quota
         from HostModule.DataManage import HostDatabase
-        
+
         db = HostDatabase()
         user_id = session.get('user_id')
         if user_id:
@@ -2253,11 +2269,11 @@ class RestManager:
                 # 使用_calculate_user_ip_usage获取准确的IP使用量
                 username = user_data.get('username', '')
                 ip_usage = self._calculate_user_ip_usage(username)
-                
+
                 # 更新用户数据中的IP使用量
                 user_data['used_nat_ips'] = ip_usage.get('used_nat_ips', 0)
                 user_data['used_pub_ips'] = ip_usage.get('used_pub_ips', 0)
-                
+
                 # 根据网卡类型检查配额
                 if nic_type == 'nat':
                     can_use, error_msg = check_resource_quota(user_data, nat_ips=1)
@@ -2292,7 +2308,8 @@ class RestManager:
             ip6_addr=data.get('ip6_addr', ''),
             nic_gate=data.get('nic_gate', ''),
             nic_mask=data.get('nic_mask', '255.255.255.0'),
-            dns_addr=data.get('dns_addr', server.hs_config.ipaddr_dnss if hasattr(server.hs_config, 'ipaddr_dnss') else [])
+            dns_addr=data.get('dns_addr',
+                              server.hs_config.ipaddr_dnss if hasattr(server.hs_config, 'ipaddr_dnss') else [])
         )
 
         # 如果没有填写IP地址，则自动分配
@@ -2314,17 +2331,17 @@ class RestManager:
 
         # 调用VMUpdate更新
         result = server.VMUpdate(vm_config, old_vm_config)
-        
+
         if result and result.success:
             self.hs_manage.all_save()
-            
+
             # 更新用户IP使用量 - 由于数据库中没有used_nat_ips和used_pub_ips字段，
             # IP使用量通过_calculate_user_ip_usage函数实时计算，无需在数据库中维护
             # 注意：IP配额检查会在操作时通过_calculate_user_ip_usage实时获取准确的使用量
             logger.info(f"网卡添加成功，IP使用量将通过实时计算更新")
-            
+
             return self.api_response(200, f'网卡 {nic_name} 添加成功')
-        
+
         return self.api_response(400, result.message if result else '添加网卡失败')
 
     # 删除虚拟机IP地址 ########################################################################
@@ -2358,29 +2375,29 @@ class RestManager:
         # 删除网卡前，先记录网卡类型
         nic_config = vm_config.nic_all.get(nic_name)
         nic_type = nic_config.nic_type if nic_config else 'nat'
-        
+
         # 拷贝并修改vm_conf
         vm_config_dict = vm_config.__save__()
         old_vm_config = VMConfig(**vm_config_dict)
-        
+
         # 删除网卡
         del vm_config.nic_all[nic_name]
-        
+
         # 调用VMUpdate更新
         result = server.VMUpdate(vm_config, old_vm_config)
-        
+
         if result and result.success:
             # 确保数据保存成功
             save_success = self.hs_manage.all_save()
             if not save_success:
                 logger.warning(f"删除网卡 {nic_name} 后保存数据失败")
-            
+
             # 更新用户IP使用量 - 由于数据库中没有used_nat_ips和used_pub_ips字段，
             # IP使用量通过_calculate_user_ip_usage函数实时计算，无需在数据库中维护
             logger.info(f"网卡删除成功，IP使用量将通过实时计算更新")
-            
+
             return self.api_response(200, f'网卡 {nic_name} 已删除')
-        
+
         return self.api_response(400, result.message if result else '删除网卡失败')
 
     # 修改虚拟机网卡配置 ########################################################################
@@ -2440,11 +2457,11 @@ class RestManager:
 
         # 调用VMUpdate更新
         result = server.VMUpdate(vm_config, old_vm_config)
-        
+
         if result and result.success:
             self.hs_manage.all_save()
             return self.api_response(200, f'网卡 {nic_name} 配置已更新')
-        
+
         return self.api_response(400, result.message if result else '修改网卡失败')
 
     # ========================================================================
@@ -2592,7 +2609,7 @@ class RestManager:
 
         if not hdd_name:
             return self.api_response(400, '磁盘名称不能为空')
-        
+
         # 验证磁盘名称：只能包含数字、字母和下划线
         import re
         if not re.match(r'^[a-zA-Z0-9_]+$', hdd_name):
@@ -2604,11 +2621,11 @@ class RestManager:
             # 磁盘已存在，检查挂载状态
             existing_hdd = vm_config.hdd_all[hdd_name]
             hdd_flag = getattr(existing_hdd, 'hdd_flag', 0)
-            
+
             if hdd_flag == 1:
                 # 已挂载，不允许重复挂载
                 return self.api_response(400, '磁盘已挂载，无需重复挂载')
-            
+
             # 未挂载（hdd_flag=0），使用已有配置进行挂载
             hdd_config = existing_hdd
             logger.info(f"挂载已存在的未挂载磁盘: {hdd_name}")
@@ -2616,7 +2633,7 @@ class RestManager:
             # 磁盘不存在，创建新磁盘
             if hdd_size < 1024:
                 return self.api_response(400, '磁盘大小至少为1024MB')
-            
+
             # 创建SDConfig对象
             from MainObject.Config.SDConfig import SDConfig
             hdd_config = SDConfig(hdd_name=hdd_name, hdd_size=hdd_size, hdd_type=hdd_type)
@@ -2764,7 +2781,7 @@ class RestManager:
 
         if not iso_name:
             return self.api_response(400, '挂载名称不能为空')
-        
+
         if not iso_file:
             return self.api_response(400, 'ISO文件不能为空')
 
@@ -2929,7 +2946,7 @@ class RestManager:
         try:
             # 调用LDBackup扫描备份
             result = server.LDBackup("")
-            
+
             # 保存配置
             self.hs_manage.all_save()
             return self.api_response(200, '备份扫描成功')
@@ -3025,4 +3042,3 @@ class RestManager:
     # 获取系统网卡IPv4地址列表 ########################################################################
     # :return: 包含网卡IPv4地址列表的API响应
     # ####################################################################################
-

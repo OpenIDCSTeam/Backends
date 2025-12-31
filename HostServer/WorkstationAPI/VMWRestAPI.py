@@ -379,8 +379,10 @@ class VRestAPI:
             "windows10": "windows9-64",
             "win10": "windows9-64",
             "windows8.1": "windows8-64",
+            "windows81": "windows8-64",
             "win81": "windows8-64",
-            "windows08": "windows8-64",
+            "windows8": "windows8-64",
+            "windows80": "windows8-64",
             "win80": "windows8-64",
             "windows07": "windows7-64",
             "win07": "windows7-64",
@@ -453,6 +455,10 @@ class VRestAPI:
             "win11": "nvme0",
             "windows10": "nvme0",
             "win10": "nvme0",
+            "windows81": "nvme0",
+            "win81": "nvme0",
+            "windows8": "nvme0",
+            "win08": "nvme0",
         }
         # 获取系统类型 ============================================
         vmx_system = "other-64"
