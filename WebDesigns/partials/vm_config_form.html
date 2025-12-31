@@ -81,14 +81,6 @@
     </div>
 
     {% if show_nic_config %}
-    <!-- IP配额信息 -->
-    <div class="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-        <div class="text-sm text-blue-800" id="ipQuotaInfo">
-            <span class="iconify" data-icon="mdi:information-outline" data-width="16"></span>
-            正在加载IP配额信息...
-        </div>
-    </div>
-    
     <!-- 网卡配置 -->
     <div class="mt-4 pt-4 border-t border-gray-200">
         <div class="flex items-center justify-between mb-3">
@@ -101,6 +93,14 @@
         </div>
         <div id="{{ id_prefix ~ 'N' if id_prefix else 'n' }}icConfigs" class="space-y-2">
             <!-- 动态添加网卡配置 -->
+        </div>
+    </div>
+    
+    <!-- IP配额信息 -->
+    <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <div class="text-sm text-blue-800" id="ipQuotaInfo">
+            <span class="iconify" data-icon="mdi:information-outline" data-width="16"></span>
+            正在加载IP配额信息...
         </div>
     </div>
     {% endif %}

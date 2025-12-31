@@ -10,7 +10,7 @@ from MainObject.Config.VMPowers import VMPowers
 from MainObject.Public.HWStatus import HWStatus
 from MainObject.Public.ZMessage import ZMessage
 from MainObject.Config.VMConfig import VMConfig
-from HostServer.WorkstationAPI.VRestAPI import VRestAPI
+from HostServer.WorkstationAPI.VMWRestAPI import VRestAPI
 
 
 class HostServer(BasicServer):

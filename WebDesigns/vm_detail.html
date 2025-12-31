@@ -1657,8 +1657,8 @@
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium text-gray-600 mb-1">操作系统</label>
-                            <select name="os_name" id="editOsName"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                <select name="os_name" id="editOsName" onchange="updateEditMinDiskRequirement()"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                                 <option value="">请选择</option>
                                 <!-- 操作系统选项将从主机的system_maps动态加载 -->
                             </select>
@@ -2160,11 +2160,50 @@
             const imageFile = Array.isArray(osConfig) ? osConfig[0] : osConfig;
             option.value = imageFile; // 值设置为镜像文件名
             option.textContent = osName; // 显示文本为系统名称
+            // 将最小磁盘大小存储在data属性中
+            const minDiskGB = Array.isArray(osConfig) && osConfig[1] ? osConfig[1] : 10;
+            option.setAttribute('data-min-disk', minDiskGB);
             // 如果是编辑模式且匹配当前值，则选中
             if (selectedOsName && imageFile === selectedOsName) {
                 option.selected = true;
             }
             osSelect.appendChild(option);
+        }
+        // 更新最小硬盘要求提示
+        updateEditMinDiskRequirement();
+    }
+
+    // 获取当前选择的操作系统的最小硬盘要求（GB）
+    function getEditMinDiskRequirement() {
+        const osSelect = document.getElementById('editOsName');
+        const selectedOption = osSelect.options[osSelect.selectedIndex];
+        if (selectedOption && selectedOption.value) {
+            return parseInt(selectedOption.getAttribute('data-min-disk')) || 10;
+        }
+        return 10; // 默认10GB
+    }
+
+    // 更新最小硬盘要求提示
+    function updateEditMinDiskRequirement() {
+        const minDiskGB = getEditMinDiskRequirement();
+        const hddInput = document.getElementById('editHddNum');
+        
+        // 查找或创建提示元素
+        let hintElement = document.getElementById('editHddMinHint');
+        if (!hintElement) {
+            hintElement = document.createElement('div');
+            hintElement.id = 'editHddMinHint';
+            hintElement.className = 'text-xs text-gray-500 mt-1';
+            hddInput.parentElement.appendChild(hintElement);
+        }
+        
+        // 更新提示文本
+        const osSelect = document.getElementById('editOsName');
+        if (osSelect.value) {
+            hintElement.textContent = `最小要求: ${minDiskGB}GB (${minDiskGB * 1024}MB)`;
+            hintElement.style.display = 'block';
+        } else {
+            hintElement.style.display = 'none';
         }
     }
 
@@ -2590,19 +2629,17 @@
         }
     }
 
-    // 密码验证函数：最低12位，且至少包含字母、数字、特殊符号中的两种
+    // 密码验证函数：最低8位，且必须包含字母和数字
     function validatePassword(password, fieldName) {
-        if (password.length < 12) {
-            throw new Error(`${fieldName}长度不得低于12位`);
+        if (password.length < 8) {
+            throw new Error(`${fieldName}长度不得低于8位`);
         }
 
-        let typeCount = 0;
-        if (/[a-zA-Z]/.test(password)) typeCount++; // 包含字母
-        if (/[0-9]/.test(password)) typeCount++; // 包含数字
-        if (/[^a-zA-Z0-9]/.test(password)) typeCount++; // 包含特殊符号
+        const hasLetter = /[a-zA-Z]/.test(password);
+        const hasNumber = /[0-9]/.test(password);
 
-        if (typeCount < 2) {
-            throw new Error(`${fieldName}必须至少包含字母、数字、特殊符号中的两种`);
+        if (!hasLetter || !hasNumber) {
+            throw new Error(`${fieldName}必须同时包含字母和数字`);
         }
     }
 
@@ -2630,13 +2667,11 @@
             }
 
             // 检查复杂度
-            let typeCount = 0;
-            if (/[a-zA-Z]/.test(password)) typeCount++; // 包含字母
-            if (/[0-9]/.test(password)) typeCount++; // 包含数字
-            if (/[^a-zA-Z0-9]/.test(password)) typeCount++; // 包含特殊符号
+            const hasLetter = /[a-zA-Z]/.test(password);
+            const hasNumber = /[0-9]/.test(password);
 
-            if (typeCount < 2) {
-                errors.push('必须至少包含字母、数字、特殊符号中的两种');
+            if (!hasLetter || !hasNumber) {
+                errors.push('必须同时包含字母和数字');
             }
 
             isPasswordValid = errors.length === 0;
@@ -2676,13 +2711,11 @@
         }
 
         // 检查复杂度
-        let typeCount = 0;
-        if (/[a-zA-Z]/.test(password)) typeCount++; // 包含字母
-        if (/[0-9]/.test(password)) typeCount++; // 包含数字
-        if (/[^a-zA-Z0-9]/.test(password)) typeCount++; // 包含特殊符号
+        const hasLetter = /[a-zA-Z]/.test(password);
+        const hasNumber = /[0-9]/.test(password);
 
-        if (typeCount < 2) {
-            errors.push('必须至少包含字母、数字、特殊符号中的两种');
+        if (!hasLetter || !hasNumber) {
+            errors.push('必须同时包含字母和数字');
         }
 
         // 显示或隐藏错误信息
@@ -2698,21 +2731,22 @@
         }
     }
 
-    // 生成随机密码（8位，包含字母、数字、特殊符号）
+    // 生成随机密码（8位，只包含字母和数字）
     function generateRandomPassword(length = 8) {
         const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
         const numbers = '0123456789';
-        const allChars = letters + numbers;
-
+        
+        // 确保至少包含一个字母和一个数字
         let password = '';
-        // 确保至少包含一个字母、一个数字
         password += letters.charAt(Math.floor(Math.random() * letters.length));
         password += numbers.charAt(Math.floor(Math.random() * numbers.length));
+        
         // 填充剩余字符
-        for (let i = 2; i < length; i++) {
+        const allChars = letters + numbers;
+        for (let i = password.length; i < length; i++) {
             password += allChars.charAt(Math.floor(Math.random() * allChars.length));
         }
-
+        
         // 打乱顺序
         return password.split('').sort(() => Math.random() - 0.5).join('');
     }
@@ -2991,6 +3025,15 @@
             document.getElementById('editVcPort').value = vcPort;
         }
 
+        // 验证硬盘大小
+        const hddNum = parseInt(document.getElementById('editHddNum').value) || 0;
+        const minDiskGB = getEditMinDiskRequirement();
+        const minDiskMB = minDiskGB * 1024;
+        
+        if (hddNum < minDiskMB) {
+            throw new Error(`硬盘大小不能少于${minDiskGB}GB (${minDiskMB}MB)`);
+        }
+
         return {
             vm_uuid: vmUuid,
             os_name: document.getElementById('editOsName').value,
@@ -2999,7 +3042,7 @@
             vc_port: parseInt(vcPort) || 0,
             cpu_num: parseInt(document.getElementById('editCpuNum').value) || 0,
             mem_num: parseInt(document.getElementById('editMemNum').value) || 0,
-            hdd_num: parseInt(document.getElementById('editHddNum').value) || 0,
+            hdd_num: hddNum,
             gpu_num: parseInt(document.getElementById('editGpuNum').value) || 0,
             gpu_mem: parseInt(document.getElementById('editGpuMem').value) || 0,
             speed_u: parseInt(document.getElementById('editSpeedU').value) || 100,
@@ -4812,6 +4855,22 @@
             return;
         }
 
+        // 关闭重装模态框
+        closeReinstallModal();
+
+        // 显示正在处理的提示
+        Swal.fire({
+            title: '正在准备重装',
+            text: '正在保存系统设置...',
+            icon: 'info',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
         // 先保存到数据库
         const saveResult = await saveOsToDatabase(selectedOs);
         if (!saveResult) {
@@ -4819,7 +4878,7 @@
         }
 
         // 保存成功后调用重装系统函数
-        reinstallSystem();
+        await reinstallSystem();
     }
 
     async function saveOsToDatabase(osName) {
@@ -4829,16 +4888,9 @@
                 os_name: osName
             };
 
-            const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}`, 'PUT', updateData);
+            const result = await apiRequest(`/api/client/update/${hostName}/${vmUuid}`, 'PUT', updateData);
 
             if (result && result.code === 200) {
-                Swal.fire({
-                    title: '系统设置已保存',
-                    text: `已将系统设置为 ${osName}，准备开始重装...`,
-                    icon: 'success',
-                    timer: 2000,
-                    showConfirmButton: false
-                });
                 return true;
             } else {
                 Swal.fire({
@@ -4862,35 +4914,43 @@
     }
 
     async function reinstallSystem() {
-        // 关闭重装模态框
-        closeReinstallModal();
-
-        // 显示正在重装的提示
-        Swal.fire({
+        // 更新加载提示
+        Swal.update({
             title: '正在重装系统',
-            text: '系统正在重装中，请稍候...',
-            icon: 'info',
-            allowOutsideClick: false,
-            allowEscapeKey: false,
-            showConfirmButton: false
+            text: '正在重启虚拟机以完成重装...'
         });
 
-        const result = await apiRequest(`/api/hosts/${hostName}/vms/${vmUuid}/reinstall`, 'POST');
-        if (result && result.code === 200) {
-            Swal.fire({
-                title: '重装成功',
-                text: '虚拟机系统重装成功！页面将在3秒后自动刷新。',
-                icon: 'success',
-                timer: 3000,
-                showConfirmButton: false
-            });
-            setTimeout(() => {
-                location.reload();
-            }, 3000);
-        } else {
+        try {
+            // 调用电源控制 API 重启虚拟机
+            const powerData = {
+                action: 'reset'
+            };
+            const result = await apiRequest(`/api/client/powers/${hostName}/${vmUuid}`, 'POST', powerData);
+            
+            if (result && result.code === 200) {
+                Swal.fire({
+                    title: '重装成功',
+                    text: '虚拟机正在重启并重装系统！页面将在3秒后自动刷新。',
+                    icon: 'success',
+                    timer: 3000,
+                    showConfirmButton: false
+                });
+                setTimeout(() => {
+                    location.reload();
+                }, 3000);
+            } else {
+                Swal.fire({
+                    title: '重装失败',
+                    text: result?.msg || '重启虚拟机失败，请手动重启以完成重装',
+                    icon: 'error',
+                    confirmButtonText: '确定'
+                });
+            }
+        } catch (error) {
+            console.error('重装系统失败:', error);
             Swal.fire({
                 title: '重装失败',
-                text: result?.msg || '重装系统失败，请稍后重试',
+                text: '重装系统时发生错误，请稍后重试',
                 icon: 'error',
                 confirmButtonText: '确定'
             });

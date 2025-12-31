@@ -280,8 +280,14 @@ class RestManager:
             return False, self.api_response(403, error_msg)
         return True, None
     
-    def _validate_vm_resources(self, data, user_data=None):
-        """验证虚拟机资源配置"""
+    def _validate_vm_resources(self, data, user_data=None, min_disk_gb=10):
+        """验证虚拟机资源配置
+        
+        Args:
+            data: 虚拟机配置数据
+            user_data: 用户数据（用于配额检查）
+            min_disk_gb: 最小磁盘大小（GB），默认10GB
+        """
         # CPU验证：最低1核，默认2核
         cpu_num = int(data.get('cpu_num', 2))
         if cpu_num < 1:
@@ -300,10 +306,11 @@ class RestManager:
             return self.api_response(400, 'GPU显存不能少于1GB')
         data['gpu_mem'] = gpu_mem
         
-        # 硬盘验证：最低10G
+        # 硬盘验证：使用传入的最小磁盘要求
         hdd_num = int(data.get('hdd_num', 8192))  # 默认8G
-        if hdd_num < 10240:  # 最低10G
-            return self.api_response(400, '硬盘大小不能少于10GB')
+        min_disk_mb = min_disk_gb * 1024  # 转换为MB
+        if hdd_num < min_disk_mb:
+            return self.api_response(400, f'硬盘大小不能少于{min_disk_gb}GB')
         data['hdd_num'] = hdd_num
         
         # 检查镜像要求（如果提供了镜像）
@@ -791,9 +798,15 @@ class RestManager:
                 ban_edit = server_config.get('Ban_Edit', [])
                 messages = server_config.get('Messages', [])
 
+        # 获取filter_name用于UUID前缀
+        filter_name = ''
+        if server.hs_config and hasattr(server.hs_config, 'filter_name'):
+            filter_name = server.hs_config.filter_name or ''
+        
         return self.api_response(200, 'success', {
             'host_name': hs_name,
             'server_type': server_type,
+            'filter_name': filter_name,
             'system_maps': system_maps,
             'images_maps': images_maps,
             'ban_init': ban_init,
@@ -1071,15 +1084,28 @@ class RestManager:
 
         data = request.get_json() or {}
         
-        # 验证和设置资源限制（包含配额检查）
-        validation_result = self._validate_vm_resources(data, user_data)
-        if validation_result:
-            return validation_result
-        
-        # 获取system_maps进行镜像名称映射
+        # 获取system_maps，确定最小磁盘要求
+        min_disk_gb = 10  # 默认10GB
         system_maps = {}
         if server.hs_config and hasattr(server.hs_config, 'system_maps'):
             system_maps = server.hs_config.system_maps or {}
+        
+        # 根据选择的操作系统获取最小磁盘要求
+        # system_maps结构：{"Ubuntu22.04": ["ubuntu-22.04.iso", 20], ...}
+        # [0]是镜像文件名，[1]是最小磁盘GB
+        os_name = data.get('os_name', '')
+        if os_name and os_name in system_maps:
+            system_map = system_maps[os_name]
+            if isinstance(system_map, list) and len(system_map) >= 2:
+                try:
+                    min_disk_gb = int(system_map[1])  # system_map[1]是最小磁盘大小（GB）
+                except (ValueError, TypeError):
+                    min_disk_gb = 10  # 解析失败使用默认值
+        
+        # 验证和设置资源限制（包含配额检查），传入最小磁盘要求
+        validation_result = self._validate_vm_resources(data, user_data, min_disk_gb=min_disk_gb)
+        if validation_result:
+            return validation_result
         
         # 映射os_name为实际文件名
         original_os_name = data.get('os_name', '')

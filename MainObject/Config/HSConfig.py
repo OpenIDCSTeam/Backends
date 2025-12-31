@@ -27,7 +27,7 @@ class HSConfig:
         self.public_addr: list = []  # 公共IPV46
         self.server_dnss: list = []  # DNS服务器
         self.extend_data: dict = {}  # API可选项
-        self.system_maps: dict[str, list] = {}
+        self.system_maps: dict[str, list] = {}  # 系统映射: 显示名称->[文件名(xxx.iso),最低大小]
         self.images_maps: dict[str, str] = {}  # ISO镜像映射: 显示名称->文件名(xxx.iso)
         self.ipaddr_maps: dict[str, dict] = {}
         # self.ipaddr_maps：{

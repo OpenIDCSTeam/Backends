@@ -373,6 +373,100 @@ class VRestAPI:
     # :return: 虚拟机名称
     # #####################################################################
     def create_vmx(self, vm_conf: VMConfig = None, hs_config: HSConfig = None) -> str:
+        sys_system = {
+            "windows11": "windows10-64",
+            "win11": "windows10-64",
+            "windows10": "windows9-64",
+            "win10": "windows9-64",
+            "windows8.1": "windows8-64",
+            "win81": "windows8-64",
+            "windows08": "windows8-64",
+            "win80": "windows8-64",
+            "windows07": "windows7-64",
+            "win07": "windows7-64",
+            "windowsvista": "winvista-64",
+            "winvi": "winvista-64",
+            "windowsxp": "winxppro-64",
+            "winxp": "winxppro-64",
+            "windows2025": "windows10Server-64",
+            "win25": "windows9Server-64",
+            "windows2022": "windows10Server-64",
+            "win22": "windows9Server-64",
+            "windows2019": "windows8Server-64",
+            "win19": "windows8Server-64",
+            "windows2016": "windows8Server-64",
+            "win16": "windows8Server-64",
+            "windows2012r2": "windows8Server-64",
+            "win12r2": "windows8Server-64",
+            "windows2012": "windows8Server-64",
+            "win12": "windows8Server-64",
+            "windows2008r2": "windows7Server-64",
+            "win08r2": "windows7Server-64",
+            "windows2008": "windows7Server-64",
+            "win08": "windows7Server-64",
+            "windows2003r2": "windowsNetServer-64",
+            "win03r2": "windowsNetServer-64",
+            "windows2003": "windowsNetServer-64",
+            "win03": "windowsNetServer-64",
+            "ubuntu": "ubuntu-64",
+            "debian12": "debian12-64",
+            "debian11": "debian11-64",
+            "debian10": "debian10-64",
+            "debian9": "debian9-64",
+            "debian8": "debian8-64",
+            "debian7": "debian7-64",
+            "debian": "debian12-64",
+            "centos8": "centos8-64",
+            "centos7": "centos7-64",
+            "centos6": "centos6-64",
+            "centos": "centos8-64",
+            "fedora": "fedora-64",
+            "rockylinux-64": "rockylinux-64",
+            "alpine": "other6xlinux-64",
+            "mint": "other6xlinux-64",
+            "archlinux": "other6xlinux-64",
+            "opensuse": "other6xlinux-64",
+            "tlinux": "other6xlinux-64",
+            "arch": "other6xlinux-64",
+            "zorin": "other6xlinux-64",
+            "solus": "other6xlinux-64",
+            "elementary": "other6xlinux-64",
+            "pop": "other6xlinux-64",
+            "deepin": "other6xlinux-64",
+            "manjaro": "other6xlinux-64",
+            "mx": "other6xlinux-64",
+            "cachy": "other6xlinux-64",
+            "endeavour": "other6xlinux-64",
+            "linux": "other6xlinux-64",
+            "macos12": "darwin18-64",
+            "macos11": "darwin18-64",
+            "macos1015": "darwin18-64",
+            "macos1014": "darwin18-64",
+            "solaris11": "solaris11-64",
+            "solaris10": "solaris10-64",
+            "rhel8": "rhel8-64",
+            "rhel7": "rhel7-64",
+            "rhel6": "rhel6-64",
+        }
+        hdd_select = {
+            "windows11": "nvme0",
+            "win11": "nvme0",
+            "windows10": "nvme0",
+            "win10": "nvme0",
+        }
+        # 获取系统类型 ============================================
+        vmx_system = "other-64"
+        for now_prefix in sys_system:
+            if vm_conf.os_name.lower().startswith(now_prefix):
+                vmx_system = sys_system[now_prefix]
+                break
+        # 获取磁盘类型 ============================================
+        hdd_system = "sata0"
+        for now_prefix in hdd_select:
+            if vm_conf.os_name.lower().startswith(now_prefix):
+                hdd_system = hdd_select[now_prefix]
+                break
+        # 生成VMX配置 =============================================
         vmx_config = {
             # 编码配置 ============================================
             ".encoding": "GBK",
@@ -381,7 +475,7 @@ class VRestAPI:
             # 基本配置 ============================================
             "displayName": vm_conf.vm_uuid,
             "firmware": "efi",
-            "guestOS": "windows9-64",
+            "guestOS": vmx_system,
             # 硬件配置 ============================================
             "numvcpus": str(vm_conf.cpu_num),
             "cpuid.coresPerSocket": str(vm_conf.cpu_num),
@@ -411,8 +505,7 @@ class VRestAPI:
                 "functions": "8"
             },
             # 系统盘配置 ==========================================
-            "nvme0.present": "TRUE",
-            "nvme0:0": {
+            f"{hdd_system}:0": {
                 "fileName": vm_conf.vm_uuid + ".vmdk",
                 "present": "TRUE"
             },
@@ -425,6 +518,8 @@ class VRestAPI:
                 }
             }
         }
+        if hdd_system == "nvme0":
+            vmx_config["nvme0.present"] = "TRUE"
         nic_uuid = 0  # 网卡配置 ==========================================
         for nic_name, nic_data in vm_conf.nic_all.items():
             use_auto = nic_data.mac_addr is None or nic_data.mac_addr == ""
@@ -456,21 +551,24 @@ class VRestAPI:
             vmd_cmds = [vmx_disk, "-c", "-s", f"{hdd_data.hdd_size}MB",
                         "-a", "lsilogic", "-t", "0", vmx_name]
             subprocess.run(vmd_cmds, shell=True)
-            vmx_config[f"nvme0:{hdd_nums}"] = {
+            vmx_config[f"{hdd_system}:{hdd_nums}"] = {
                 "fileName": vm_conf.vm_uuid + f"-{hdd_name}.vmdk",
                 "present": "TRUE"
             }
             hdd_nums += 1
-        iso_uuid = 1  # 光盘镜像 ==========================================
+        # 如果是NVME则重置ID ==============================================
+        if hdd_system == "nvme0":
+            hdd_nums = 1
+        # 光盘镜像 ========================================================
         for iso_name in vm_conf.iso_all:
             iso_data = vm_conf.iso_all[iso_name]
             iso_full = os.path.join(hs_config.images_path, iso_data.iso_file)
-            vmx_config[f"sata0:{str(iso_uuid)}"] = {
+            vmx_config[f"sata0:{str(hdd_nums)}"] = {
                 "fileName": iso_full,
                 "present": "TRUE",
                 "deviceType": "cdrom-image"
             }
-            iso_uuid += 1
+            hdd_nums += 1
         return VRestAPI.create_txt(vmx_config)
 
     # 扩展VM磁盘 ##########################################################

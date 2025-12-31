@@ -91,61 +91,72 @@
                         基本信息
                     </h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- UUID和操作系统放一行 -->
+                        <div class="md:col-span-2 flex gap-4">
+                            <!-- UUID输入框和随机按钮 -->
+                            <div class="flex gap-2" style="flex-shrink: 0;">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-600 mb-1">虚拟机UUID *</label>
+                                    <div class="flex gap-0">
+                                        <span id="vmUuidPrefix" class="px-3 py-2 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg text-gray-600 whitespace-nowrap text-sm"></span>
+                                        <input type="text" id="vmUuidInput" required style="width: 150px;"
+                                               class="px-3 py-2 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                               placeholder="随机生成" oninput="collectVmUuid()">
+                                        <input type="hidden" name="vm_uuid" id="vmUuid">
+                                    </div>
+                                </div>
+                                <div style="align-self: flex-end;">
+                                    <button type="button" onclick="generateVmUuid()" 
+                                            class="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-1 whitespace-nowrap">
+                                        <span class="iconify" data-icon="mdi:refresh" data-width="16"></span>
+                                        <span class="hidden sm:inline">随机UUID</span>
+                                        <span class="sm:hidden">随机</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- 操作系统（占剩余宽度） -->
+                            <div style="flex: 1; min-width: 0;">
+                                <label class="block text-sm font-medium text-gray-600 mb-1">操作系统 *</label>
+                                <select name="os_name" id="osName" onchange="updateMinDiskRequirement()"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                    <option value="">请选择</option>
+                                    <!-- 操作系统选项将从主机的system_maps动态加载 -->
+                                </select>
+                            </div>
+                        </div>
+                        <!-- 系统密码、VNC密码、VNC端口和随机按钮放一行 -->
                         <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-600 mb-1">虚拟机UUID *</label>
-                            <div class="flex gap-2">
-                                <input type="text" name="vm_uuid" id="vmUuid" required
-                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                       placeholder="例如: vm_test001">
-                                <button type="button" onclick="generateVmUuid()" 
-                                        class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-1 whitespace-nowrap min-w-[80px]">
+                            <div class="flex gap-2 items-end">
+                                <!-- 系统密码 -->
+                                <div style="flex: 1;">
+                                    <label class="block text-sm font-medium text-gray-600 mb-1">系统密码</label>
+                                    <input type="text" name="os_pass" id="osPass"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                           placeholder="设置系统登录密码" oninput="validatePasswordInput('osPass')">
+                                </div>
+                                <!-- VNC密码 -->
+                                <div style="flex: 1;">
+                                    <label class="block text-sm font-medium text-gray-600 mb-1">VNC密码</label>
+                                    <input type="text" name="vc_pass" id="vcPass"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                           placeholder="VNC远程密码" oninput="validatePasswordInput('vcPass')">
+                                </div>
+                                <!-- VNC端口 -->
+                                <div style="flex: 0 0 150px;">
+                                    <label class="block text-sm font-medium text-gray-600 mb-1">VNC端口</label>
+                                    <input type="number" name="vc_port" id="vcPort" min="1" max="65535"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                           placeholder="VNC端口">
+                                </div>
+                                <!-- 随机按钮 -->
+                                <button type="button" onclick="generateAllPasswords()" 
+                                        class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-1 whitespace-nowrap">
                                     <span class="iconify" data-icon="mdi:refresh" data-width="18"></span>
                                     随机
                                 </button>
                             </div>
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-600 mb-1">操作系统</label>
-                            <select name="os_name" id="osName"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                                <option value="">请选择</option>
-                                <!-- 操作系统选项将从主机的system_maps动态加载 -->
-                            </select>
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-600 mb-1">系统密码</label>
-                            <div class="flex gap-2">
-                                <input type="text" name="os_pass" id="osPass"
-                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                       placeholder="设置系统登录密码" oninput="validatePasswordInput('osPass')">
-                                <button type="button" onclick="generateOsPass()" 
-                                        class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-1 whitespace-nowrap min-w-[80px]">
-                                    <span class="iconify" data-icon="mdi:refresh" data-width="18"></span>
-                                    随机
-                                </button>
-                            </div>
-                            <div id="osPass-error" class="text-red-500 text-xs mt-1 hidden">密码长度至少12位，且必须包含字母、数字、特殊符号中的至少两种</div>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-600 mb-1">VNC密码</label>
-                            <input type="text" name="vc_pass" id="vcPass"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                   placeholder="VNC远程密码" oninput="validatePasswordInput('vcPass')">
-                            <div id="vcPass-error" class="text-red-500 text-xs mt-1 hidden">密码长度至少12位，且必须包含字母、数字、特殊符号中的至少两种</div>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-600 mb-1">VNC端口</label>
-                            <div class="flex gap-2">
-                                <input type="number" name="vc_port" id="vcPort" min="1" max="65535"
-                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                       placeholder="VNC远程端口">
-                                <button type="button" onclick="generateRandomVncPortForInput()"
-                                        class="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-lg text-sm flex items-center gap-1"
-                                        title="生成随机端口">
-                                    <span class="iconify" data-icon="mdi:dice-6" data-width="16"></span>
-                                    随机
-                                </button>
-                            </div>
+                            <div id="osPass-error" class="text-red-500 text-xs mt-1 hidden">密码长度至少8位，且必须包含字母和数字</div>
+                            <div id="vcPass-error" class="text-red-500 text-xs mt-1 hidden">密码长度至少8位，且必须包含字母和数字</div>
                         </div>
                     </div>
                 </div>
@@ -274,31 +285,64 @@
         });
     });
 
-    // 生成随机字符串
+    // 生成随机字符串（只包含字母和数字）
     function generateRandomString(length) {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+        const numbers = '0123456789';
+        
+        // 确保至少包含一个字母和一个数字
         let result = '';
-        for (let i = 0; i < length; i++) {
-            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        result += letters.charAt(Math.floor(Math.random() * letters.length));
+        result += numbers.charAt(Math.floor(Math.random() * numbers.length));
+        
+        // 填充剩余字符
+        const allChars = letters + numbers;
+        for (let i = result.length; i < length; i++) {
+            result += allChars.charAt(Math.floor(Math.random() * allChars.length));
         }
-        return result;
+        
+        // 打乱顺序
+        return result.split('').sort(() => Math.random() - 0.5).join('');
     }
 
-    // 生成虚拟机UUID（前缀+8位随机字符串）
+    // 生成虚拟机UUID（只生成随机部分）
     function generateVmUuid() {
-        const prefix = (hostConfig.filter_name || 'vm');
         const randomStr = generateRandomString(8);
-        document.getElementById('vmUuid').value = prefix + randomStr;
+        document.getElementById('vmUuidInput').value = randomStr;
+        collectVmUuid();
     }
 
-    // 生成系统密码（12位随机字符串）
+    // 收集完整UUID（前缀+输入值）
+    function collectVmUuid() {
+        const prefix = hostConfig.filter_name || '';
+        const prefixWithUnderscore = prefix ? (prefix.endsWith('_') ? prefix : prefix + '_') : '';
+        const input = document.getElementById('vmUuidInput').value || '';
+        document.getElementById('vmUuid').value = prefixWithUnderscore + input;
+    }
+
+    // 更新UUID前缀显示
+    function updateVmUuidPrefix() {
+        const prefix = hostConfig.filter_name || '';
+        const prefixSpan = document.getElementById('vmUuidPrefix');
+        if (prefixSpan) {
+            prefixSpan.textContent = prefix ? (prefix.endsWith('_') ? prefix : prefix + '_') : '';
+        }
+    }
+
+    // 生成系统密码（8位随机字符串）
     function generateOsPass() {
-        const randomPass = generateRandomString(12);
+        const randomPass = generateRandomString(8);
         document.getElementById('osPass').value = randomPass;
         document.getElementById('vcPass').value = randomPass;
         // 触发验证
         validatePasswordInput('osPass');
         validatePasswordInput('vcPass');
+    }
+
+    // 生成所有密码和端口
+    function generateAllPasswords() {
+        generateOsPass();
+        generateRandomVncPortForInput();
     }
 
     // 生成随机VNC端口，范围5900-6999
@@ -365,19 +409,17 @@
         // 如果密码为空，认为是有效的（允许不设置密码）
         if (!password) return true;
         
-        // 密码长度至少12位
-        if (password.length < 12) {
+        // 密码长度至少8位
+        if (password.length < 8) {
             return false;
         }
         
         // 检查字符类型
         const hasLetter = /[a-zA-Z]/.test(password);
         const hasNumber = /[0-9]/.test(password);
-        const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
         
-        // 必须至少包含字母、数字、特殊符号中的两种
-        const typeCount = [hasLetter, hasNumber, hasSpecial].filter(Boolean).length;
-        return typeCount >= 2;
+        // 必须同时包含字母和数字
+        return hasLetter && hasNumber;
     }
 
     // 全局变量存储主机配置
@@ -389,6 +431,16 @@
         if (result && result.code === 200) {
             const hostData = result.data;
             hostSystemMaps = hostData.system_maps || {};
+            // 保存主机配置到全局变量
+            hostConfig = {
+                filter_name: hostData.filter_name || '',
+                system_maps: hostData.system_maps || {},
+                images_maps: hostData.images_maps || {},
+                server_type: hostData.server_type || '',
+                ban_init: hostData.ban_init || [],
+                ban_edit: hostData.ban_edit || [],
+                messages: hostData.messages || []
+            };
             // 保存服务器类型和禁止编辑的字段列表
             window.serverType = hostData.server_type || '';
             window.banInit = hostData.ban_init || [];
@@ -468,11 +520,50 @@
             const imageFile = Array.isArray(osConfig) ? osConfig[0] : osConfig;
             option.value = imageFile; // 值设置为镜像文件名
             option.textContent = osName; // 显示文本为系统名称
+            // 将最小磁盘大小存储在data属性中
+            const minDiskGB = Array.isArray(osConfig) && osConfig[1] ? osConfig[1] : 10;
+            option.setAttribute('data-min-disk', minDiskGB);
             // 如果是编辑模式且匹配当前值，则选中
             if (selectedOsValue && imageFile === selectedOsValue) {
                 option.selected = true;
             }
             osSelect.appendChild(option);
+        }
+        // 更新最小硬盘要求提示
+        updateMinDiskRequirement();
+    }
+
+    // 获取当前选择的操作系统的最小硬盘要求（GB）
+    function getMinDiskRequirement() {
+        const osSelect = document.getElementById('osName');
+        const selectedOption = osSelect.options[osSelect.selectedIndex];
+        if (selectedOption && selectedOption.value) {
+            return parseInt(selectedOption.getAttribute('data-min-disk')) || 10;
+        }
+        return 10; // 默认10GB
+    }
+
+    // 更新最小硬盘要求提示
+    function updateMinDiskRequirement() {
+        const minDiskGB = getMinDiskRequirement();
+        const hddInput = document.getElementById('hddNum');
+        
+        // 查找或创建提示元素
+        let hintElement = document.getElementById('hddMinHint');
+        if (!hintElement) {
+            hintElement = document.createElement('div');
+            hintElement.id = 'hddMinHint';
+            hintElement.className = 'text-xs text-gray-500 mt-1';
+            hddInput.parentElement.appendChild(hintElement);
+        }
+        
+        // 更新提示文本
+        const osSelect = document.getElementById('osName');
+        if (osSelect.value) {
+            hintElement.textContent = `最小要求: ${minDiskGB}GB`;
+            hintElement.style.display = 'block';
+        } else {
+            hintElement.style.display = 'none';
         }
     }
 
@@ -722,17 +813,10 @@
             const availablePubIps = user.quota_pub_ips - user.used_pub_ips;
             
             let statusHtml = '';
-            if (availableNatIps <= 0 && availablePubIps <= 0) {
-                statusHtml = '<span class="text-red-800 font-medium">⚠️ 无可用IP配额</span>';
+            if (availableNatIps === 0 && availablePubIps === 0) {
+                statusHtml = '<span class="text-red-600">⚠️ IP配额已用尽</span>';
             } else {
-                const statusTexts = [];
-                if (availableNatIps > 0) {
-                    statusTexts.push(`内网IP可用 ${availableNatIps} 个`);
-                }
-                if (availablePubIps > 0) {
-                    statusTexts.push(`公网IP可用 ${availablePubIps} 个`);
-                }
-                statusHtml = `<span class="text-green-800">✅ ${statusTexts.join('，')}</span>`;
+                statusHtml = '<span class="text-green-600">IP配额充足</span>';
             }
             
             ipQuotaInfo.innerHTML = `
@@ -869,7 +953,8 @@
             addNicConfig('ethernet0', 'pub');
         }
         
-        // 自动生成UUID和密码
+        // 更新UUID前缀并自动生成UUID和密码
+        updateVmUuidPrefix();
         generateVmUuid();
         generateOsPass();
         
@@ -1342,6 +1427,9 @@
 
     // 收集表单数据
     function collectVmFormData() {
+        // 确保UUID包含前缀
+        collectVmUuid();
+        
         const uuid = document.getElementById('vmUuid').value;
 
         // 获取VNC端口，如果为空则生成随机端口
@@ -1349,6 +1437,22 @@
         if (!vcPort) {
             vcPort = generateRandomVncPort();
             document.getElementById('vcPort').value = vcPort;
+        }
+
+        // 验证硬盘大小
+        const hddNum = parseInt(document.getElementById('hddNum').value) || 0;
+        const minDiskGB = getMinDiskRequirement();
+        const minDiskMB = minDiskGB * 1024;
+        
+        if (hddNum < minDiskMB) {
+            showToast(`硬盘大小不能少于${minDiskGB}GB (${minDiskMB}MB)`, 'error');
+            // 高亮显示硬盘输入框
+            const hddInput = document.getElementById('hddNum');
+            hddInput.classList.add('border-red-500');
+            setTimeout(() => {
+                hddInput.classList.remove('border-red-500');
+            }, 3000);
+            return null;
         }
 
         // 收集网卡配置
@@ -1376,7 +1480,7 @@
             vc_port: parseInt(vcPort) || 0,
             cpu_num: parseInt(document.getElementById('cpuNum').value) || 0,
             mem_num: parseInt(document.getElementById('memNum').value) || 0,
-            hdd_num: parseInt(document.getElementById('hddNum').value) || 0,
+            hdd_num: hddNum,
             gpu_num: parseInt(document.getElementById('gpuNum').value) || 0,
             gpu_mem: parseInt(document.getElementById('gpuMem').value) || 0,
             speed_u: parseInt(document.getElementById('speedU').value) || 100,
@@ -1407,6 +1511,10 @@
         // 如果是编辑模式，需要二次确认
         if (editMode === 'edit') {
             pendingVmData = collectVmFormData();
+            // 如果验证失败，collectVmFormData会返回null
+            if (!pendingVmData) {
+                return;
+            }
 
             // 先关闭编辑框
             document.getElementById('vmModal').close();
@@ -1452,6 +1560,10 @@
 
         // 创建模式直接提交
         const vmData = collectVmFormData();
+        // 如果验证失败，collectVmFormData会返回null
+        if (!vmData) {
+            return;
+        }
         await submitVmForm(vmData, editMode);
     });
 
