@@ -686,10 +686,10 @@ class HostServer(BasicServer):
             message="LXD containers do not support ISO mounting")
 
     # 虚拟机控制台 ##############################################################
-    def VCRemote(self, vm_uuid: str, ip_addr: str = "127.0.0.1") -> str:
+    def VCRemote(self, vm_uuid: str, ip_addr: str = "127.0.0.1") -> ZMessage:
         """生成 Web Terminal 访问 URL"""
         if vm_uuid not in self.vm_saving:
-            return ""
+            return ZMessage(success=False, action="VCRemote", message="虚拟机不存在")
         
         # 对于远程 LXD，返回 LXD 控制台 URL
         if self.hs_config.server_addr not in ["localhost", "127.0.0.1", ""]:
@@ -697,12 +697,12 @@ class HostServer(BasicServer):
             public_addr = self.hs_config.public_addr[0] if self.hs_config.public_addr else self.hs_config.server_addr
             # LXD 控制台 URL 格式
             url = f"https://{public_addr}:8443/1.0/containers/{vm_uuid}/console"
-            return url
-        
+            return ZMessage(success=True, action="VCRemote", message=url)
+
         # 本地模式使用 ttydserver
         if not self.ttyd_process:
             logger.warning("ttydserver service is not running")
-            return ""
+            return ZMessage(success=False, action="VCRemote", message="ttydserver 服务未运行")
         
         # 生成随机 token
         rand_token = ''.join(random.sample(string.ascii_letters + string.digits, 32))
@@ -715,7 +715,7 @@ class HostServer(BasicServer):
         url = f"http://{public_addr}:{self.hs_config.remote_port}/" \
               f"?arg=lxc&arg=exec&arg={vm_uuid}&arg=--&arg=/bin/bash&token={rand_token}"
         
-        return url
+        return ZMessage(success=True, action="VCRemote", message=url)
 
     # 加载备份 #################################################################
     def LDBackup(self, vm_back: str = "") -> ZMessage:
