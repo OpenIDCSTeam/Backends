@@ -1,5 +1,5 @@
-from .OCIContainerAPI import OCIContainerAPI
+from .OCIConnects import OCIConnects
 from .IPTablesAPI import IPTablesAPI
-from .WebTerminalAPI import WebTerminalAPI
+from .SSHTerminal import SSHTerminal
 
-__all__ = ['OCIContainerAPI', 'IPTablesAPI', 'WebTerminalAPI']
+__all__ = ['OCIConnects', 'IPTablesAPI', 'SSHTerminal']

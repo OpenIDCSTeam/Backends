@@ -110,7 +110,7 @@ class HostServer(BasicServer):
         return super().VMStatus(vm_name)
 
     # 虚拟机扫描 ###############################################################
-    def VScanner(self) -> ZMessage:
+    def VMDetect(self) -> ZMessage:
         # 专用操作 =============================================================
         try:
             # 连接到ESXi
@@ -215,7 +215,7 @@ class HostServer(BasicServer):
             
             # 如果有系统镜像，安装系统
             if vm_conf.os_name:
-                install_result = self.VInstall(vm_conf)
+                install_result = self.VMSetups(vm_conf)
                 if not install_result.success:
                     # 安装失败，删除虚拟机
                     self.esxi_api.delete_vm(vm_conf.vm_uuid)
@@ -243,7 +243,7 @@ class HostServer(BasicServer):
         return super().VMCreate(vm_conf)
 
     # 安装虚拟机 ###############################################################
-    def VInstall(self, vm_conf: VMConfig) -> ZMessage:
+    def VMSetups(self, vm_conf: VMConfig) -> ZMessage:
         # 专用操作 =============================================================
         try:
             # 从images_path复制镜像到ESXi数据存储
@@ -329,7 +329,7 @@ class HostServer(BasicServer):
             
             # 重装系统
             if vm_conf.os_name != vm_last.os_name and vm_last.os_name != "":
-                install_result = self.VInstall(vm_conf)
+                install_result = self.VMSetups(vm_conf)
                 if not install_result.success:
                     self.esxi_api.disconnect()
                     return install_result
@@ -452,11 +452,11 @@ class HostServer(BasicServer):
         return hs_result
 
     # 设置虚拟机密码 ###########################################################
-    def Password(self, vm_name: str, os_pass: str) -> ZMessage:
+    def VMPasswd(self, vm_name: str, os_pass: str) -> ZMessage:
         # 专用操作 =============================================================
         # ESXi通过guest tools设置密码，这里使用父类的实现
         # 通用操作 =============================================================
-        return super().Password(vm_name, os_pass)
+        return super().VMPasswd(vm_name, os_pass)
 
     # 备份虚拟机 ###############################################################
     def VMBackup(self, vm_name: str, vm_tips: str) -> ZMessage:

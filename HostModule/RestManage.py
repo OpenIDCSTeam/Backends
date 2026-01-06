@@ -1815,7 +1815,7 @@ class RestManager:
         # vm_conf = server.VMSelect(vm_uuid)
         # if not vm_conf:
         #     return self.api_response(404, '虚拟机不存在')
-        result = server.Password(vm_uuid, new_password)
+        result = server.VMPasswd(vm_uuid, new_password)
         if result and result.success:
             self.hs_manage.all_save()
             return self.api_response(200, result.message if result.message else '密码修改成功')
@@ -1901,8 +1901,8 @@ class RestManager:
             return self.api_response(404, '主机不存在')
         try:
             if server.vm_remote is None:
-                server.VCLoader()
-            result = server.VCRemote(vm_uuid)
+                server.VMLoader()
+            result = server.VMRemote(vm_uuid)
             if not result.success:
                 return self.api_response(400, result.message)
             console_url = result.message

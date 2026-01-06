@@ -142,7 +142,7 @@ result = host.HSLoader()
 print(result.message)
 
 # 扫描现有容器
-result = host.VScanner()
+result = host.VMDetect()
 print(f"扫描到 {result.results['scanned']} 个容器")
 
 # 创建新容器
@@ -162,7 +162,7 @@ if result.success:
 result = host.VMPowers("test-container-01", VMPowers.S_START)
 
 # 获取 Web Terminal URL
-terminal_url = host.VCRemote("test-container-01")
+terminal_url = host.VMRemote("test-container-01")
 print(f"Web Terminal: {terminal_url}")
 ```
 

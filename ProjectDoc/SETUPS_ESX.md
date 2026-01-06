@@ -215,7 +215,7 @@ print(result.message)
 
 ```python
 # 扫描ESXi上的所有虚拟机
-result = host.VScanner()
+result = host.VMDetect()
 print(f"扫描结果: {result.message}")
 print(f"发现虚拟机: {result.results}")
 ```

@@ -175,7 +175,7 @@ class HostServer(BasicServer):
         return super().VMStatus(vm_name)
 
     # 虚拟机扫描 ###############################################################
-    def VScanner(self) -> ZMessage:
+    def VMDetect(self) -> ZMessage:
         # 专用操作 =============================================================
         client, result = self._connect_lxd()
         if not result.success:
@@ -283,7 +283,7 @@ class HostServer(BasicServer):
             container = client.containers.create(config, wait=True)
             
             # 安装系统（从模板）
-            install_result = self.VInstall(vm_conf)
+            install_result = self.VMSetups(vm_conf)
             if not install_result.success:
                 # 清理失败的容器
                 container.delete(wait=True)
@@ -365,7 +365,7 @@ class HostServer(BasicServer):
         return devices
 
     # 安装虚拟机 ###############################################################
-    def VInstall(self, vm_conf: VMConfig) -> ZMessage:
+    def VMSetups(self, vm_conf: VMConfig) -> ZMessage:
         # 专用操作 =============================================================
         client, result = self._connect_lxd()
         if not result.success:
@@ -425,7 +425,7 @@ class HostServer(BasicServer):
             
             # 重装系统（如果系统镜像改变）
             if vm_conf.os_name != vm_last.os_name and vm_last.os_name != "":
-                install_result = self.VInstall(vm_conf)
+                install_result = self.VMSetups(vm_conf)
                 if not install_result.success:
                     return install_result
             
@@ -546,7 +546,7 @@ class HostServer(BasicServer):
         return hs_result
 
     # 设置虚拟机密码 ###########################################################
-    def Password(self, vm_name: str, os_pass: str) -> ZMessage:
+    def VMPasswd(self, vm_name: str, os_pass: str) -> ZMessage:
         # 专用操作 =============================================================
         client, result = self._connect_lxd()
         if not result.success:
@@ -686,7 +686,7 @@ class HostServer(BasicServer):
             message="LXD containers do not support ISO mounting")
 
     # 虚拟机控制台 ##############################################################
-    def VCRemote(self, vm_uuid: str, ip_addr: str = "127.0.0.1") -> ZMessage:
+    def VMRemote(self, vm_uuid: str, ip_addr: str = "127.0.0.1") -> ZMessage:
         """生成 Web Terminal 访问 URL"""
         if vm_uuid not in self.vm_saving:
             return ZMessage(success=False, action="VCRemote", message="虚拟机不存在")

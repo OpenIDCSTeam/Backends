@@ -52,7 +52,7 @@ from MainObject.Config.HSConfig import HSConfig
 config = HSConfig(
     server_name="my-lxd-server",
     server_addr="192.168.1.100",  # 替换为你的服务器 IP
-    launch_path="C:\\certs",        # 证书目录
+    launch_path="C:\\certs",  # 证书目录
     network_pub="br-pub",
     network_nat="br-nat",
     system_path="/var/lib/lxd/containers",
@@ -68,7 +68,7 @@ result = server.HSLoader()
 print(f"连接结果: {result.message}")
 
 # 扫描现有容器
-scan_result = server.VScanner()
+scan_result = server.VMDetect()
 print(f"扫描结果: {scan_result.message}")
 ```
 
@@ -152,7 +152,7 @@ print("容器已启动！")
 
 ```python
 # 列出所有容器
-scan_result = server.VScanner()
+scan_result = server.VMDetect()
 
 # 启动容器
 server.VMPowers("container-name", VMPowers.S_START)

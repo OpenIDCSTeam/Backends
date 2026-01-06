@@ -146,7 +146,7 @@ else:
     print(f"❌ 连接失败: {result.message}")
 
 # 扫描容器
-scan_result = server.VScanner()
+scan_result = server.VMDetect()
 print(f"扫描结果: {scan_result.message}")
 ```
 

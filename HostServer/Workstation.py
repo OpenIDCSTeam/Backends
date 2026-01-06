@@ -97,7 +97,7 @@ class HostServer(BasicServer):
         return super().VMStatus(vm_name)
 
     # 虚拟机扫描 ###############################################################
-    def VScanner(self) -> ZMessage:
+    def VMDetect(self) -> ZMessage:
         try:
             # 使用主机配置的filter_name作为前缀过滤
             filter_prefix = self.hs_config.filter_name if self.hs_config else ""
@@ -190,7 +190,7 @@ class HostServer(BasicServer):
                 vm_save_file.write(vm_text)
             # 安装系统 =========================================================
             # results = self.VInstall(vm_conf.os_name, vm_file, vm_conf.hdd_num)
-            results = self.VInstall(vm_conf)
+            results = self.VMSetups(vm_conf)
             if not results.success:
                 raise Exception(f"安装系统失败: {results.message}")
             # 注册机器 =========================================================
@@ -213,7 +213,7 @@ class HostServer(BasicServer):
         return super().VMCreate(vm_conf)
 
     # 安装虚拟机 ###############################################################
-    def VInstall(self, vm_conf: VMConfig) -> ZMessage:
+    def VMSetups(self, vm_conf: VMConfig) -> ZMessage:
         # 复制镜像 =============================================================
         vm_tail = vm_conf.os_name.split(".")[-1]
         im_file = os.path.join(self.hs_config.images_path, vm_conf.os_name)
@@ -249,7 +249,7 @@ class HostServer(BasicServer):
         self.VMPowers(vm_conf.vm_uuid, VMPowers.H_CLOSE)
         # 重装系统 =============================================================
         if vm_conf.os_name != vm_last.os_name and vm_last.os_name != "":
-            self.VInstall(vm_conf)
+            self.VMSetups(vm_conf)
         # 更新硬盘 =============================================================
         if vm_conf.hdd_num > vm_last.hdd_num:
             disk_file = f"{vm_path}.{vm_conf.os_name.split('.')[-1]}"

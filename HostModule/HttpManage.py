@@ -13,10 +13,10 @@ GLOBAL_CONFIG = """{
 
 
 class HttpManage:
-    def __init__(self):
+    def __init__(self, config_filename="HttpManage.txt"):
         self.binary_proc = None
-        self.config_dir = Path("HostConfig")
-        self.config_file = Path("DataSaving/HttpManage.txt")
+        self.config_path = Path("HostConfig")
+        self.config_file = Path(f"DataSaving/{config_filename}")
         self.binary_path = ""
         # proxys_list格式: {domain: {"target": (port, ip), "is_https": bool, "listen_port": int}}
         self.proxys_list: dict = {}
@@ -24,7 +24,7 @@ class HttpManage:
             self.binary_path = ".\\HostConfig\\Server_x64.exe"
         else:
             self.binary_path = "HostConfig/Server_x64"
-        self.config_dir.mkdir(exist_ok=True)
+        self.config_path.mkdir(exist_ok=True)
         
         # 加载已保存的代理配置
         self.load_proxys()

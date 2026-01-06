@@ -64,7 +64,7 @@ class HostServer(BasicServer):
         return super().VMStatus(vm_name)
 
     # 虚拟机扫描 ###############################################################
-    def VScanner(self) -> ZMessage:
+    def VMDetect(self) -> ZMessage:
         # 专用操作 =============================================================
         # TODO: 增加此主机需要执行的任务
         # 通用操作 =============================================================
@@ -78,11 +78,11 @@ class HostServer(BasicServer):
         return super().VMCreate(vm_conf)
 
     # 安装虚拟机 ###############################################################
-    def VInstall(self, vm_conf: VMConfig) -> ZMessage:
+    def VMSetups(self, vm_conf: VMConfig) -> ZMessage:
         # 专用操作 =============================================================
         # TODO: 增加此主机需要执行的任务
         # 通用操作 =============================================================
-        return super().VInstall(vm_conf)
+        return super().VMSetups(vm_conf)
 
     # 配置虚拟机 ###############################################################
     def VMUpdate(self, vm_conf: VMConfig, vm_last: VMConfig) -> ZMessage:
@@ -106,11 +106,11 @@ class HostServer(BasicServer):
         return super().VMPowers(vm_name, power)
 
     # 设置虚拟机密码 ###########################################################
-    def Password(self, vm_name: str, os_pass: str) -> ZMessage:
+    def VMPasswd(self, vm_name: str, os_pass: str) -> ZMessage:
         # 专用操作 =============================================================
         # TODO: 增加此主机需要执行的任务
         # 通用操作 =============================================================
-        return super().Password(vm_name, os_pass)
+        return super().VMPasswd(vm_name, os_pass)
 
     # 备份虚拟机 ###############################################################
     def VMBackup(self, vm_name: str, vm_tips: str) -> ZMessage:

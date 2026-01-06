@@ -218,7 +218,7 @@ class BasicServer:
     # :param ip_addr: 远程IP地址
     # :returns: 是否成功
     # ###############################################################################
-    def VCLoader(self) -> bool:
+    def VMLoader(self) -> bool:
         cfg_name = "vnc_" + self.hs_config.server_name
         cfg_full = "DataSaving/" + cfg_name + ".cfg"
         if os.path.exists(cfg_full):
@@ -231,7 +231,7 @@ class BasicServer:
     # 虚拟机控制台 ##################################################################
     # :params vm_uuid: 虚拟机UUID
     # ###############################################################################
-    def VCRemote(self, vm_uuid: str, ip_addr: str = "127.0.0.1") -> ZMessage:
+    def VMRemote(self, vm_uuid: str, ip_addr: str = "127.0.0.1") -> ZMessage:
         if vm_uuid not in self.vm_saving:
             return ZMessage(success=False, action="VCRemote", message="虚拟机不存在")
         logger.debug(f"[DEBUG VCRemote] vm_saving 内容: {self.vm_saving}")
@@ -477,7 +477,7 @@ class BasicServer:
 
 
     # 虚拟机扫描 ####################################################################
-    def VScanner(self) -> ZMessage:
+    def VMDetect(self) -> ZMessage:
         pass
 
 
@@ -555,7 +555,7 @@ class BasicServer:
     # 安装虚拟机 ####################################################################
     # :params select: 虚拟机UUID
     # ###############################################################################
-    def VInstall(self, vm_conf: VMConfig) -> ZMessage:
+    def VMSetups(self, vm_conf: VMConfig) -> ZMessage:
         pass
 
 
@@ -563,7 +563,7 @@ class BasicServer:
     # :params select: 虚拟机UUID
     # :params os_pass: 密码
     # ###############################################################################
-    def Password(self, vm_name: str, os_pass: str) -> ZMessage:
+    def VMPasswd(self, vm_name: str, os_pass: str) -> ZMessage:
         vm_config = self.VMSelect(vm_name)
         if vm_config is None:
             return ZMessage(

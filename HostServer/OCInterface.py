@@ -14,9 +14,9 @@ from MainObject.Config.VMPowers import VMPowers
 from MainObject.Public.HWStatus import HWStatus
 from MainObject.Public.ZMessage import ZMessage
 from MainObject.Config.VMConfig import VMConfig
-from HostServer.OCInterfaceAPI import OCIContainerAPI
+from HostServer.OCInterfaceAPI import OCIConnects
 from HostServer.OCInterfaceAPI.IPTablesAPI import IPTablesAPI
-from HostServer.OCInterfaceAPI.WebTerminalAPI import WebTerminalAPI
+from HostServer.OCInterfaceAPI.SSHTerminal import SSHTerminal
 
 try:
     from docker.errors import NotFound
@@ -28,7 +28,7 @@ class HostServer(BasicServer):
     # 连接到 Docker 服务器 #####################################################
     def _connect_docker(self) -> tuple:
         if not self.oci_connects:
-            self.oci_connects = OCIContainerAPI(self.hs_config)
+            self.oci_connects = OCIConnects(self.hs_config)
 
         return self.oci_connects.connect_docker()
 
@@ -38,13 +38,23 @@ class HostServer(BasicServer):
         self.web_terminal = None
         self.oci_connects = None
         self.ssh_forwards = None
+        self.http_manager = None
 
     def HSLoader(self) -> ZMessage:
         # 专用操作 =============================================================
-        # 启动 Web Terminal 服务 ===============================================
         if not self.web_terminal:
-            self.web_terminal = WebTerminalAPI(self.hs_config)
-        self.web_terminal.start_ttydserver()
+            self.web_terminal = SSHTerminal(self.hs_config)
+
+        # 初始化HttpManage，使用caddy_主机名.txt作为配置文件名
+        if not self.http_manager:
+            from HostModule.HttpManage import HttpManage
+            # 获取主机名，使用server_name，如果没有则使用默认值
+            hostname = getattr(self.hs_config, 'server_name', 'localhost')
+            if not hostname:
+                hostname = 'localhost'
+            config_filename = f"vnc-{hostname}.txt"
+            self.http_manager = HttpManage(config_filename)
+
         # 连接到 Docker 服务器 =================================================
         client, result = self._connect_docker()
         if not result.success:
@@ -52,12 +62,14 @@ class HostServer(BasicServer):
         # 通用操作 =============================================================
         return super().HSLoader()
 
+    def VMLoader(self) -> bool:
+        pass
+
     # 卸载宿主机 ###############################################################
     def HSUnload(self) -> ZMessage:
         # 专用操作 =============================================================
-        # 停止 Web Terminal 服务
         if self.web_terminal:
-            self.web_terminal.stop_ttydserver()
+            self.web_terminal = None
         # 断开 Docker 连接 =====================================================
         if self.oci_connects:
             self.oci_connects.close()
@@ -75,7 +87,7 @@ class HostServer(BasicServer):
         return super().VMStatus(vm_name)
 
     # 虚拟机扫描 ###############################################################
-    def VScanner(self) -> ZMessage:
+    def VMDetect(self) -> ZMessage:
         # 专用操作 =============================================================
         client, result = self._connect_docker()
         if not result.success:
@@ -146,7 +158,7 @@ class HostServer(BasicServer):
                 pass  # 容器不存在，继续创建
 
             # 先加载镜像
-            install_result = self.VInstall(vm_conf)
+            install_result = self.VMSetups(vm_conf)
             if not install_result.success:
                 raise Exception(f"Failed to load image: {install_result.message}")
 
@@ -273,17 +285,17 @@ class HostServer(BasicServer):
             logger.info(f"  {os.path.join(base_path, 'user')}:/home/user")
 
         # SSH端口映射配置（22端口映射到随机端口）
-        if self.hs_config.ports_start > 0 and self.hs_config.ports_close > 0:
-            # 生成随机SSH端口映射
-            import random
-            ssh_port = random.randint(self.hs_config.ports_start, self.hs_config.ports_close)
-
-            # 添加端口映射：容器22端口 -> 宿主机随机端口
-            config["ports"][22] = ssh_port
-
-            logger.info(f"Configured SSH port mapping for {container_name}: 22 -> {ssh_port}")
-        else:
-            logger.warning(f"SSH port mapping not configured for {container_name}: ports_start/ports_close not set")
+        # if self.hs_config.ports_start > 0 and self.hs_config.ports_close > 0:
+        #     # 生成随机SSH端口映射
+        #     import random
+        #     ssh_port = random.randint(self.hs_config.ports_start, self.hs_config.ports_close)
+        #
+        #     # 添加端口映射：容器22端口 -> 宿主机随机端口
+        #     config["ports"][22] = ssh_port
+        #
+        #     logger.info(f"Configured SSH port mapping for {container_name}: 22 -> {ssh_port}")
+        # else:
+        #     logger.warning(f"SSH port mapping not configured for {container_name}: ports_start/ports_close not set")
 
         # 网络配置
         fixed_ip = ""  # 固定IP地址
@@ -314,7 +326,7 @@ class HostServer(BasicServer):
         return config, fixed_ip
 
     # 安装虚拟机 ###############################################################
-    def VInstall(self, vm_conf: VMConfig) -> ZMessage:
+    def VMSetups(self, vm_conf: VMConfig) -> ZMessage:
         # 专用操作 =============================================================
         client, result = self._connect_docker()
         if not result.success:
@@ -535,7 +547,7 @@ class HostServer(BasicServer):
         return hs_result
 
     # 设置虚拟机密码 ###########################################################
-    def Password(self, vm_name: str, os_pass: str) -> ZMessage:
+    def VMPasswd(self, vm_name: str, os_pass: str) -> ZMessage:
         # 专用操作 =============================================================
         client, result = self._connect_docker()
         if not result.success:
@@ -775,7 +787,7 @@ class HostServer(BasicServer):
         # Docker容器不支持动态挂载/卸载磁盘
         return ZMessage(
             success=False, action="HDDMount",
-            message="Docker容器不支持动态磁盘挂载，请使用Docker volumes或bind mounts，或在创建容器时配置挂载")
+            message="Docker容器不支持动态磁盘挂载")
 
     # ISO镜像挂载 ##############################################################
     def ISOMount(self, vm_name: str, vm_imgs: IMConfig, in_flag=True) -> ZMessage:
@@ -785,43 +797,93 @@ class HostServer(BasicServer):
             success=True, action="ISOMount",
             message="Docker containers do not support ISO mounting")
 
-    # VM镜像挂载 ###############################################################
-    def VCRemote(self, vm_uuid: str, ip_addr: str = "127.0.0.1") -> ZMessage:
-        """
-        生成 Web Terminal 访问 URL
-        :param vm_uuid: 虚拟机/容器UUID
-        :param ip_addr: IP地址（忽略，使用配置中的server_addr）
-        :return: 访问URL
-        """
+    # 虚拟机远程访问 ###########################################################
+    def VMRemote(self, vm_uuid: str, ip_addr: str = "127.0.0.1") -> ZMessage:
+        # 专用操作 =============================================================
         if vm_uuid not in self.vm_saving:
-            return ZMessage(success=False, action="VCRemote", message="虚拟机不存在")
-        # 使用 Web Terminal API 生成 URL
-        if not self.web_terminal:
-            self.web_terminal = WebTerminalAPI(self.hs_config)
-
-        # 获取容器的SSH端口映射
-        ssh_port = None
+            return ZMessage(
+                success=False,
+                action="VCRemote",
+                message="虚拟机不存在")
+        # 获取虚拟机配置 =======================================================
         vm_conf = self.vm_saving[vm_uuid]
         container_name = vm_conf.vm_uuid
-
+        # 获取虚拟机SSH端口 ====================================================
+        wan_port = None
         try:
-            client, result = self._connect_docker()
-            if result.success:
-                container = client.containers.get(container_name)
-                container.reload()
-
-                # 获取端口映射信息
-                ports_info = container.attrs.get('NetworkSettings', {}).get('Ports', {})
-                if ports_info and '22/tcp' in ports_info:
-                    port_bindings = ports_info['22/tcp']
-                    if port_bindings and len(port_bindings) > 0:
-                        ssh_port = port_bindings[0].get('HostPort')
+            all_port = vm_conf.nat_all
+            for now_port in all_port:
+                if now_port.lan_port == 22:
+                    wan_port = now_port.wan_port
+                    break
         except Exception as e:
-            logger.warning(f"Failed to get SSH port mapping for {container_name}: {str(e)}")
-
+            logger.warning(f"无法获取SSH端口: {container_name}: {str(e)}")
+        if not wan_port:
+            return ZMessage(
+                success=False, 
+                action="VCRemote",
+                message="虚拟机SSH端口映射不存在")
+        # 2. 获取主机外网IP ====================================================
+        if len(self.hs_config.public_addr) == 0:
+            return ZMessage(
+                success=False,
+                action="VCRemote",
+                message="主机外网IP不存在")
+        public_ip = self.hs_config.public_addr[0]
+        if public_ip in ["localhost", "127.0.0.1", ""]:
+            public_ip = "127.0.0.1"  # 默认使用本地
+        # 3. 启动tty会话web ====================================================
+        tty_port, token = self.web_terminal.open_tty(
+            self.hs_config.server_addr, wan_port)
+        if tty_port <= 0:
+            return ZMessage(
+                success=False,
+                action="VCRemote",
+                message="启动tty会话失败"
+            )
+        # 4. 添加IP反向代理 ====================================================
+        try:
+            # 代理路径：---------------------------------------
+            target_ip = self.hs_config.server_addr
+            proxy_uri = f":{self.hs_config.remote_port}/{token}"
+            # 添加代理 ----------------------------------------
+            success = self.http_manager.proxy_add(
+                (tty_port, target_ip),
+                proxy_uri, is_https=False)
+            if not success:
+                self.web_terminal.stop_tty(tty_port) # 清理tty
+                return ZMessage(
+                    success=False,
+                    action="VCRemote",
+                    message="添加反向代理失败")
+            # 重载配置 ---------------------------------------
+            self.http_manager.loads_web()
+        except Exception as e:
+            logger.error(f"代理配置失败: {str(e)}")
+            self.web_terminal.stop_tty(tty_port)
+            return ZMessage(
+                success=False,
+                action="VCRemote",
+                message=f"代理配置失败: {str(e)}")
+        # 5. 构造返回URL =======================================================
+        vnc_port = self.hs_config.remote_port
+        url = f"http://{public_ip}:{vnc_port}/{token}"
+        logger.info(
+            f"VMRemote for {vm_uuid}: "
+            f"SSH({public_ip}:{wan_port}) "
+            f"-> tty({tty_port}) -> proxy(/{token}) -> {url}")
+        # 6. 返回结果 ==========================================================
         return ZMessage(
-            success=True, action="VCRemote",
-            messages=self.web_terminal.generate_terminal_url(vm_uuid, ssh_port)
+            success=True,
+            action="VCRemote",
+            message=url,
+            results={
+                "tty_port": tty_port,
+                "token": token,
+                "vnc_port": vnc_port,
+                "url": url,
+                "ssh_port": wan_port
+            }
         )
 
     # 移除磁盘 #################################################################

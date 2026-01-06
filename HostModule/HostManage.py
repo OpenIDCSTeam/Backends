@@ -215,7 +215,7 @@ class HostManage:
                     )
                     self.engine[hs_name].HSLoader()
                     try:
-                        self.engine[hs_name].VCLoader()
+                        self.engine[hs_name].VMLoader()
                     except Exception as vc_error:
                         # 如果是多进程相关错误，记录警告但不阻止其他服务器加载
                         if "multiprocessing" in str(vc_error) or "process" in str(vc_error).lower():
@@ -280,7 +280,7 @@ class HostManage:
 
         try:
             # 调用服务器的VScanner方法
-            result = server.VScanner()
+            result = server.VMDetect()
             return result
         finally:
             # 恢复原始的filter_name

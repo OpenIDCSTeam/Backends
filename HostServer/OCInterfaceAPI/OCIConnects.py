@@ -18,7 +18,7 @@ from MainObject.Public.ZMessage import ZMessage
 from HostModule.SSHForward import SSHForward
 
 
-class OCIContainerAPI:
+class OCIConnects:
     """Docker/OpenContainer Initiative 容器操作API封装类"""
 
     def __init__(self, hs_config: HSConfig):

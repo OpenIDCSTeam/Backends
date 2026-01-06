@@ -93,7 +93,7 @@ result = server.HSLoader()
 print(f"连接结果: {result.message}")
 
 # 扫描现有容器
-scan_result = server.VScanner()
+scan_result = server.VMDetect()
 print(f"扫描结果: {scan_result.message}")
 ```
 
@@ -111,11 +111,11 @@ from MainObject.Config.VMPowers import VMPowers
 
 # 创建容器配置
 vm_conf = VMConfig(
-    vm_uuid="test-container-001",
-    os_name="ubuntu:22.04",  # Docker Hub 镜像
-    # 或使用本地 tar 文件: "ubuntu-22.04.tar.gz"
-    cpu_num=2,
-    ram_num=4  # GB
+   vm_uuid="test-container-001",
+   os_name="ubuntu:22.04",  # Docker Hub 镜像
+   # 或使用本地 tar 文件: "ubuntu-22.04.tar.gz"
+   cpu_num=2,
+   ram_num=4  # GB
 )
 
 # 创建容器
@@ -127,7 +127,7 @@ server.VMPowers("test-container-001", VMPowers.S_START)
 print("容器已启动！")
 
 # 获取 Web Terminal 访问地址
-terminal_url = server.VCRemote("test-container-001")
+terminal_url = server.VMRemote("test-container-001")
 print(f"Web Terminal: {terminal_url}")
 ```
 
@@ -175,7 +175,7 @@ print(f"Web Terminal: {terminal_url}")
 
 ```python
 # 列出所有容器
-scan_result = server.VScanner()
+scan_result = server.VMDetect()
 
 # 启动容器
 server.VMPowers("container-name", VMPowers.S_START)
@@ -195,18 +195,18 @@ server.VMDelete("container-name")
 ```python
 # 从 Docker Hub 拉取镜像
 vm_conf = VMConfig(
-    vm_uuid="nginx-001",
-    os_name="nginx:latest"  # 自动从 Docker Hub 拉取
+   vm_uuid="nginx-001",
+   os_name="nginx:latest"  # 自动从 Docker Hub 拉取
 )
 
 # 从本地 tar 文件加载镜像
 vm_conf = VMConfig(
-    vm_uuid="custom-001",
-    os_name="custom-image.tar.gz"  # 从 images_path 加载
+   vm_uuid="custom-001",
+   os_name="custom-image.tar.gz"  # 从 images_path 加载
 )
 
 # 安装镜像
-result = server.VInstall(vm_conf)
+result = server.VMSetups(vm_conf)
 ```
 
 ### 资源管理
@@ -245,7 +245,7 @@ server.HDDMount("container-name", hdd_conf, in_flag=False)
 
 ```python
 # 设置容器 root 密码
-server.Password("container-name", "new_password")
+server.VMPasswd("container-name", "new_password")
 ```
 
 ### 备份恢复
@@ -262,7 +262,7 @@ server.Restores("container-name", "backup-20250125.7z")
 
 ```python
 # 获取 Web Terminal URL
-terminal_url = server.VCRemote("container-name")
+terminal_url = server.VMRemote("container-name")
 print(f"访问地址: {terminal_url}")
 
 # 在浏览器中打开该 URL 即可访问容器终端
@@ -586,7 +586,7 @@ server.VMCreate(vm_conf)
 server.VMPowers("test", VMPowers.S_START)
 
 # 访问终端
-url = server.VCRemote("test")
+url = server.VMRemote("test")
 ```
 
 > **提示**：如果你需要更高级的容器编排功能，可以考虑使用 Docker Compose 或 Kubernetes。
