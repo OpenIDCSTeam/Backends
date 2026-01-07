@@ -1,12 +1,6 @@
 import os
-import random
 import traceback
 from loguru import logger
-from pyexpat.errors import messages
-
-from MainObject.Config.PortData import PortData
-
-from HostServer.BasicServer import BasicServer
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Config.IMConfig import IMConfig
 from MainObject.Config.SDConfig import SDConfig
@@ -14,7 +8,10 @@ from MainObject.Config.VMPowers import VMPowers
 from MainObject.Public.HWStatus import HWStatus
 from MainObject.Public.ZMessage import ZMessage
 from MainObject.Config.VMConfig import VMConfig
+from MainObject.Config.PortData import PortData
+from HostServer.BasicServer import BasicServer
 from HostServer.OCInterfaceAPI import OCIConnects
+from HostModule.HttpManage import HttpManage
 from HostServer.OCInterfaceAPI.IPTablesAPI import IPTablesAPI
 from HostServer.OCInterfaceAPI.SSHTerminal import SSHTerminal
 
@@ -40,193 +37,10 @@ class HostServer(BasicServer):
         self.ssh_forwards = None
         self.http_manager = None
 
-    def HSLoader(self) -> ZMessage:
-        # 专用操作 =============================================================
-        if not self.web_terminal:
-            self.web_terminal = SSHTerminal(self.hs_config)
-
-        # 初始化HttpManage，使用caddy_主机名.txt作为配置文件名
-        if not self.http_manager:
-            from HostModule.HttpManage import HttpManage
-            # 获取主机名，使用server_name，如果没有则使用默认值
-            hostname = getattr(self.hs_config, 'server_name', 'localhost')
-            if not hostname:
-                hostname = 'localhost'
-            config_filename = f"vnc-{hostname}.txt"
-            self.http_manager = HttpManage(config_filename)
-
-        # 连接到 Docker 服务器 =================================================
-        client, result = self._connect_docker()
-        if not result.success:
-            return result
-        # 通用操作 =============================================================
-        return super().HSLoader()
-
-    def VMLoader(self) -> bool:
-        pass
-
-    # 卸载宿主机 ###############################################################
-    def HSUnload(self) -> ZMessage:
-        # 专用操作 =============================================================
-        if self.web_terminal:
-            self.web_terminal = None
-        # 断开 Docker 连接 =====================================================
-        if self.oci_connects:
-            self.oci_connects.close()
-            self.oci_connects = None
-        # 关闭 SSH 转发连接 ====================================================
-        if self.ssh_forwards:
-            self.ssh_forwards.close()
-        # 通用操作 =============================================================
-        return super().HSUnload()
-
-    # 虚拟机列出 ###############################################################
-    def VMStatus(self, vm_name: str = "") -> dict[str, list[HWStatus]]:
-        # 专用操作 =============================================================
-        # 通用操作 =============================================================
-        return super().VMStatus(vm_name)
-
-    # 虚拟机扫描 ###############################################################
-    def VMDetect(self) -> ZMessage:
-        # 专用操作 =============================================================
-        client, result = self._connect_docker()
-        if not result.success:
-            return result
-        try:
-            # 获取所有容器列表（包括停止的）
-            containers = client.containers.list(all=True)
-            # 使用主机配置的filter_name作为前缀过滤
-            filter_prefix = self.hs_config.filter_name if self.hs_config else ""
-            scanned_count = 0
-            added_count = 0
-            for container in containers:
-                container_name = container.name
-                # 前缀过滤
-                if filter_prefix and not container_name.startswith(filter_prefix):
-                    continue
-                scanned_count += 1
-                # 检查是否已存在
-                if container_name in self.vm_saving:
-                    continue
-                # 创建默认虚拟机配置
-                default_vm_config = VMConfig()
-                default_vm_config.vm_uuid = container_name
-                # 添加到服务器的虚拟机配置中
-                self.vm_saving[container_name] = default_vm_config
-                added_count += 1
-            # 保存到数据库
-            if added_count > 0:
-                success = self.data_set()
-                if not success:
-                    return ZMessage(
-                        success=False, action="VScanner",
-                        message="Failed to save scanned containers to database")
-            return ZMessage(
-                success=True,
-                action="VScanner",
-                message=f"扫描完成。共扫描到{scanned_count}个容器，新增{added_count}个容器配置。",
-                results={
-                    "scanned": scanned_count,
-                    "added": added_count,
-                    "prefix_filter": filter_prefix
-                }
-            )
-        except Exception as e:
-            return ZMessage(
-                success=False, action="VScanner",
-                message=f"扫描容器时出错: {str(e)}")
-
-    # 创建虚拟机 ###############################################################
-    def VMCreate(self, vm_conf: VMConfig) -> ZMessage:
-        vm_conf, net_result = self.NetCheck(vm_conf)
-        if not net_result.success:
-            return net_result
-        self.NCCreate(vm_conf, True)
-        # 专用操作 =============================================================
-        client, result = self._connect_docker()
-        if not result.success:
-            return result
-        try:
-            container_name = vm_conf.vm_uuid
-            # 检查容器是否已存在
-            try:
-                client.containers.get(container_name)
-                return ZMessage(
-                    success=False, action="VMCreate",
-                    message=f"Container {container_name} already exists")
-            except NotFound:
-                pass  # 容器不存在，继续创建
-
-            # 先加载镜像
-            install_result = self.VMSetups(vm_conf)
-            if not install_result.success:
-                raise Exception(f"Failed to load image: {install_result.message}")
-
-            # 构建容器配置
-            container_config, fixed_ip = self._build_container_config(vm_conf)
-
-            # 获取网络名称
-            network_name = container_config.get("network")
-
-            # 创建容器（如果配置了固定IP，先创建但不连接网络）
-            if fixed_ip and network_name:
-                # 创建容器但不连接网络
-                container = client.containers.create(
-                    image=vm_conf.os_name,
-                    name=container_name,
-                    detach=True,
-                    hostname=container_name,
-                    mac_address=container_config.get("mac_address"),
-                    environment=container_config.get("environment", {}),
-                    volumes=container_config.get("volumes", {}),
-                    ports=container_config.get("ports", {}),
-                    nano_cpus=container_config.get("nano_cpus"),
-                    mem_limit=container_config.get("mem_limit"),
-                    cpu_shares=container_config.get("cpu_shares"),
-                    stdin_open=container_config.get("stdin_open", True),
-                    tty=container_config.get("tty", True),
-                    privileged=container_config.get("privileged", True),
-                    shm_size=container_config.get("shm_size", "1024m"),
-                    cap_add=container_config.get("cap_add", ["SYS_ADMIN", "SYS_PTRACE"])
-                )
-
-                # 连接到网络并分配固定 IP
-                try:
-                    network = client.networks.get(network_name)
-                    network.connect(container, ipv4_address=fixed_ip)
-                    logger.info(f"Assigned fixed IP {fixed_ip} to container {container_name}")
-                except Exception as ip_error:
-                    logger.warning(f"Failed to assign fixed IP {fixed_ip}: {str(ip_error)}")
-            else:
-                # 创建容器
-                container = client.containers.create(
-                    image=vm_conf.os_name,
-                    name=container_name,
-                    detach=True,
-                    hostname=container_name,
-                    **container_config
-                )
-
-            # 启动容器
-            container.start()
-
-            logger.info(f"Container {container_name} created successfully")
-
-        except Exception as e:
-            hs_result = ZMessage(
-                success=False, action="VMCreate",
-                message=f"容器创建失败: {str(e)}")
-            traceback.print_exc()
-            self.logs_set(hs_result)
-            return hs_result
-
-        # 通用操作 =============================================================
-        return super().VMCreate(vm_conf)
-
     # 构建容器配置 #############################################################
-    def _build_container_config(self, vm_conf: VMConfig) -> tuple[dict, str]:
+    def VMBuilds(self, vm_conf: VMConfig) -> tuple[dict, str]:
         """构建 Docker 容器配置
-        
+
         返回:
             tuple: (容器配置字典, 固定IP地址字符串)
         """
@@ -324,6 +138,185 @@ class HostServer(BasicServer):
             nic_index += 1
 
         return config, fixed_ip
+
+    # 加载主机配置 #############################################################
+    def HSLoader(self) -> ZMessage:
+        # 专用操作 =============================================================
+        if not self.web_terminal:
+            self.web_terminal = SSHTerminal(self.hs_config)
+
+        # 初始化HttpManage，使用caddy_主机名.txt作为配置文件名
+        if not self.http_manager:
+
+            # 获取主机名，使用server_name，如果没有则使用默认值
+            hostname = getattr(self.hs_config, 'server_name', 'localhost')
+            if not hostname:
+                hostname = 'localhost'
+            config_filename = f"vnc_{hostname}.txt"
+            self.http_manager = HttpManage(config_filename)
+
+        # 连接到 Docker 服务器 =================================================
+        client, result = self._connect_docker()
+        if not result.success:
+            return result
+        # 通用操作 =============================================================
+        return super().HSLoader()
+
+    # 加载虚拟机 ###############################################################
+    def VMLoader(self) -> bool:
+        pass
+
+    # 卸载宿主机 ###############################################################
+    def HSUnload(self) -> ZMessage:
+        # 专用操作 =============================================================
+        if self.web_terminal:
+            self.web_terminal = None
+        # 断开 Docker 连接 =====================================================
+        if self.oci_connects:
+            self.oci_connects.close()
+            self.oci_connects = None
+        # 关闭 SSH 转发连接 ====================================================
+        if self.ssh_forwards:
+            self.ssh_forwards.close()
+        # 通用操作 =============================================================
+        return super().HSUnload()
+
+    # 虚拟机扫描 ###############################################################
+    def VMDetect(self) -> ZMessage:
+        # 专用操作 =============================================================
+        client, result = self._connect_docker()
+        if not result.success:
+            return result
+        try:
+            # 获取所有容器列表（包括停止的）
+            containers = client.containers.list(all=True)
+            # 使用主机配置的filter_name作为前缀过滤
+            filter_prefix = self.hs_config.filter_name if self.hs_config else ""
+            scanned_count = 0
+            added_count = 0
+            for container in containers:
+                container_name = container.name
+                # 前缀过滤
+                if filter_prefix and not container_name.startswith(filter_prefix):
+                    continue
+                scanned_count += 1
+                # 检查是否已存在
+                if container_name in self.vm_saving:
+                    continue
+                # 创建默认虚拟机配置
+                default_vm_config = VMConfig()
+                default_vm_config.vm_uuid = container_name
+                # 添加到服务器的虚拟机配置中
+                self.vm_saving[container_name] = default_vm_config
+                added_count += 1
+            # 保存到数据库
+            if added_count > 0:
+                success = self.data_set()
+                if not success:
+                    return ZMessage(
+                        success=False, action="VScanner",
+                        message="Failed to save scanned containers to database")
+            return ZMessage(
+                success=True,
+                action="VScanner",
+                message=f"扫描完成。共扫描到{scanned_count}个容器，新增{added_count}个容器配置。",
+                results={
+                    "scanned": scanned_count,
+                    "added": added_count,
+                    "prefix_filter": filter_prefix
+                }
+            )
+        except Exception as e:
+            return ZMessage(
+                success=False, action="VScanner",
+                message=f"扫描容器时出错: {str(e)}")
+
+    # 创建虚拟机 ###############################################################
+    def VMCreate(self, vm_conf: VMConfig) -> ZMessage:
+        vm_conf, net_result = self.NetCheck(vm_conf)
+        if not net_result.success:
+            return net_result
+        self.NCCreate(vm_conf, True)
+        # 专用操作 =============================================================
+        client, result = self._connect_docker()
+        if not result.success:
+            return result
+        try:
+            container_name = vm_conf.vm_uuid
+            # 检查容器是否已存在
+            try:
+                client.containers.get(container_name)
+                return ZMessage(
+                    success=False, action="VMCreate",
+                    message=f"Container {container_name} already exists")
+            except NotFound:
+                pass  # 容器不存在，继续创建
+
+            # 先加载镜像
+            install_result = self.VMSetups(vm_conf)
+            if not install_result.success:
+                raise Exception(f"Failed to load image: {install_result.message}")
+
+            # 构建容器配置
+            container_config, fixed_ip = self.VMBuilds(vm_conf)
+
+            # 获取网络名称
+            network_name = container_config.get("network")
+
+            # 创建容器（如果配置了固定IP，先创建但不连接网络）
+            if fixed_ip and network_name:
+                # 创建容器但不连接网络
+                container = client.containers.create(
+                    image=vm_conf.os_name,
+                    name=container_name,
+                    detach=True,
+                    hostname=container_name,
+                    mac_address=container_config.get("mac_address"),
+                    environment=container_config.get("environment", {}),
+                    volumes=container_config.get("volumes", {}),
+                    ports=container_config.get("ports", {}),
+                    nano_cpus=container_config.get("nano_cpus"),
+                    mem_limit=container_config.get("mem_limit"),
+                    cpu_shares=container_config.get("cpu_shares"),
+                    stdin_open=container_config.get("stdin_open", True),
+                    tty=container_config.get("tty", True),
+                    privileged=container_config.get("privileged", True),
+                    shm_size=container_config.get("shm_size", "1024m"),
+                    cap_add=container_config.get("cap_add", ["SYS_ADMIN", "SYS_PTRACE"])
+                )
+
+                # 连接到网络并分配固定 IP
+                try:
+                    network = client.networks.get(network_name)
+                    network.connect(container, ipv4_address=fixed_ip)
+                    logger.info(f"Assigned fixed IP {fixed_ip} to container {container_name}")
+                except Exception as ip_error:
+                    logger.warning(f"Failed to assign fixed IP {fixed_ip}: {str(ip_error)}")
+            else:
+                # 创建容器
+                container = client.containers.create(
+                    image=vm_conf.os_name,
+                    name=container_name,
+                    detach=True,
+                    hostname=container_name,
+                    **container_config
+                )
+
+            # 启动容器
+            container.start()
+            self.VMPasswd(vm_conf.vm_uuid, vm_conf.os_pass)
+            logger.info(f"Container {container_name} created successfully")
+
+        except Exception as e:
+            hs_result = ZMessage(
+                success=False, action="VMCreate",
+                message=f"容器创建失败: {str(e)}")
+            traceback.print_exc()
+            self.logs_set(hs_result)
+            return hs_result
+
+        # 通用操作 =============================================================
+        return super().VMCreate(vm_conf)
 
     # 安装虚拟机 ###############################################################
     def VMSetups(self, vm_conf: VMConfig) -> ZMessage:
@@ -440,7 +433,8 @@ class HostServer(BasicServer):
                 return ZMessage(
                     success=False, action="VMUpdate",
                     message=f"网络配置更新失败: {network_result.message}")
-
+            # 更新密码
+            self.VMPasswd(vm_conf.vm_uuid, vm_conf.os_pass)
             hs_result = ZMessage(
                 success=True, action="VMUpdate",
                 message=f"容器 {container_name} 配置更新成功")
@@ -717,7 +711,7 @@ class HostServer(BasicServer):
                 vm_conf.os_name = image.id
 
             # 构建容器配置
-            container_config, fixed_ip = self._build_container_config(vm_conf)
+            container_config, fixed_ip = self.VMBuilds(vm_conf)
 
             # 获取网络名称
             network_name = container_config.get("network")
@@ -820,7 +814,7 @@ class HostServer(BasicServer):
             logger.warning(f"无法获取SSH端口: {container_name}: {str(e)}")
         if not wan_port:
             return ZMessage(
-                success=False, 
+                success=False,
                 action="VCRemote",
                 message="虚拟机SSH端口映射不存在")
         # 2. 获取主机外网IP ====================================================
@@ -834,39 +828,33 @@ class HostServer(BasicServer):
             public_ip = "127.0.0.1"  # 默认使用本地
         # 3. 启动tty会话web ====================================================
         tty_port, token = self.web_terminal.open_tty(
-            self.hs_config.server_addr, wan_port)
+            self.hs_config, wan_port, vm_uuid)
         if tty_port <= 0:
             return ZMessage(
                 success=False,
                 action="VCRemote",
                 message="启动tty会话失败"
             )
-        # 4. 添加IP反向代理 ====================================================
+        # 4. 添加SSH代理 ========================================================
         try:
-            # 代理路径：---------------------------------------
-            target_ip = self.hs_config.server_addr
-            proxy_uri = f":{self.hs_config.remote_port}/{token}"
-            # 添加代理 ----------------------------------------
-            success = self.http_manager.proxy_add(
-                (tty_port, target_ip),
-                proxy_uri, is_https=False)
+            # 使用新的SSH代理管理方法
+            target_ip = "127.0.0.1"  # ttyd运行在本机
+            success = self.http_manager.proxy_ssh(token, target_ip, tty_port)
             if not success:
-                self.web_terminal.stop_tty(tty_port) # 清理tty
+                self.web_terminal.stop_tty(tty_port)  # 清理tty
                 return ZMessage(
                     success=False,
                     action="VCRemote",
-                    message="添加反向代理失败")
-            # 重载配置 ---------------------------------------
-            self.http_manager.loads_web()
+                    message="添加SSH代理失败")
         except Exception as e:
-            logger.error(f"代理配置失败: {str(e)}")
+            logger.error(f"SSH代理配置失败: {str(e)}")
             self.web_terminal.stop_tty(tty_port)
             return ZMessage(
                 success=False,
                 action="VCRemote",
-                message=f"代理配置失败: {str(e)}")
+                message=f"SSH代理配置失败: {str(e)}")
         # 5. 构造返回URL =======================================================
-        vnc_port = self.hs_config.remote_port
+        vnc_port = 1884  # SSH代理统一使用1884端口
         url = f"http://{public_ip}:{vnc_port}/{token}"
         logger.info(
             f"VMRemote for {vm_uuid}: "

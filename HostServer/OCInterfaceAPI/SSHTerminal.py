@@ -50,44 +50,73 @@ class SSHTerminal:
             logger.warning(f"ttyd not found at: {ttyd_path}")
             return ""
 
-    # 启动 ttyd SSH会话 ##################################################
-    def open_tty(self, host_ip: str, ssh_port: str) -> tuple[int, str]:
-        """
-        启动ttyd进程连接SSH
-        :param host_ip: 目标主机IP（容器IP或外网IP）
-        :param ssh_port: SSH端口
-        :return: (端口号, token)
-        """
+    # 启动 ttyd SSH会话 #################################################################
+    # :param hs_conf: 主机配置信息
+    # :param vm_port: 远程SSHD端口
+    # :param vm_uuid: 虚拟机的UUID
+    # :return: (port, token)
+    # ###################################################################################
+    def open_tty(self,
+                 hs_conf: HSConfig,
+                 vm_port: str,
+                 vm_uuid: str) -> tuple[int, str]:
+        # 检查ttyd可执行文件是否存在 ====================================================
         if not self.ttyd_path:
             logger.error("ttyd executable not found")
             return -1, ""
-
-        # 生成随机端口（7000-8000）
-        random_port = random.randint(7000, 8000)
-
-        # 生成随机token
-        token = ''.join(random.sample(string.ascii_letters + string.digits, 32))
-
+        # 生成随机端口和token ===========================================================
+        rand_port = random.randint(7000, 8000)
+        rand_pass = ''.join(random.sample(string.ascii_letters + string.digits, 32))
+        # 启动ttyd进程 ==================================================================
         try:
-            # 构建SSH命令：ssh root@host_ip -p ssh_port
-            ssh_cmd = f"ssh root@{host_ip} -p {ssh_port}"
+            # 自动输入密码支持：检测 sshpass ==========================================
+            ssh_port = 22  # 固定为22，如需动态可在hs_conf增加字段
+            password = hs_conf.server_pass
+            sshpass_cmd = ""
+            if platform.system().lower() == "windows":
+                sshpass_path = os.path.join(os.getcwd(), "HostConfig", "winptyexec", "sshpass.exe")
+                if os.path.exists(sshpass_path):
+                    sshpass_cmd = f'"{sshpass_path}" -p "{password}"'
+            else:  # linux / macos
+                # 检查系统是否有 sshpass 命令
+                which_result = subprocess.run(["which", "sshpass"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                if which_result.returncode == 0:
+                    sshpass_cmd = "sshpass -p '{}'".format(password)
 
-            # 启动ttyd进程，工作目录设为C:\（Windows兼容）
-            cmd = [self.ttyd_path, "--writable", "-w", "C:\\", "-p", str(22), ssh_cmd]
-            logger.info(f"Starting ttyd SSH session with command: {' '.join(cmd)}")
+            # 构造 ssh 命令 ===============================================================
+            # base_ssh = f"ssh -tt -o StrictHostKeyChecking=no root@{hs_conf.server_addr} -p {vm_port}"
+            base_ssh = f"ssh -tt -o StrictHostKeyChecking=no root@{hs_conf.server_addr} -p {ssh_port} docker exec -it {vm_uuid} bash"
+
+            if sshpass_cmd:
+                ssh_cmd = f"{sshpass_cmd} {base_ssh}"
+            else:
+                # 没有 sshpass 时退回无密码模式（不自动输入密码）
+                ssh_cmd = f"ssh -o StrictHostKeyChecking=no root@{hs_conf.server_addr} -p {ssh_port}"
+
+            # 启动ttyd进程
+            if platform.system().lower() == "windows":
+                cmd = [self.ttyd_path, "--writable", "-w", "C:\\", "-p", str(rand_port), ssh_cmd]
+            else:
+                cmd = [self.ttyd_path, "--writable", "-w", "/", "-p", str(rand_port), ssh_cmd]
+            cmd = " ".join(cmd)  # 重要！！否则无法正常启动
+            logger.info(f"TTY-启动命令: {' '.join(cmd)}")
+            # 启动ttyd进程 
             process = subprocess.Popen(
                 cmd,
+                # shell=True,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+                stderr=subprocess.STDOUT,
+                encoding='gbk',  # Windows中文系统常用编码
+                errors='replace',  # 替换无法解码的字符
+                text=True,
             )
 
             # 存储进程信息
-            self.ttyd_processes[random_port] = process
-            self.ttyd_tokens[random_port] = token
+            self.ttyd_processes[rand_port] = process
+            self.ttyd_tokens[rand_port] = rand_pass
 
-            logger.info(f"Started ttyd SSH session on port {random_port} for {host_ip}:{ssh_port}")
-            return random_port, token
-
+            logger.info(f"Started ttyd SSH session on port {rand_port} for {hs_conf.server_addr}:{vm_port}")
+            return rand_port, rand_pass
         except Exception as e:
             logger.error(f"Failed to start ttyd SSH session: {str(e)}")
             return -1, ""

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 OpenIDCS Flask Server
 提供主机和虚拟机管理的Web界面和API接口
