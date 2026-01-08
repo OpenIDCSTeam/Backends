@@ -3,13 +3,11 @@ import time
 import signal
 import subprocess
 import json
+import random
 from pathlib import Path
 
 # 导入DataManage模块用于数据库操作
 from HostModule.DataManager import DataManager
-
-# Caddy全局配置：启用本地管理端点（仅允许localhost访问）
-GLOBAL_CONFIG = "{\n\tadmin localhost:8019\n}\n\n"
 
 
 class HttpManager:
@@ -18,12 +16,13 @@ class HttpManager:
         self.config_path = Path("HostConfig")
         self.config_file = Path(f"DataSaving/{config_filename}")
         self.binary_path = ""
+        # 为每个实例生成随机管理端口（8000-9000范围）
+        self.admin_port = random.randint(8000, 9000)
         # proxys_sshd格式: {port: {token:(ip,port)}}
         self.proxys_sshd = {}
         # proxys_list格式: {domain: {"target": (port, ip), "is_https": bool, "listen_port": int}}
         self.proxys_list = {}
-        # 初始化SSH代理管理
-        self.start_ssh(1884)
+
         if os.name == 'nt':
             self.binary_path = ".\\HostConfig\\Server_x64.exe"
         else:
@@ -32,10 +31,10 @@ class HttpManager:
 
         # 初始化数据库管理器
         self.db_manager = DataManager()
-        # 加载已保存代理配置
-        self.load_proxys()
+
         # 生成初始配置文件
         self._generate_config()
+        print(f"HttpManager初始化完成，管理端口: {self.admin_port}，配置文件: {self.config_file}")
 
     # 初始化SSH代理管理 ########################################
     def start_ssh(self, port: int):
@@ -79,7 +78,8 @@ class HttpManager:
 
     def _generate_config(self):
         """根据proxys_list和proxys_sshd生成完整的Caddy配置文件"""
-        config = GLOBAL_CONFIG
+        # 使用实例的管理端口生成全局配置
+        config = f"{{\n\tadmin localhost:{self.admin_port}\n}}\n\n"
 
         # 生成普通代理配置
         for domain, proxy_info in self.proxys_list.items():
@@ -286,11 +286,13 @@ class HttpManager:
         try:
             # 尝试重载配置（无论binary_proc状态如何）
             if os.name == 'nt':
+                # 使用实例的管理端口进行重载
                 reload_cmd = [self.binary_path, "reload", "--config",
-                              str(self.config_file), "--adapter", "caddyfile"]
+                              str(self.config_file), "--adapter", "caddyfile",
+                              "--address", f"localhost:{self.admin_port}"]
                 result = subprocess.run(reload_cmd, capture_output=True, text=True)
                 if result.returncode == 0:
-                    print("Caddy配置已重载")
+                    print(f"Caddy配置已重载（管理端口: {self.admin_port}）")
                     return True
                 else:
                     print(f"重载失败，尝试启动服务: {result.stderr}")
@@ -299,7 +301,7 @@ class HttpManager:
                 # Linux/Mac: 如果有进程引用则发送信号
                 if self.binary_proc and self.binary_proc.poll() is None:
                     self.binary_proc.send_signal(signal.SIGUSR1)
-                    print("Caddy配置已重载")
+                    print(f"Caddy配置已重载（管理端口: {self.admin_port}）")
                     return True
                 else:
                     return self.start_web()

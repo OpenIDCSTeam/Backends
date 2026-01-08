@@ -345,18 +345,16 @@ class HostServer(BasicServer):
 
         # 初始化HttpManage，使用caddy_主机名.txt作为配置文件名
         if not self.http_manager:
-
             # 获取主机名，使用server_name，如果没有则使用默认值
-            hostname = getattr(self.hs_config, 'server_name', 'localhost')
-            if not hostname:
-                hostname = 'localhost'
+            hostname = getattr(self.hs_config, 'server_name', '')
             config_filename = f"vnc_{hostname}.txt"
             self.http_manager = HttpManager(config_filename)
-
+            # 初始化SSH代理管理
+            self.http_manager.start_ssh(self.hs_config.remote_port)
+            self.http_manager.start_web()
         # 初始化Socat端口转发管理器
         if not self.port_forward:
             self.port_forward = PortForward(self.hs_config)
-
         # 连接到 Docker 服务器 =================================================
         client, result = self.connect_docker()
         if not result.success:

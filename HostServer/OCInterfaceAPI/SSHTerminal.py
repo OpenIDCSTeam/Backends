@@ -119,7 +119,7 @@ class SSHTerminal:
             self.ttyd_tokens[rand_port] = rand_pass
             logger.info(
                 f"TTY-启动成功 " +
-                f"{rand_port} -> {hs_conf.server_addr}:{vm_port}")
+                f"{rand_port} -> {hs_conf.server_addr}:{vm_port}/{vm_uuid}")
             return rand_port, rand_pass
         except Exception as e:
             logger.error(f"TTY-启动失败: {str(e)}")

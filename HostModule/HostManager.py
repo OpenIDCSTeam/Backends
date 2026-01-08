@@ -138,25 +138,28 @@ class HostManage:
 
             # 启动Http实例
             self.proxys = HttpManager()
+            self.proxys.load_proxys()
+            self.proxys._generate_config()
             self.proxys.start_web()
 
             # 加载全局代理配置
-            self.web_all = []
-            web_proxy_list = self.saving.get_web_proxy()
-            for proxy_data in web_proxy_list:
-                web_proxy = WebProxy()
-                web_proxy.lan_port = proxy_data.get('lan_port', 0)
-                web_proxy.lan_addr = proxy_data.get('lan_addr', '')
-                web_proxy.web_addr = proxy_data.get('web_addr', '')
-                web_proxy.web_tips = proxy_data.get('web_tips', '')
-                web_proxy.is_https = proxy_data.get('is_https', True)
-                self.web_all.append(web_proxy)
-                # 添加到HttpManage
-                self.proxys.proxy_add(
-                    (web_proxy.lan_port, web_proxy.lan_addr),
-                    web_proxy.web_addr,
-                    web_proxy.is_https
-                )
+            # self.web_all = []
+            self.web_all = self.saving.get_web_proxy()
+
+            # for proxy_data in web_proxy_list:
+            #     web_proxy = WebProxy()
+            #     web_proxy.lan_port = proxy_data.get('lan_port', 0)
+            #     web_proxy.lan_addr = proxy_data.get('lan_addr', '')
+            #     web_proxy.web_addr = proxy_data.get('web_addr', '')
+            #     web_proxy.web_tips = proxy_data.get('web_tips', '')
+            #     web_proxy.is_https = proxy_data.get('is_https', True)
+            #     self.web_all.append(web_proxy)
+            #     # 添加到HttpManage
+            #     self.proxys.proxy_add(
+            #         (web_proxy.lan_port, web_proxy.lan_addr),
+            #         web_proxy.web_addr,
+            #         web_proxy.is_https
+            #     )
 
             # 加载所有主机配置
             host_configs = self.saving.all_hs_config()

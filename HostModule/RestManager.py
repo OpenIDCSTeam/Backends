@@ -2524,7 +2524,7 @@ class RestManager:
         # 调用ProxyMap添加代理
         result = server.ProxyMap(proxy_config, vm_uuid, self.hs_manage.proxys, in_flag=True)
         if not result.success:
-            return self.api_response(500, f'添加代理失败: {result.messages}')
+            return self.api_response(500, f'添加代理失败: {result.message}')
         # 保存配置
         self.hs_manage.all_save()
         return self.api_response(200, '代理配置添加成功')
