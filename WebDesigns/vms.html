@@ -1132,6 +1132,21 @@
             document.getElementById('vmUuid').value = uuid;
             document.getElementById('vmUuid').disabled = true;
             
+            // 分离UUID的前缀和后缀并填充到对应的元素中
+            const prefix = hostConfig.filter_name || '';
+            const prefixWithUnderscore = prefix ? (prefix.endsWith('_') ? prefix : prefix + '_') : '';
+            
+            // 更新前缀显示
+            document.getElementById('vmUuidPrefix').textContent = prefixWithUnderscore;
+            
+            // 提取后缀部分
+            let suffix = uuid;
+            if (prefixWithUnderscore && uuid.startsWith(prefixWithUnderscore)) {
+                suffix = uuid.substring(prefixWithUnderscore.length);
+            }
+            document.getElementById('vmUuidInput').value = suffix;
+            document.getElementById('vmUuidInput').disabled = true;
+            
             // 隐藏随机按钮
             document.querySelector('button[onclick="generateVmUuid()"]').style.display = 'none';
             
