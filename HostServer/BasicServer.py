@@ -406,20 +406,24 @@ class BasicServer:
         if not hasattr(vm_config, 'web_all') or vm_config.web_all is None:
             vm_config.web_all = []
         # 检查域名是否已存在
-        for proxy in vm_config.web_all:
-            if proxy.web_addr == pm_info.web_addr:
-                return ZMessage(success=False,
-                                action="ProxyMap",
-                                message=f'域名 {pm_info.web_addr} 已存在')
+        if in_flag:
+            for proxy in vm_config.web_all:
+                if proxy.web_addr == pm_info.web_addr:
+                    return ZMessage(success=False,
+                                    action="ProxyMap",
+                                    message=f'域名 {pm_info.web_addr} 已存在')
         # 添加或删除代理 ===========================================================
         if in_flag:
             result = in_apis.proxy_add(
                 (pm_info.lan_port, pm_info.lan_addr),
                 pm_info.web_addr, pm_info.is_https)
+            if result:
+                vm_config.web_all.append(pm_info)
         else:
             result = in_apis.proxy_del(pm_info.web_addr)
+            if result:
+                vm_config.web_all.remove(pm_info)
         # 保存到数据库 =============================================================
-        vm_config.web_all.append(pm_info)
         self.data_set()
         hs_result = ZMessage(success=result, action="ProxyMap",
                              messages=pm_info.web_addr + "%s操作%s" % (

@@ -2559,9 +2559,6 @@ class RestManager:
         if not result.success:
             return self.api_response(500, f'删除代理失败: {result.message}')
 
-        # 从web_all中删除
-        vm_config.web_all.pop(proxy_index)
-
         # 保存配置
         self.hs_manage.all_save()
         return self.api_response(200, '代理配置已删除')
