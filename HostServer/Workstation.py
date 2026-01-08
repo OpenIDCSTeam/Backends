@@ -343,7 +343,7 @@ class HostServer(BasicServer):
         return super().LDBackup(vm_back)
 
     # 移除备份 #################################################################
-    def RMBackup(self, vm_back: str) -> ZMessage:
+    def RMBackup(self, vm_name: str, vm_back: str) -> ZMessage:
         return super().RMBackup(vm_back)
 
     # 移除磁盘 #################################################################

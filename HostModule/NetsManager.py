@@ -5,7 +5,7 @@ from typing import Optional, Dict, Any
 from loguru import logger
 
 
-class NetsManage:
+class NetsManager:
     """爱快路由器管理类"""
 
     def __init__(self, base_url: str, username: str, password: str):
@@ -370,7 +370,7 @@ class NetsManage:
 # 使用示例
 if __name__ == "__main__":
     # 创建管理对象
-    nets = NetsManage("http://10.1.9.1", "admin", "IM807581")
+    nets = NetsManager("http://10.1.9.1", "admin", "IM807581")
     # 登录
     if nets.login():
         logger.info("登录成功")

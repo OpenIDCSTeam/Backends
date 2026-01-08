@@ -15,7 +15,7 @@ except ImportError:
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Config.VMConfig import VMConfig
 from MainObject.Public.ZMessage import ZMessage
-from HostModule.SSHForward import SSHForward
+from HostModule.SSHDManager import SSHDManager
 
 
 class OCIConnects:
@@ -29,7 +29,7 @@ class OCIConnects:
         """
         self.hs_config = hs_config
         self.docker_client = None
-        self.ssh_forward = SSHForward()
+        self.ssh_forward = SSHDManager()
     
     # 连接到 Docker 服务器 #####################################################
     def connect_docker(self) -> tuple[docker.DockerClient | None, ZMessage]:
@@ -85,7 +85,7 @@ class OCIConnects:
         :return: (Docker客户端对象, 操作结果消息)
         """
         try:
-            from HostModule.SSHForward import SSHForward
+            from HostModule.SSHDManager import SSHDManager
             PARAMIKO_AVAILABLE = True
         except ImportError:
             PARAMIKO_AVAILABLE = False

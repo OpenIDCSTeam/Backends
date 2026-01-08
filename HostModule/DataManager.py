@@ -10,7 +10,7 @@ from MainObject.Config.VMConfig import VMConfig
 from MainObject.Public.ZMessage import ZMessage
 
 
-class HostDatabase:
+class DataManager:
     """HostManage SQLite数据库操作类"""
 
     def __init__(self, path: str = "./DataSaving/hostmanage.db"):

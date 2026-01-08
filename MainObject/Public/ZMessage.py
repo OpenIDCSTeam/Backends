@@ -1,5 +1,6 @@
 import enum
 import json
+from typing import Any
 
 
 class ZActions(enum.Enum):
@@ -20,7 +21,7 @@ class ZMessage:
         self.success: bool = True
         self.actions: str = ""
         self.message: str = ""
-        self.results: dict = {}
+        self.results: dict | Any = {}
         self.execute: Exception | None = None
         self.__load__(**kwargs)
         # 加载传入的参数 ====================

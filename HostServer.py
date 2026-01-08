@@ -13,10 +13,10 @@ from functools import wraps
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, g
 
 from loguru import logger
-from HostModule.HostManage import HostManage
-from HostModule.RestManage import RestManager
-from HostModule.UserManage import UserAuth, require_login, require_admin, check_host_access, check_vm_permission, check_resource_quota, EmailService
-from HostModule.DataManage import HostDatabase
+from HostModule.HostManager import HostManage
+from HostModule.RestManager import RestManager
+from HostModule.UserManager import UserManager, require_login, require_admin, check_host_access, check_vm_permission, check_resource_quota, EmailService
+from HostModule.DataManager import DataManager
 
 # 获取项目根目录，兼容开发环境和打包后的环境
 if getattr(sys, 'frozen', False):
@@ -36,7 +36,7 @@ app.secret_key = secrets.token_hex(32)
 hs_manage = HostManage()
 
 # 数据库实例
-db = HostDatabase()
+db = DataManager()
 
 # 全局REST管理器实例
 rest_manager = RestManager(hs_manage, db)
@@ -105,7 +105,7 @@ def login():
             return api_response_wrapper(401, '用户名或密码错误')
         
         # 验证密码
-        if not UserAuth.verify_password(password, user_data['password']):
+        if not UserManager.verify_password(password, user_data['password']):
             return api_response_wrapper(401, '用户名或密码错误')
         
         # 检查用户是否启用
@@ -118,7 +118,7 @@ def login():
             return api_response_wrapper(403, '请先验证邮箱后再登录')
         
         # 设置session
-        UserAuth.set_user_session(user_data, is_token_login=False)
+        UserManager.set_user_session(user_data, is_token_login=False)
         
         # 更新最后登录时间
         db.update_user_last_login(user_data['id'])
@@ -137,7 +137,7 @@ def login():
                     return api_response_wrapper(403, 'Admin用户已被禁用')
                 
                 # 设置session，标记为token登录
-                UserAuth.set_user_session(admin_user_data, is_token_login=True)
+                UserManager.set_user_session(admin_user_data, is_token_login=True)
                 
                 # 更新最后登录时间
                 db.update_user_last_login(admin_user_data['id'])
@@ -152,7 +152,7 @@ def login():
                     'is_active': 1,
                     'assigned_hosts': []
                 }
-                UserAuth.set_user_session(temp_admin_data, is_token_login=True)
+                UserManager.set_user_session(temp_admin_data, is_token_login=True)
                 return api_response_wrapper(200, '登录成功', {'redirect': '/admin'})
         
         return api_response_wrapper(401, 'Token错误')
@@ -233,6 +233,15 @@ def settings_page():
                            username=session.get('username', 'admin'))
 
 
+@app.route('/web_proxys')
+@require_admin
+def web_proxys_page():
+    """Web反向代理管理页面（仅管理员）"""
+    return render_template('web_proxys.html',
+                           title='OpenIDCS - Web反向代理管理',
+                           username=session.get('username', 'admin'))
+
+
 @app.route('/profile')
 @require_auth
 def profile_page():
@@ -281,7 +290,7 @@ def register():
         return api_response_wrapper(400, '邮箱已被注册')
     
     # 加密密码
-    hashed_password = UserAuth.hash_password(password)
+    hashed_password = UserManager.hash_password(password)
     
     # 创建用户
     settings = db.get_system_settings()
@@ -314,7 +323,7 @@ def register():
     settings = db.get_system_settings()
     if settings.get('email_verification_enabled') == '1':
         # 生成验证token
-        verify_token = UserAuth.generate_token()
+        verify_token = UserManager.generate_token()
         db.set_user_verify_token(user_id, verify_token)
         
         # 发送验证邮件
@@ -419,7 +428,7 @@ def change_password():
             return jsonify({'code': 400, 'msg': '新密码长度不能少于6位'})
         
         # 更新密码
-        success = db.update_user_password(user_id, UserAuth.hash_password(new_password))
+        success = db.update_user_password(user_id, UserManager.hash_password(new_password))
         if success:
             return jsonify({'code': 200, 'msg': '密码修改成功'})
         else:
@@ -529,7 +538,7 @@ def forgot_password():
             return jsonify({'code': 404, 'msg': '该邮箱未注册'})
         
         # 生成重置token
-        reset_token = UserAuth.generate_token()
+        reset_token = UserManager.generate_token()
         db.set_password_reset_token(user_data['id'], reset_token)
         
         # 发送重置邮件
@@ -584,7 +593,7 @@ def reset_password():
             return jsonify({'code': 400, 'msg': '重置链接已过期或无效'})
         
         # 更新密码
-        success = db.update_user_password(user_data['id'], UserAuth.hash_password(new_password))
+        success = db.update_user_password(user_data['id'], UserManager.hash_password(new_password))
         if success:
             # 删除已使用的token
             db.delete_password_reset_token(token)
@@ -750,7 +759,7 @@ def api_get_tasks():
 def api_get_hosts():
     """获取主机列表（管理员看所有，普通用户看assigned_hosts）"""
     # 获取当前用户信息
-    current_user = UserAuth.get_current_user_from_session()
+    current_user = UserManager.get_current_user_from_session()
     if not current_user:
         return api_response_wrapper(401, '未授权访问')
     
@@ -790,7 +799,7 @@ def api_get_host(hs_name):
 def api_get_os_images(hs_name):
     """获取主机的操作系统镜像列表（普通用户可访问）"""
     # 获取当前用户信息
-    current_user = UserAuth.get_current_user_from_session()
+    current_user = UserManager.get_current_user_from_session()
     if not current_user:
         return api_response_wrapper(401, '未授权访问')
     
@@ -851,7 +860,7 @@ def api_get_host_status(hs_name):
 def api_get_vms(hs_name):
     """获取主机下所有虚拟机"""
     # 检查主机访问权限
-    current_user = UserAuth.get_current_user_from_session()
+    current_user = UserManager.get_current_user_from_session()
     if not current_user:
         return api_response_wrapper(401, '未授权访问')
     
@@ -1088,6 +1097,58 @@ def api_delete_vm_proxy_config(hs_name, vm_uuid, proxy_index):
 
 
 # ============================================================================
+# 管理员级别 - Web反向代理管理API
+# ============================================================================
+
+# 获取所有反向代理配置 ################################################################
+@app.route('/api/admin/proxys/list', methods=['GET'])
+@require_admin
+def api_admin_list_all_proxys():
+    """管理员获取所有反向代理配置列表"""
+    return rest_manager.admin_list_all_proxys()
+
+
+# 获取指定主机的所有反向代理 ##########################################################
+@app.route('/api/admin/proxys/list/<hs_name>', methods=['GET'])
+@require_admin
+def api_admin_list_host_proxys(hs_name):
+    """管理员获取指定主机的所有反向代理配置"""
+    return rest_manager.admin_list_host_proxys(hs_name)
+
+
+# 获取指定虚拟机的反向代理 ############################################################
+@app.route('/api/admin/proxys/detail/<hs_name>/<vm_uuid>', methods=['GET'])
+@require_admin
+def api_admin_get_vm_proxys(hs_name, vm_uuid):
+    """管理员获取指定虚拟机的反向代理配置"""
+    return rest_manager.admin_get_vm_proxys(hs_name, vm_uuid)
+
+
+# 添加反向代理配置 ####################################################################
+@app.route('/api/admin/proxys/create/<hs_name>/<vm_uuid>', methods=['POST'])
+@require_admin
+def api_admin_add_proxy(hs_name, vm_uuid):
+    """管理员添加反向代理配置"""
+    return rest_manager.admin_add_proxy(hs_name, vm_uuid)
+
+
+# 更新反向代理配置 ####################################################################
+@app.route('/api/admin/proxys/update/<hs_name>/<vm_uuid>/<int:proxy_index>', methods=['PUT'])
+@require_admin
+def api_admin_update_proxy(hs_name, vm_uuid, proxy_index):
+    """管理员更新反向代理配置"""
+    return rest_manager.admin_update_proxy(hs_name, vm_uuid, proxy_index)
+
+
+# 删除反向代理配置 ####################################################################
+@app.route('/api/admin/proxys/delete/<hs_name>/<vm_uuid>/<int:proxy_index>', methods=['DELETE'])
+@require_admin
+def api_admin_delete_proxy(hs_name, vm_uuid, proxy_index):
+    """管理员删除反向代理配置"""
+    return rest_manager.admin_delete_proxy(hs_name, vm_uuid, proxy_index)
+
+
+# ============================================================================
 # 数据盘管理API
 # ============================================================================
 @app.route('/api/client/hdd/mount/<hs_name>/<vm_uuid>', methods=['POST'])
@@ -1310,7 +1371,7 @@ def api_create_user():
             return api_response_wrapper(400, '邮箱已被注册')
         
         # 加密密码
-        hashed_password = UserAuth.hash_password(password)
+        hashed_password = UserManager.hash_password(password)
         
         # 创建用户（只传入基本字段）
         user_id = db.create_user(username, hashed_password, email)
@@ -1551,7 +1612,7 @@ def init_app():
         admin_user = hs_manage.saving.get_user_by_username('admin')
         if not admin_user:
             # 使用token作为admin的密码
-            admin_password = UserAuth.hash_password(hs_manage.bearer)
+            admin_password = UserManager.hash_password(hs_manage.bearer)
             user_id = hs_manage.saving.create_user(
                 username='admin',
                 password=admin_password,

@@ -16,21 +16,43 @@
     .swal2-container {
         z-index: 10000 !important;
     }
-    
+
     /* 自定义确认对话框样式 */
     .transform {
         transform-origin: center;
     }
+
     .scale-95 {
         transform: scale(0.95);
         opacity: 0.9;
     }
+
     .scale-100 {
         transform: scale(1);
         opacity: 1;
     }
+
     .transition-all {
         transition: all 0.15s ease-in-out;
+    }
+
+    /* 禁用Tab的样式 */
+    .tab-disabled {
+        background-color: #f3f4f6 !important;
+        color: #9ca3af !important;
+        cursor: not-allowed !important;
+        opacity: 0.6;
+        pointer-events: auto !important; /* 保持可点击以显示提示 */
+    }
+
+    .tab-disabled:hover {
+        background-color: #f3f4f6 !important;
+        color: #9ca3af !important;
+    }
+
+    .tab-disabled.tab-active {
+        background-color: #f3f4f6 !important;
+        color: #9ca3af !important;
     }
 </style>
 
@@ -91,15 +113,8 @@
                 </div>
             </div>
         </div>
-        <div class="flex items-center gap-3">
-            <div id="vmStatus">
-                <span class="px-3 py-1 text-sm font-medium text-gray-600 bg-gray-100 rounded-full">加载中...</span>
-            </div>
-            <button id="changePasswordBtn" onclick="showChangePasswordModal()" style="display: none;"
-                    class="px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition flex items-center gap-1">
-                <span class="iconify" data-icon="mdi:key" data-width="16"></span>
-                修改密码
-            </button>
+        <div id="vmStatus">
+            <span class="px-3 py-1 text-sm font-medium text-gray-600 bg-gray-100 rounded-full">加载中...</span>
         </div>
     </div>
 </div>
@@ -203,23 +218,16 @@
                     <span class="iconify" data-icon="mdi:restart" data-width="18"></span>
                     重启
                 </button>
-
                 <button id="btn_pause" onclick="vmPower('pause')"
                         class="vm-power-btn px-3 py-2 text-sm font-medium text-yellow-700 bg-yellow-50 hover:bg-yellow-100 border border-yellow-200 rounded-lg transition flex items-center gap-1">
                     <span class="iconify" data-icon="mdi:pause" data-width="18"></span>
-                    暂停
+                    暂停虚拟机
                 </button>
                 <button id="btn_resume" onclick="vmPower('resume')"
                         class="vm-power-btn px-3 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition flex items-center gap-1">
                     <span class="iconify" data-icon="mdi:play-pause" data-width="18"></span>
-                    恢复
+                    恢复虚拟机
                 </button>
-                <button onclick="openEditVM()"
-                        class="px-3 py-2 text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition flex items-center gap-1">
-                    <span class="iconify" data-icon="mdi:pencil" data-width="18"></span>
-                    编辑配置
-                </button>
-
                 <button id="btn_hard_stop" onclick="vmPower('hard_stop')"
                         class="vm-power-btn px-3 py-2 text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg transition flex items-center gap-1">
                     <span class="iconify" data-icon="mdi:power-off" data-width="18"></span>
@@ -229,6 +237,11 @@
                         class="vm-power-btn px-3 py-2 text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg transition flex items-center gap-1">
                     <span class="iconify" data-icon="mdi:restart-alert" data-width="18"></span>
                     强制重启
+                </button>
+                <button onclick="openEditVM()"
+                        class="px-3 py-2 text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition flex items-center gap-1">
+                    <span class="iconify" data-icon="mdi:pencil" data-width="18"></span>
+                    编辑配置
                 </button>
                 <button onclick="showReinstallModal()"
                         class="vm-power-btn px-3 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition flex items-center gap-1">
@@ -244,6 +257,11 @@
                         class="vm-power-btn px-3 py-2 text-sm font-medium text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 rounded-lg transition flex items-center gap-1">
                     <span class="iconify" data-icon="mdi:monitor" data-width="18"></span>
                     VNC 控制台
+                </button>
+                <button id="changePasswordBtn" onclick="showChangePasswordModal()"
+                        class="px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition flex items-center gap-1">
+                    <span class="iconify" data-icon="mdi:key" data-width="18"></span>
+                    修改系统密码
                 </button>
             </div>
         </div>
@@ -419,7 +437,7 @@
                 <!-- 时间范围选择器 -->
                 <div class="flex items-center gap-2">
                     <label class="text-sm text-gray-600">时间范围:</label>
-                    <select id="timeRangeSelector" onchange="onTimeRangeChange()" 
+                    <select id="timeRangeSelector" onchange="onTimeRangeChange()"
                             class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                         <option value="30">30分钟</option>
                         <option value="180">3小时</option>
@@ -1239,7 +1257,7 @@
                            class="mt-1 w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                            onchange="toggleBackupConfirmButton()">
                     <span class="text-sm text-gray-700">
-                        我已确认停止当前虚拟机进行操作
+                        我已确认停止当前虚拟机进行备份操作
                     </span>
                 </label>
             </div>
@@ -1276,7 +1294,17 @@
                 <input type="text" id="ownerUsername" required
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                        placeholder="请输入用户名">
-                <p class="text-xs text-gray-500 mt-1">添加后该用户将共享此虚拟机的资源配额</p>
+                <p class="text-xs text-gray-500 mt-1">添加后该用户将共享此虚拟机的访问权限，但不会占用该用户的资源配额</p>
+            </div>
+
+            <div class="flex items-start space-x-2">
+                <svg class="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                          d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                          clip-rule="evenodd"/>
+                </svg>
+                <p class="text-sm text-orange-600">新的共享者必须拥有<strong>对应主机的访问权限</strong>才能看到该虚拟机
+                </p>
             </div>
 
             <div class="modal-action">
@@ -1310,7 +1338,8 @@
                 <input type="text" id="newOwnerUsername" required
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                        placeholder="请输入新所有者的用户名">
-                <p class="text-xs text-gray-500 mt-1">移交后该用户将成为虚拟机的所有者，占用资源配额，您将不再占用此虚拟机资源配额</p>
+                <p class="text-xs text-gray-500 mt-1">
+                    移交后该用户将成为虚拟机的所有者，占用资源配额，您将不再占用此虚拟机资源配额</p>
             </div>
 
             <div class="space-y-2">
@@ -1386,38 +1415,6 @@
     </form>
 </dialog>
 
-<!-- 删除确认模态框 -->
-<dialog id="deleteModal" class="modal">
-    <div class="modal-box">
-        <h3 class="font-bold text-lg flex items-center gap-2 text-red-600">
-            <span class="iconify" data-icon="mdi:alert-circle" data-width="24"></span>
-            确认删除
-        </h3>
-        <p class="py-4">确定要删除虚拟机 "<span id="deleteVmName" class="font-medium">{{ vm_uuid }}</span>" 吗？此操作不可恢复。
-        </p>
-        <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-600 mb-2">请输入虚拟机名称确认删除：</label>
-            <input type="text" id="deleteConfirmInput"
-                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                   placeholder="{{ vm_uuid }}">
-            <p class="text-xs text-gray-500 mt-1">请输入 <code class="text-red-600">{{ vm_uuid }}</code> 以确认删除</p>
-        </div>
-        <div class="modal-action">
-            <button onclick="document.getElementById('deleteModal').close(); document.getElementById('deleteConfirmInput').value='';"
-                    class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
-                取消
-            </button>
-            <button onclick="executeDeleteVM()"
-                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">
-                确认删除
-            </button>
-        </div>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>关闭</button>
-    </form>
-</dialog>
-
 <!-- 还原备份确认模态框 -->
 <dialog id="restoreBackupModal" class="modal">
     <div class="modal-box max-w-md">
@@ -1441,7 +1438,7 @@
                        class="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                        onchange="toggleRestoreConfirmButton()">
                 <span class="text-sm text-gray-700">
-                    我已确认停止当前虚拟机进行操作
+                    我已确认停止当前虚拟机进行还原操作
                 </span>
             </label>
 
@@ -1544,7 +1541,7 @@
                     </button>
                 </div>
                 <p id="newPasswordError" class="text-xs text-red-600 mt-1" style="display: none;"></p>
-                <p class="text-xs text-gray-500 mt-1">密码长度不得低于8位，且至少包含字母、数字、特殊符号中的两种</p>
+                <p class="text-xs text-gray-500 mt-1">密码长度不得低于8位，且至少包含字母、数字、符号中的两种</p>
             </div>
 
             <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
@@ -1553,7 +1550,10 @@
                            class="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                            onchange="togglePasswordConfirmButton()">
                     <span class="text-sm text-gray-700">
-                        我已确认强制关闭虚拟机以修改密码
+                        已确认此虚拟机<b>可能需要强制关闭</b>以修改密码<br/><br/>
+                        需要关机才能修改：VMware Workstation Pro<br/>
+                        需要开机才能修改：Docker/Podman/LXD(LXC)<br/><br/>
+                        修改前请核对VM状态，否则可能无法修改成功
                     </span>
                 </label>
             </div>
@@ -1657,8 +1657,8 @@
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium text-gray-600 mb-1">操作系统</label>
-                                <select name="os_name" id="editOsName" onchange="updateEditMinDiskRequirement()"
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            <select name="os_name" id="editOsName" onchange="updateEditMinDiskRequirement()"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                                 <option value="">请选择</option>
                                 <!-- 操作系统选项将从主机的system_maps动态加载 -->
                             </select>
@@ -1738,6 +1738,7 @@
     let vmData = null;
     let hostData = null;
     let hostSystemMaps = {}; // 存储主机的系统映射
+    let tabLockList = []; // 存储被锁定的Tab列表
 
     // 状态文字映射
     const statusMap = {
@@ -1887,14 +1888,13 @@
 
     $(document).ready(function () {
         loadVMInfo();
-        loadHostInfo();
         loadNATRules();
         loadIPAddresses();
         loadProxyConfigs();
         loadHDDList();
         loadISOList();
         loadBackupList();
-        
+
         // 初始化自定义确认对话框
         initConfirmDialog();
 
@@ -2052,8 +2052,58 @@
         setInterval(loadVMInfo, 15000);
     });
 
+    // 更新Tab状态（根据tab_lock禁用某些Tab）
+    function updateTabStates() {
+        // Tab名称映射
+        const tabNameMap = {
+            'ip': 'IP地址管理',
+            'hdd': '数据盘',
+            'iso': 'ISO挂载',
+            'nat': 'NAT端口转发',
+            'proxy': '反向代理',
+            'backup': '备份管理',
+            'owners': '用户管理'
+        };
+
+        // 遍历所有Tab
+        document.querySelectorAll('.tab').forEach(tab => {
+            const onclick = tab.getAttribute('onclick');
+            if (!onclick) return;
+
+            // 提取Tab名称，例如从 "switchTab('ip')" 中提取 "ip"
+            const match = onclick.match(/switchTab\('([^']+)'\)/);
+            if (!match) return;
+
+            const tabName = match[1];
+
+            // 检查是否在锁定列表中
+            if (tabLockList.includes(tabName)) {
+                // 添加禁用样式
+                tab.classList.add('tab-disabled');
+                // 添加title提示
+                tab.setAttribute('title', '此平台不支持该操作');
+                // 移除原有的onclick，添加新的点击事件来显示提示
+                tab.setAttribute('data-locked', 'true');
+                tab.setAttribute('data-tab-name', tabName);
+            } else {
+                // 移除禁用样式（如果之前被禁用）
+                tab.classList.remove('tab-disabled');
+                tab.removeAttribute('title');
+                tab.removeAttribute('data-locked');
+                tab.removeAttribute('data-tab-name');
+            }
+        });
+    }
+
     // Tab切换
     function switchTab(tabName) {
+        // 检查Tab是否被锁定
+        if (tabLockList.includes(tabName)) {
+            // 显示柔和的提示
+            showToast('此平台不支持该操作', 'warning');
+            return;
+        }
+
         document.querySelectorAll('.tab-pane').forEach(pane => pane.style.display = 'none');
         document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('tab-active'));
 
@@ -2087,16 +2137,6 @@
         });
     }
 
-    // 加载主机信息（获取公网IP和系统映射）
-    async function loadHostInfo() {
-        const result = await apiRequest(`/api/client/os-images/${hostName}`);
-        if (result && result.code === 200) {
-            const hostData = result.data;
-            hostSystemMaps = hostData.system_maps || {}; // 初始化系统映射
-            // 注意：公网IP需要从主机详情获取，这里暂时不处理
-        }
-    }
-
     // 渲染外网访问IP
     function renderPublicAddr(addrs) {
         const container = $('#vmPublicAddr');
@@ -2116,30 +2156,39 @@
 
     // 加载虚拟机信息
     async function loadVMInfo() {
-        // 1. 先获取虚拟机详情（配置信息）
+        // 0. 先获取主机信息（系统映射和Tab_Lock配置）
+        const hostResult = await apiRequest(`/api/client/os-images/${hostName}`);
+        if (hostResult && hostResult.code === 200) {
+            const hostData = hostResult.data;
+            hostSystemMaps = hostData.system_maps || {}; // 初始化系统映射
+            tabLockList = hostData.tab_lock || []; // 初始化Tab锁定列表
+            updateTabStates(); // 更新Tab状态
+        }
+
+        // 1. 获取虚拟机详情（配置信息）
         const detailResult = await apiRequest(`/api/client/detail/${hostName}/${vmUuid}`);
         if (!detailResult || detailResult.code !== 200) {
             showToast(detailResult?.msg || '加载虚拟机详情失败', 'error');
             return;
         }
-        
-        // 2. 再获取虚拟机状态数据
+
+        // 2. 获取虚拟机状态数据
         // 根据当前时间范围计算需要的数据点数量
         let limit = currentTimeRange; // 默认等于时间范围（分钟数）
-        
+
         const statusResult = await apiRequest(`/api/client/status/${hostName}/${vmUuid}?limit=${limit}`);
         if (!statusResult || statusResult.code !== 200) {
             showToast(statusResult?.msg || '加载虚拟机状态失败', 'error');
             return;
         }
-        
+
         // 3. 合并详情和状态数据
         vmData = {
             uuid: detailResult.data.uuid,
             config: detailResult.data.config,
             status: statusResult.data // 状态API直接返回状态数组
         };
-        
+
         renderVMInfo(vmData);
 
         // 初始化操作系统选项（用于编辑时）
@@ -2187,7 +2236,7 @@
     function updateEditMinDiskRequirement() {
         const minDiskGB = getEditMinDiskRequirement();
         const hddInput = document.getElementById('editHddNum');
-        
+
         // 查找或创建提示元素
         let hintElement = document.getElementById('editHddMinHint');
         if (!hintElement) {
@@ -2196,7 +2245,7 @@
             hintElement.className = 'text-xs text-gray-500 mt-1';
             hddInput.parentElement.appendChild(hintElement);
         }
-        
+
         // 更新提示文本
         const osSelect = document.getElementById('editOsName');
         if (osSelect.value) {
@@ -2225,12 +2274,8 @@
             </span>
         `);
 
-        // 如果虚拟机处于运行中状态，显示修改密码按钮
-        if (powerStatus === 'STARTED') {
-            $('#changePasswordBtn').show();
-        } else {
-            $('#changePasswordBtn').hide();
-        }
+        // 修改密码按钮始终显示
+        $('#changePasswordBtn').show();
 
         // 更新操作系统
         $('#vmOsName').text(config.os_name || '未知系统');
@@ -2594,36 +2639,78 @@
     }
 
     // 删除确认
+    // 删除虚拟机 - 使用SweetAlert2交互式确认
     function confirmDeleteVM() {
-        document.getElementById('deleteModal').showModal();
+        Swal.fire({
+            title: '确认删除',
+            html: `<p class="mb-4">此操作将永久删除虚拟机 "<strong class="text-red-600">${vmUuid}</strong>"<br />且不可恢复</p>
+                   <p class="text-sm text-gray-600">请输入虚拟机名称以确认删除：</p>`,
+            input: 'text',
+            inputPlaceholder: '输入虚拟机名称',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: '确认删除',
+            cancelButtonText: '取消',
+            reverseButtons: true,
+            inputValidator: (value) => {
+                if (!value) {
+                    return '请输入虚拟机名称';
+                }
+                if (value !== vmUuid) {
+                    return '输入的名称不匹配';
+                }
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                executeDeleteVM();
+            }
+        });
     }
 
     // 执行删除
     async function executeDeleteVM() {
-        const confirmInput = document.getElementById('deleteConfirmInput').value;
-        if (confirmInput !== vmUuid) {
-            showToast('请输入正确的虚拟机名称以确认删除', 'error');
-            return;
-        }
+        // 显示删除中状态
+        Swal.fire({
+            title: '删除中...',
+            html: `正在删除虚拟机 "<strong>${vmUuid}</strong>"`,
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
 
         try {
             const result = await apiRequest(`/api/client/delete/${hostName}/${vmUuid}`, 'DELETE');
             if (result && result.code === 200) {
-                showToast('虚拟机已删除', 'success');
-                document.getElementById('deleteModal').close();
-                document.getElementById('deleteConfirmInput').value = '';
+                Swal.fire({
+                    icon: 'success',
+                    title: '删除成功',
+                    text: '虚拟机已成功删除',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
                 setTimeout(() => window.location.href = '/', 1000);
             } else {
-                showToast(result?.msg || '删除失败', 'error');
-                document.getElementById('deleteModal').close();
-                document.getElementById('deleteConfirmInput').value = '';
+                Swal.fire({
+                    icon: 'error',
+                    title: '删除失败',
+                    text: result?.msg || '删除虚拟机失败，请稍后重试',
+                    confirmButtonText: '确定'
+                });
                 // 删除失败后也跳转到首页
                 setTimeout(() => window.location.href = '/', 1500);
             }
         } catch (error) {
-            showToast('网络错误或服务器异常', 'error');
-            document.getElementById('deleteModal').close();
-            document.getElementById('deleteConfirmInput').value = '';
+            Swal.fire({
+                icon: 'error',
+                title: '网络错误',
+                text: '网络错误或服务器异常',
+                confirmButtonText: '确定'
+            });
             // 网络错误后也跳转到首页
             setTimeout(() => window.location.href = '/', 1500);
         }
@@ -2735,18 +2822,18 @@
     function generateRandomPassword(length = 8) {
         const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
         const numbers = '0123456789';
-        
+
         // 确保至少包含一个字母和一个数字
         let password = '';
         password += letters.charAt(Math.floor(Math.random() * letters.length));
         password += numbers.charAt(Math.floor(Math.random() * numbers.length));
-        
+
         // 填充剩余字符
         const allChars = letters + numbers;
         for (let i = password.length; i < length; i++) {
             password += allChars.charAt(Math.floor(Math.random() * allChars.length));
         }
-        
+
         // 打乱顺序
         return password.split('').sort(() => Math.random() - 0.5).join('');
     }
@@ -3029,7 +3116,7 @@
         const hddNum = parseInt(document.getElementById('editHddNum').value) || 0;
         const minDiskGB = getEditMinDiskRequirement();
         const minDiskMB = minDiskGB * 1024;
-        
+
         if (hddNum < minDiskMB) {
             throw new Error(`硬盘大小不能少于${minDiskGB}GB (${minDiskMB}MB)`);
         }
@@ -3216,25 +3303,39 @@
             nat_tips: $('#natDescription').val() || ''
         };
 
-        const result = await apiRequest(`/api/client/natadd/${hostName}/${vmUuid}`, 'POST', data);
-        if (result && result.code === 200) {
-            showToast('NAT规则添加成功', 'success');
-            closeNATModal();
-            loadNATRules();
-        } else {
-            showToast(result?.msg || '添加失败', 'error');
+        closeNATModal();
+        const loadingId = showLoadingToast('正在添加NAT规则...');
+        try {
+            const result = await apiRequest(`/api/client/natadd/${hostName}/${vmUuid}`, 'POST', data);
+            hideLoadingToast(loadingId);
+            if (result && result.code === 200) {
+                showToast('NAT规则添加成功', 'success');
+                loadNATRules();
+            } else {
+                showToast(result?.msg || '添加失败', 'error');
+            }
+        } catch (error) {
+            hideLoadingToast(loadingId);
+            showToast('网络错误或服务器异常', 'error');
         }
     }
 
     async function deleteNATRule(index) {
         if (!confirm('确定要删除此NAT规则吗？')) return;
 
-        const result = await apiRequest(`/api/client/natdel/${hostName}/${vmUuid}/${index}`, 'DELETE');
-        if (result && result.code === 200) {
-            showToast('NAT规则已删除', 'success');
-            loadNATRules();
-        } else {
-            showToast(result?.msg || '删除失败', 'error');
+        const loadingId = showLoadingToast('正在删除NAT规则...');
+        try {
+            const result = await apiRequest(`/api/client/natdel/${hostName}/${vmUuid}/${index}`, 'DELETE');
+            hideLoadingToast(loadingId);
+            if (result && result.code === 200) {
+                showToast('NAT规则已删除', 'success');
+                loadNATRules();
+            } else {
+                showToast(result?.msg || '删除失败', 'error');
+            }
+        } catch (error) {
+            hideLoadingToast(loadingId);
+            showToast('网络错误或服务器异常', 'error');
         }
     }
 
@@ -3680,25 +3781,39 @@
             description: $('#proxyDescription').val() || ''
         };
 
-        const result = await apiRequest(`/api/client/proxys/create/${hostName}/${vmUuid}`, 'POST', data);
-        if (result && result.code === 200) {
-            showToast('代理配置添加成功', 'success');
-            closeProxyModal();
-            loadProxyConfigs();
-        } else {
-            showToast(result?.msg || '添加失败', 'error');
+        closeProxyModal();
+        const loadingId = showLoadingToast('正在添加反向代理...');
+        try {
+            const result = await apiRequest(`/api/client/proxys/create/${hostName}/${vmUuid}`, 'POST', data);
+            hideLoadingToast(loadingId);
+            if (result && result.code === 200) {
+                showToast('代理配置添加成功', 'success');
+                loadProxyConfigs();
+            } else {
+                showToast(result?.msg || '添加失败', 'error');
+            }
+        } catch (error) {
+            hideLoadingToast(loadingId);
+            showToast('网络错误或服务器异常', 'error');
         }
     }
 
     async function deleteProxyConfig(index) {
         if (!confirm('确定要删除此代理配置吗？')) return;
 
-        const result = await apiRequest(`/api/client/proxys/delete/${hostName}/${vmUuid}/${index}`, 'DELETE');
-        if (result && result.code === 200) {
-            showToast('代理配置已删除', 'success');
-            loadProxyConfigs();
-        } else {
-            showToast(result?.msg || '删除失败', 'error');
+        const loadingId = showLoadingToast('正在删除反向代理...');
+        try {
+            const result = await apiRequest(`/api/client/proxys/delete/${hostName}/${vmUuid}/${index}`, 'DELETE');
+            hideLoadingToast(loadingId);
+            if (result && result.code === 200) {
+                showToast('代理配置已删除', 'success');
+                loadProxyConfigs();
+            } else {
+                showToast(result?.msg || '删除失败', 'error');
+            }
+        } catch (error) {
+            hideLoadingToast(loadingId);
+            showToast('网络错误或服务器异常', 'error');
         }
     }
 
@@ -4926,7 +5041,7 @@
                 action: 'reset'
             };
             const result = await apiRequest(`/api/client/powers/${hostName}/${vmUuid}`, 'POST', powerData);
-            
+
             if (result && result.code === 200) {
                 Swal.fire({
                     title: '重装成功',
@@ -4959,7 +5074,7 @@
 
     // ECharts 实例存储
     const chartInstances = {};
-    
+
     // 全局变量：当前选择的时间范围（分钟）
     let currentTimeRange = 30;
 
@@ -5013,15 +5128,15 @@
                 }
             }
         });
-        
+
         // 如果没有找到有效时间戳，使用当前时间
         if (!latestTimestamp) {
             latestTimestamp = Math.floor(Date.now() / 1000);
         }
-        
+
         // 将时间戳转换为分钟级别（去掉秒）
         const latestMinuteTimestamp = Math.floor(latestTimestamp / 60) * 60;
-        
+
         // 确定采样间隔（分钟）
         let sampleInterval = 1; // 默认每分钟
         if (timeRangeMinutes > 360 && timeRangeMinutes <= 1440) {
@@ -5031,10 +5146,10 @@
             // 7天~30天：每30分钟
             sampleInterval = 30;
         }
-        
+
         // 计算需要的数据点数量
         const totalPoints = Math.ceil(timeRangeMinutes / sampleInterval);
-        
+
         // 创建时间戳（分钟级别）到数据的映射
         const dataMap = new Map();
         statusList.forEach(status => {
@@ -5044,21 +5159,21 @@
                 dataMap.set(minuteTimestamp, status);
             }
         });
-        
+
         // 获取当前时间的分钟级别时间戳
         const currentMinuteTimestamp = Math.floor(Date.now() / 1000 / 60) * 60;
-        
+
         // 从最新数据时间往前推，生成时间序列（从旧到新）
         for (let i = 0; i < totalPoints; i++) {
             const minuteOffset = (totalPoints - 1 - i) * sampleInterval; // 分钟偏移
             const minuteTimestamp = latestMinuteTimestamp - minuteOffset * 60; // 秒级时间戳
-            
+
             // 查找该时间点的数据
             const status = dataMap.get(minuteTimestamp);
-            
+
             // 判断是否是当前分钟
             const isCurrentMinute = minuteTimestamp === currentMinuteTimestamp;
-            
+
             if (status) {
                 // 有数据，使用实际值
                 data.cpu.push(status.cpu_usage || 0);
@@ -5086,7 +5201,7 @@
                 data.netU.push(0);
                 data.netD.push(0);
             }
-            
+
             // 生成时间标签
             const time = new Date(minuteTimestamp * 1000);
             const hours = String(time.getHours()).padStart(2, '0');
@@ -5299,12 +5414,12 @@
         const cancelBtn = document.getElementById('confirmCancel');
         const okBtn = document.getElementById('confirmOk');
         const dialog = document.getElementById('confirmDialog');
-        
+
         // 取消按钮事件
         cancelBtn.addEventListener('click', () => {
             hideConfirmDialog();
         });
-        
+
         // 确认按钮事件
         okBtn.addEventListener('click', () => {
             if (confirmCallback) {
@@ -5312,14 +5427,14 @@
             }
             hideConfirmDialog();
         });
-        
+
         // 点击背景关闭（可选）
         dialog.addEventListener('click', (e) => {
             if (e.target === dialog) {
                 hideConfirmDialog();
             }
         });
-        
+
         // ESC键关闭
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && !dialog.classList.contains('hidden')) {
@@ -5327,29 +5442,29 @@
             }
         });
     }
-    
+
     function showConfirmDialog(message, callback) {
         const dialog = document.getElementById('confirmDialog');
         const messageElement = document.getElementById('confirmMessage');
-        
+
         messageElement.textContent = message;
         confirmCallback = callback;
         dialog.classList.remove('hidden');
-        
+
         // 添加动画效果
         setTimeout(() => {
             dialog.querySelector('.bg-white').classList.add('scale-100');
             dialog.querySelector('.bg-white').classList.remove('scale-95');
         }, 10);
     }
-    
+
     function hideConfirmDialog() {
         const dialog = document.getElementById('confirmDialog');
-        
+
         // 添加动画效果
         dialog.querySelector('.bg-white').classList.add('scale-95');
         dialog.querySelector('.bg-white').classList.remove('scale-100');
-        
+
         setTimeout(() => {
             dialog.classList.add('hidden');
             confirmCallback = null;
@@ -5369,17 +5484,17 @@
                 <p class="text-sm text-gray-500">此操作不可恢复</p>
             </div>
         </div>
-        
+
         <div class="mb-6">
             <p id="confirmMessage" class="text-gray-700">确定要移除此使用者吗？</p>
         </div>
-        
+
         <div class="flex gap-3 justify-end">
-            <button id="confirmCancel" 
+            <button id="confirmCancel"
                     class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
                 取消
             </button>
-            <button id="confirmOk" 
+            <button id="confirmOk"
                     class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
                 确认移除
             </button>

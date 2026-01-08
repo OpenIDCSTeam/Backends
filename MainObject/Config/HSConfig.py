@@ -30,16 +30,7 @@ class HSConfig:
         self.system_maps: dict[str, list] = {}  # 系统映射: 显示名称->[文件名(xxx.iso),最低大小]
         self.images_maps: dict[str, str] = {}  # ISO镜像映射: 显示名称->文件名(xxx.iso)
         self.ipaddr_maps: dict[str, dict] = {}
-        # self.ipaddr_maps：{
-        #     "Set1": {
-        #         "vers": "ipv4",
-        #         "type": "nat",
-        #         "gate": "192.168.1.1",
-        #         "mask": "255.255.255.0",
-        #         "from": "192.168.1.100",
-        #         "nums": 100,
-        #     }
-        # }
+
         self.ipaddr_dnss: list = ["119.29.29.29", "223.5.5.5"]
         # 加载传入的参数 =======================
         if config is not None:

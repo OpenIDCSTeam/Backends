@@ -21,6 +21,9 @@ HEConfig = {
         ],
         "Ban_Edit": [
             "gpu_num"
+        ],
+        "Tab_Lock": [
+
         ]
     },
     "LxContainer": {
@@ -42,6 +45,9 @@ HEConfig = {
             "gpu_num", "gpu_mem",
             "flu_num", "hdd_num",
             "speed_u", "speed_d",
+        ],
+        "Tab_Lock": [
+            "hdd", "iso"
         ]
     },
     "OCInterface": {
@@ -63,6 +69,9 @@ HEConfig = {
             "gpu_num", "gpu_mem",
             "flu_num", "hdd_num",
             "speed_u", "speed_d",
+        ],
+        "Tab_Lock": [
+            "hdd", "iso"
         ]
     },
     "vSphereESXi": {
@@ -75,7 +84,9 @@ HEConfig = {
         "Optional": {},
         "Messages": [],
         "Ban_Init": [],
-        "Ban_Edit": []
+        "Ban_Edit": [],
+        "Tab_Lock": [
+        ]
     },
 
     # "HyperVSetup": {

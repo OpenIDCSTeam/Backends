@@ -4,14 +4,14 @@ import traceback
 
 from loguru import logger
 
-from HostModule.HttpManage import HttpManage
+from HostModule.HttpManager import HttpManager
 from HostServer.BasicServer import BasicServer
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Server.HSEngine import HEConfig
 from MainObject.Config.VMConfig import VMConfig
 from MainObject.Config.WebProxy import WebProxy
 from MainObject.Public.ZMessage import ZMessage
-from HostModule.DataManage import HostDatabase
+from HostModule.DataManager import DataManager
 
 
 class HostManage:
@@ -20,8 +20,8 @@ class HostManage:
         self.engine: dict[str, BasicServer] = {}
         self.logger: list[ZMessage] = []
         self.bearer: str = ""  # 先初始化saving变量
-        self.saving = HostDatabase("./DataSaving/hostmanage.db")
-        self.proxys: HttpManage | None = None
+        self.saving = DataManager("./DataSaving/hostmanage.db")
+        self.proxys: HttpManager | None = None
         self.web_all: list[WebProxy] = []  # 全局代理配置列表
         self.set_conf()
 
@@ -137,7 +137,7 @@ class HostManage:
                 self.logger.append(ZMessage(**log_data) if isinstance(log_data, dict) else log_data)
 
             # 启动Http实例
-            self.proxys = HttpManage()
+            self.proxys = HttpManager()
             self.proxys.start_web()
 
             # 加载全局代理配置

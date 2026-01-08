@@ -4,7 +4,7 @@ from loguru import logger
 
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Public.ZMessage import ZMessage
-from HostModule.SSHForward import SSHForward
+from HostModule.SSHDManager import SSHDManager
 
 
 class IPTablesAPI:
@@ -208,7 +208,7 @@ class IPTablesAPI:
         连接SSH（用于远程端口映射）
         :return: (是否成功, 消息)
         """
-        self.ssh_forward = SSHForward()
+        self.ssh_forward = SSHDManager()
         success, message = self.ssh_forward.connect(
             hostname=self.hs_config.server_addr,
             username=self.hs_config.server_user,

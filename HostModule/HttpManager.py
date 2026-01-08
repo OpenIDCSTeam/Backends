@@ -6,13 +6,13 @@ import json
 from pathlib import Path
 
 # 导入DataManage模块用于数据库操作
-from HostModule.DataManage import HostDatabase
+from HostModule.DataManager import DataManager
 
 # Caddy全局配置：启用本地管理端点（仅允许localhost访问）
 GLOBAL_CONFIG = "{\n\tadmin localhost:8019\n}\n\n"
 
 
-class HttpManage:
+class HttpManager:
     def __init__(self, config_filename="HttpManage.txt"):
         self.binary_proc = None
         self.config_path = Path("HostConfig")
@@ -31,7 +31,7 @@ class HttpManage:
         self.config_path.mkdir(exist_ok=True)
 
         # 初始化数据库管理器
-        self.db_manager = HostDatabase()
+        self.db_manager = DataManager()
         # 加载已保存代理配置
         self.load_proxys()
         # 生成初始配置文件
@@ -310,7 +310,7 @@ class HttpManage:
 
 # 使用示例
 if __name__ == "__main__":
-    manager = HttpManage()
+    manager = HttpManager()
 
     try:
         # 启动服务

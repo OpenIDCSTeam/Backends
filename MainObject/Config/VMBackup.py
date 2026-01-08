@@ -6,6 +6,7 @@ class VMBackup:
         self.backup_time = 0
         self.backup_name = ""
         self.backup_hint = ""
+        self.old_os_name = ""
         self.__load__(**kwargs)
 
     def __save__(self):
@@ -18,6 +19,7 @@ class VMBackup:
             "backup_time": backup_time_value,
             "backup_name": self.backup_name,
             "backup_hint": self.backup_hint,
+            "old_os_name": self.old_os_name,
         }
 
     # 加载数据 ===============================

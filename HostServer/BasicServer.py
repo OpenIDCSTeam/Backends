@@ -1,5 +1,4 @@
 import os
-import sys
 import platform
 import subprocess
 import datetime
@@ -10,7 +9,7 @@ from copy import deepcopy
 from random import randint
 from loguru import logger
 
-from HostModule.HttpManage import HttpManage
+from HostModule.HttpManager import HttpManager
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Config.IMConfig import IMConfig
 from MainObject.Config.PortData import PortData
@@ -21,7 +20,7 @@ from MainObject.Config.WebProxy import WebProxy
 from MainObject.Public.HWStatus import HWStatus
 from MainObject.Public.ZMessage import ZMessage
 from MainObject.Config.VMConfig import VMConfig
-from HostModule.NetsManage import NetsManage
+from HostModule.NetsManager import NetsManager
 from MainObject.Config.IPConfig import IPConfig
 from MainObject.Server.HSStatus import HSStatus
 
@@ -50,29 +49,12 @@ class BasicServer:
     # ###############################################################################
     def __save__(self):
         return {
-            "hs_config": self.__save__(self.hs_config),
+            "hs_config": self.hs_config.__save__(),
             "vm_saving": {
-                string: self.__save__(saving)
-                for string, saving in self.vm_saving.items()
+                k: v.__save__()
+                for k, v in self.vm_saving.items()
             }
         }
-
-    # 转换为字典 ####################################################################
-    # :params obj: 需要转换的对象
-    # :return: 字典
-    # ###############################################################################
-    @staticmethod
-    def __save__(obj):
-        """辅助方法：将对象转换为可序列化的字典"""
-        if obj is None:
-            return None
-        # 处理列表类型，递归转换每个元素
-        if isinstance(obj, list):
-            return [BasicServer.__save__(item) for item in obj]
-        if hasattr(obj, '__save__'):
-            if callable(getattr(obj, '__save__')):
-                return obj.__save__()
-        return obj
 
     # 加载数据 ######################################################################
     # :params kwargs: 关键字参数
@@ -256,7 +238,6 @@ class BasicServer:
                                 f"/vnc.html?autoconnect=true&path=websockify?"
                                 f"token={rand_pass}")
 
-
     # 获取当前主机所有虚拟机已分配的IP地址 ##########################################
     # :returns: IP地址列表
     # ###############################################################################
@@ -270,18 +251,14 @@ class BasicServer:
                     allocated.add(nic_config.ip6_addr.strip())
         return allocated
 
-
     # 网络检查 ######################################################################
-    def NetCheck(self, vm_conf: VMConfig) -> (VMConfig, ZMessage):
-        """
-        检查并自动分配虚拟机网卡IP地址
-        :param vm_conf: 虚拟机配置对象
-        :return: (更新后的虚拟机配置, 操作结果消息)
-        """
+    # 检查并自动分配虚拟机网卡IP地址
+    # :param vm_conf: 虚拟机配置对象
+    #  :return: (更新后的虚拟机配置, 操作结果消息)
+    def NetCheck(self, vm_conf: VMConfig) -> tuple:
         ip_config = IPConfig(self.hs_config.ipaddr_maps, self.hs_config.ipaddr_dnss)
         allocated_ips = self.IPGrants()
         return ip_config.check_and_allocate(vm_conf, allocated_ips)
-
 
     # 网络静态绑定 ##################################################################
     # :params ip: IP地址
@@ -290,7 +267,7 @@ class BasicServer:
     # :params flag: True为添加，False为删除
     # ###############################################################################
     def NCStatic(self, ip, mac, uuid, flag=True, dns1=None, dns2=None) -> ZMessage:
-        nc_server = NetsManage(
+        nc_server = NetsManager(
             self.hs_config.i_kuai_addr,
             self.hs_config.i_kuai_user,
             self.hs_config.i_kuai_pass)
@@ -302,7 +279,6 @@ class BasicServer:
             nc_server.del_dhcp(ip)
             nc_server.del_arps(ip)
         return ZMessage(success=True, action="NCStatic")
-
 
     # 网络动态绑定 ##################################################################
     def NCCreate(self, vm_conf: VMConfig, flag=True) -> ZMessage:
@@ -327,7 +303,6 @@ class BasicServer:
                 return ZMessage(success=False, action="NCStatic", message=str(e))
         return ZMessage(success=False, action="NCStatic", message="No IP address found")
 
-
     # 配置虚拟机 ####################################################################
     # :params vm_conf: 虚拟机配置对象
     # ###############################################################################
@@ -350,12 +325,29 @@ class BasicServer:
             )
         return ZMessage(success=True, action="VMUpdate")
 
+    # 查找端口 ######################################################################
+    # :params vm_uuid: 虚拟机UUID
+    # :params vm_port: 虚拟机端口
+    # ###############################################################################
+    def FindPort(self, vm_uuid: str, vm_port: int) -> int:
+        vm_conf = self.VMSelect(vm_uuid)
+        if vm_conf is None:
+            return 0
+        try:
+            all_port = vm_conf.nat_all
+            for now_port in all_port:
+                if now_port.lan_port == vm_port:
+                    return now_port.wan_port
+        except Exception as e:
+            logger.warning(f"无法获取SSH端口: {vm_port}: {str(e)}")
+            return 0
+        return 0
 
     # 端口映射 ######################################################################
     # :params map_info: 端口映射信息
     # ###############################################################################
     def PortsMap(self, map_info: PortData, flag=True) -> ZMessage:
-        nc_server = NetsManage(
+        nc_server = NetsManager(
             self.hs_config.i_kuai_addr,
             self.hs_config.i_kuai_user,
             self.hs_config.i_kuai_pass)
@@ -393,27 +385,48 @@ class BasicServer:
         self.data_set()
         return hs_result
 
+    # 反向代理 #################################################################
+    # :params pm_info: Web代理信息
+    # :params vm_uuid: 虚拟机 UUID
+    # :params in_apis: Web代理接口
+    # :params in_flag: True为添加，False为删除
+    # ##########################################################################
+    def ProxyMap(self,
+                 pm_info: WebProxy,
+                 vm_uuid: str,
+                 in_apis: HttpManager,
+                 in_flag=True) -> ZMessage:
 
-    # 反向代理 ######################################################################
-    # :params ip: 内网IP地址
-    # :params in_pt: 内网端口
-    # :params ex_pt: 外网端口
-    # :params flag: True为添加，False为删除
-    # ###############################################################################
-    def ProxyMap(self, web_info: WebProxy, proxys: HttpManage, flag=True) -> ZMessage:
-        if flag:
-            result = proxys.proxy_add((web_info.lan_port, web_info.lan_addr),
-                                      web_info.web_addr, web_info.is_https)
+        # 检查虚拟机是否存在 =======================================================
+        vm_config = self.vm_saving.get(vm_uuid)
+        if not vm_config:
+            return ZMessage(success=False,
+                            action="ProxyMap",
+                            message="虚拟机不存在")
+        if not hasattr(vm_config, 'web_all') or vm_config.web_all is None:
+            vm_config.web_all = []
+        # 检查域名是否已存在
+        for proxy in vm_config.web_all:
+            if proxy.web_addr == pm_info.web_addr:
+                return ZMessage(success=False,
+                                action="ProxyMap",
+                                message=f'域名 {pm_info.web_addr} 已存在')
+        # 添加或删除代理 ===========================================================
+        if in_flag:
+            result = in_apis.proxy_add(
+                (pm_info.lan_port, pm_info.lan_addr),
+                pm_info.web_addr, pm_info.is_https)
         else:
-            result = proxys.proxy_del(web_info.web_addr)
+            result = in_apis.proxy_del(pm_info.web_addr)
+        # 保存到数据库 =============================================================
+        vm_config.web_all.append(pm_info)
         self.data_set()
         hs_result = ZMessage(success=result, action="ProxyMap",
-                             messages=web_info.web_addr + "%s操作%s" % (
-                                 "添加" if flag else "删除",
+                             messages=pm_info.web_addr + "%s操作%s" % (
+                                 "添加" if in_flag else "删除",
                                  "成功" if result else "失败"))
         self.logs_set(hs_result)
         return hs_result
-
 
     # ###############################################################################
     # 需实现方法
@@ -424,7 +437,6 @@ class BasicServer:
         hs_status = HSStatus()
         self.host_set(hs_status)
         return True
-
 
     # 宿主机状态 ####################################################################
     def HSStatus(self) -> HWStatus:
@@ -440,20 +452,17 @@ class BasicServer:
         hs_status = HSStatus()
         return hs_status.status()
 
-
     # 初始宿主机 ####################################################################
     def HSCreate(self) -> ZMessage:
         hs_result = ZMessage(success=True, action="HSCreate")
         self.logs_set(hs_result)
         return hs_result
 
-
     # 还原宿主机 ####################################################################
     def HSDelete(self) -> ZMessage:
         hs_result = ZMessage(success=True, action="HSDelete")
         self.logs_set(hs_result)
         return hs_result
-
 
     # 读取宿主机 ####################################################################
     def HSLoader(self) -> ZMessage:
@@ -463,7 +472,6 @@ class BasicServer:
             message="宿主机加载成功")
         self.logs_set(hs_result)
         return hs_result
-
 
     # 卸载宿主机 ####################################################################
     def HSUnload(self) -> ZMessage:
@@ -475,11 +483,9 @@ class BasicServer:
         self.logs_set(hs_result)
         return hs_result
 
-
     # 虚拟机扫描 ####################################################################
     def VMDetect(self) -> ZMessage:
         pass
-
 
     # 创建虚拟机 ####################################################################
     # :params vm_conf: 虚拟机配置对象
@@ -495,7 +501,6 @@ class BasicServer:
         self.logs_set(hs_result)
         return hs_result
 
-
     # 配置虚拟机 ####################################################################
     # :params vm_conf: 虚拟机配置对象
     # ###############################################################################
@@ -509,25 +514,27 @@ class BasicServer:
         self.logs_set(hs_result)
         return hs_result
 
-
     # 虚拟机状态 ####################################################################
     # :params select: 虚拟机UUID，为空则返回所有虚拟机状态
     # ###############################################################################
-    def VMStatus(self, vm_name: str = "", start_timestamp: int = None, end_timestamp: int = None) -> dict[
+    def VMStatus(self,
+                 vm_name: str = "",
+                 start_timestamp: int = None,
+                 end_timestamp: int = None) -> dict[
         str, list[HWStatus]]:
         if self.save_data and self.hs_config.server_name:
-            all_status = self.save_data.get_vm_status(self.hs_config.server_name, start_timestamp=start_timestamp,
-                                                      end_timestamp=end_timestamp)
+            all_status = self.save_data.get_vm_status(
+                self.hs_config.server_name, start_timestamp=start_timestamp,
+                end_timestamp=end_timestamp)
             if vm_name:
                 return {vm_name: all_status.get(vm_name, [])}
             return all_status
         return {}
 
-
     # 删除虚拟机 ####################################################################
     # :params select: 虚拟机UUID
     # ###############################################################################
-    def VMDelete(self, vm_name: str) -> ZMessage:
+    def VMDelete(self, vm_name: str, rm_back=True) -> ZMessage:
         vm_saving = os.path.join(self.hs_config.system_path, vm_name)
         # 删除虚拟文件 ==============================================================
         if os.path.exists(vm_saving):
@@ -541,7 +548,6 @@ class BasicServer:
         self.logs_set(hs_result)
         return hs_result
 
-
     # 虚拟机电源 ####################################################################
     # :params select: 虚拟机UUID
     # :params p: 电源操作类型
@@ -551,13 +557,11 @@ class BasicServer:
             success=False, action="VMPowers",
             message="操作成功完成")
 
-
     # 安装虚拟机 ####################################################################
     # :params select: 虚拟机UUID
     # ###############################################################################
     def VMSetups(self, vm_conf: VMConfig) -> ZMessage:
         pass
-
 
     # 设置虚拟机密码 ################################################################
     # :params select: 虚拟机UUID
@@ -575,7 +579,6 @@ class BasicServer:
         ap_config.os_pass = os_pass
         return self.VMUpdate(ap_config, vm_config)
 
-
     # 获取7z可执行文件路径 ##########################################################
     # :return: 7z可执行文件的完整路径
     # ###############################################################################
@@ -590,7 +593,6 @@ class BasicServer:
             return os.path.join("HostConfig", "7zipmacu2b", "7zz")
         else:
             raise OSError(f"不支持的操作系统: {system}")
-
 
     # 备份虚拟机 ####################################################################
     # :params vm_name: 虚拟机UUID
@@ -631,7 +633,6 @@ class BasicServer:
             self.VMPowers(vm_name, VMPowers.S_START)
             return ZMessage(success=False, action="VMBackup", message=str(e))
 
-
     # 恢复虚拟机 ####################################################################
     # :params vm_name: 虚拟机UUID
     # :params vm_back: 备份文件名
@@ -663,7 +664,6 @@ class BasicServer:
             self.VMPowers(vm_name, VMPowers.S_START)
             return ZMessage(success=False, action="Restores", message=str(e))
 
-
     # VM镜像挂载 ####################################################################
     # :params vm_name: 虚拟机UUID
     # :params vm_imgs: 镜像的配置
@@ -693,7 +693,6 @@ class BasicServer:
             success=True,
             action="HDDMount",
             message=f"磁盘{action_text}成功")
-
 
     # ISO镜像挂载 ###################################################################
     # :params vm_name: 虚拟机UUID
@@ -751,7 +750,6 @@ class BasicServer:
             success=True,
             action="ISOMount",
             message=f"ISO镜像{action_text}成功")
-
 
     # 移交所有权 ####################################################################
     # :params vm_name: 虚拟机UUID
@@ -812,9 +810,8 @@ class BasicServer:
             logger.error(f"[{self.hs_config.server_name}] 磁盘移交失败: {str(e)}")
             return ZMessage(success=False, action="HDDTrans", message=str(e))
 
-
     # 移除备份 ######################################################################
-    def RMBackup(self, vm_back: str) -> ZMessage:
+    def RMBackup(self, vm_name: str, vm_back: str) -> ZMessage:
         bak_path = os.path.join(self.hs_config.backup_path, vm_back)
         if not os.path.exists(bak_path):
             return ZMessage(
@@ -824,7 +821,6 @@ class BasicServer:
         return ZMessage(
             success=True, action="RMBackup",
             message="备份文件已删除")
-
 
     # 加载备份 ######################################################################
     def LDBackup(self, vm_back: str = "") -> ZMessage:
@@ -862,7 +858,6 @@ class BasicServer:
             action="LDBackup",
             message=f"{bal_nums}个备份文件已加载")
 
-
     # 移除磁盘 ######################################################################
     def RMMounts(self, vm_name: str, vm_imgs: str) -> ZMessage:
         if vm_name not in self.vm_saving:
@@ -890,11 +885,9 @@ class BasicServer:
             success=True, action="RMMounts",
             message="磁盘删除成功")
 
-
     # 查找显卡 ######################################################################
     def GPUShows(self) -> dict[str, str]:
         return {}
-
 
     # 转移用户 ######################################################################
     def Transfer(self, vm_name: str, new_owner: str, keep_access: bool = False) -> ZMessage:

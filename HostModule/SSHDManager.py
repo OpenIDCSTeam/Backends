@@ -11,7 +11,7 @@ except ImportError:
     PARAMIKO_AVAILABLE = False
 
 
-class SSHForward:
+class SSHDManager:
     """SSH 转发管理类，支持远程命令执行和端口转发"""
     
     def __init__(self):

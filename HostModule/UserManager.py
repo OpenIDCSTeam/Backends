@@ -12,7 +12,7 @@ from loguru import logger
 from MainObject.Config.WebUsers import WebUser
 
 
-class UserAuth:
+class UserManager:
     """用户认证管理类"""
 
     @staticmethod
@@ -23,7 +23,7 @@ class UserAuth:
     @staticmethod
     def verify_password(password: str, hashed: str) -> bool:
         """验证密码"""
-        return UserAuth.hash_password(password) == hashed
+        return UserManager.hash_password(password) == hashed
 
     @staticmethod
     def generate_token(length: int = 32) -> str:
@@ -99,7 +99,7 @@ def require_admin(f):
             return f(*args, **kwargs)
         
         # 检查用户是否为管理员
-        current_user = UserAuth.get_current_user_from_session()
+        current_user = UserManager.get_current_user_from_session()
         if current_user and (current_user.get('is_admin') or current_user.get('is_token_login')):
             return f(*args, **kwargs)
         
@@ -121,7 +121,7 @@ def require_permission(permission: str):
             if auth_header.startswith('Bearer '):
                 return f(*args, **kwargs)
             
-            current_user = UserAuth.get_current_user_from_session()
+            current_user = UserManager.get_current_user_from_session()
             if current_user and (current_user.get('is_admin') or current_user.get('is_token_login')):
                 return f(*args, **kwargs)
             

@@ -19,7 +19,7 @@ from MainObject.Config.NCConfig import NCConfig
 from MainObject.Config.PortData import PortData
 from MainObject.Config.WebProxy import WebProxy
 from MainObject.Public.HWStatus import HWStatus
-from HostModule.UserManage import UserAuth, check_host_access, check_vm_permission, check_resource_quota
+from HostModule.UserManager import UserManager, check_host_access, check_vm_permission, check_resource_quota
 
 
 class RestManager:
@@ -797,13 +797,16 @@ class RestManager:
             if hasattr(server.hs_config, 'server_type'):
                 server_type = server.hs_config.server_type or ''
 
-            # 获取Ban_Init和Ban_Edit
-            from MainObject.Server.HSEngine import HEConfig
-            if server_type:
-                server_config = HEConfig.get(server_type, {})
-                ban_init = server_config.get('Ban_Init', [])
-                ban_edit = server_config.get('Ban_Edit', [])
-                messages = server_config.get('Messages', [])
+        # 获取Ban_Init、Ban_Edit和Tab_Lock
+        from MainObject.Server.HSEngine import HEConfig
+        if server_type:
+            server_config = HEConfig.get(server_type, {})
+            ban_init = server_config.get('Ban_Init', [])
+            ban_edit = server_config.get('Ban_Edit', [])
+            messages = server_config.get('Messages', [])
+            tab_lock = server_config.get('Tab_Lock', [])
+        else:
+            tab_lock = []
 
         # 获取filter_name用于UUID前缀
         filter_name = ''
@@ -818,7 +821,8 @@ class RestManager:
             'images_maps': images_maps,
             'ban_init': ban_init,
             'ban_edit': ban_edit,
-            'messages': messages
+            'messages': messages,
+            'tab_lock': tab_lock
         })
 
     # 添加主机 ########################################################################
@@ -973,7 +977,7 @@ class RestManager:
         server.data_get()
 
         # 获取当前用户信息
-        user_data = UserAuth.get_current_user_from_session()
+        user_data = UserManager.get_current_user_from_session()
         is_admin = user_data.get('is_admin', False) if user_data else False
         is_token_login = user_data.get('is_token_login', False) if user_data else False
         current_username = user_data.get('username', '') if user_data else ''
@@ -1042,7 +1046,7 @@ class RestManager:
             return self.api_response(404, '虚拟机不存在')
 
         # 权限验证：普通用户只能访问自己拥有的虚拟机
-        user_data = UserAuth.get_current_user_from_session()
+        user_data = UserManager.get_current_user_from_session()
         is_admin = user_data.get('is_admin', False) if user_data else False
         is_token_login = user_data.get('is_token_login', False) if user_data else False
         current_username = user_data.get('username', '') if user_data else ''
@@ -2258,10 +2262,10 @@ class RestManager:
 
         # 检查用户IP配额
         from flask import session
-        from HostModule.UserManage import check_resource_quota
-        from HostModule.DataManage import HostDatabase
+        from HostModule.UserManager import check_resource_quota
+        from HostModule.DataManager import DataManager
 
-        db = HostDatabase()
+        db = DataManager()
         user_id = session.get('user_id')
         if user_id:
             user_data = db.get_user_by_id(user_id)
@@ -2509,13 +2513,7 @@ class RestManager:
         server = self.hs_manage.get_host(hs_name)
         if not server:
             return self.api_response(404, '主机不存在')
-
-        vm_config = server.vm_saving.get(vm_uuid)
-        if not vm_config:
-            return self.api_response(404, '虚拟机不存在')
-
         data = request.get_json() or {}
-
         # 创建WebProxy对象
         proxy_config = WebProxy()
         proxy_config.web_addr = data.get('domain', '')
@@ -2523,25 +2521,10 @@ class RestManager:
         proxy_config.lan_port = int(data.get('backend_port', 80))
         proxy_config.is_https = data.get('ssl_enabled', False)
         proxy_config.web_tips = data.get('description', '')
-
-        # 初始化web_all列表
-        if not hasattr(vm_config, 'web_all') or vm_config.web_all is None:
-            vm_config.web_all = []
-
-        # 检查域名是否已存在
-        for proxy in vm_config.web_all:
-            if proxy.web_addr == proxy_config.web_addr:
-                return self.api_response(400, f'域名 {proxy_config.web_addr} 已存在')
-
         # 调用ProxyMap添加代理
-        result = server.ProxyMap(proxy_config, self.hs_manage.proxys, flag=True)
-
+        result = server.ProxyMap(proxy_config, vm_uuid, self.hs_manage.proxys, in_flag=True)
         if not result.success:
             return self.api_response(500, f'添加代理失败: {result.messages}')
-
-        # 添加到vm_config.web_all
-        vm_config.web_all.append(proxy_config)
-
         # 保存配置
         self.hs_manage.all_save()
         return self.api_response(200, '代理配置添加成功')
@@ -2572,7 +2555,262 @@ class RestManager:
         proxy_config = vm_config.web_all[proxy_index]
 
         # 调用ProxyMap删除代理
-        result = server.ProxyMap(proxy_config, self.hs_manage.proxys, flag=False)
+        result = server.ProxyMap(proxy_config, vm_uuid, self.hs_manage.proxys, in_flag=False)
+        if not result.success:
+            return self.api_response(500, f'删除代理失败: {result.message}')
+
+        # 从web_all中删除
+        vm_config.web_all.pop(proxy_index)
+
+        # 保存配置
+        self.hs_manage.all_save()
+        return self.api_response(200, '代理配置已删除')
+
+    # ========================================================================
+    # 管理员级别 - Web反向代理管理API
+    # ========================================================================
+
+    # 获取所有反向代理配置 ################################################################
+    # :return: 包含所有反向代理配置的API响应
+    # ####################################################################################
+    def admin_list_all_proxys(self):
+        """管理员获取所有反向代理配置列表"""
+        all_proxys = []
+        
+        # 遍历所有主机
+        for hs_name, server in self.hs_manage.hs_saving.items():
+            # 遍历该主机的所有虚拟机
+            for vm_uuid, vm_config in server.vm_saving.items():
+                if hasattr(vm_config, 'web_all') and vm_config.web_all:
+                    for index, proxy in enumerate(vm_config.web_all):
+                        proxy_dict = {
+                            'host_name': hs_name,
+                            'vm_uuid': vm_uuid,
+                            'vm_name': getattr(vm_config, 'vm_name', vm_uuid),
+                            'proxy_index': index,
+                            'domain': getattr(proxy, 'web_addr', ''),
+                            'backend_ip': getattr(proxy, 'lan_addr', ''),
+                            'backend_port': getattr(proxy, 'lan_port', 80),
+                            'ssl_enabled': getattr(proxy, 'is_https', False),
+                            'description': getattr(proxy, 'web_tips', '')
+                        }
+                        all_proxys.append(proxy_dict)
+        
+        return self.api_response(200, 'success', {
+            'list': all_proxys,
+            'total': len(all_proxys)
+        })
+
+    # 获取指定主机的所有反向代理 ##########################################################
+    # :param hs_name: 主机名称
+    # :return: 包含指定主机所有反向代理配置的API响应
+    # ####################################################################################
+    def admin_list_host_proxys(self, hs_name):
+        """管理员获取指定主机的所有反向代理配置"""
+        server = self.hs_manage.get_host(hs_name)
+        if not server:
+            return self.api_response(404, '主机不存在')
+        
+        host_proxys = []
+        
+        # 遍历该主机的所有虚拟机
+        for vm_uuid, vm_config in server.vm_saving.items():
+            if hasattr(vm_config, 'web_all') and vm_config.web_all:
+                for index, proxy in enumerate(vm_config.web_all):
+                    proxy_dict = {
+                        'host_name': hs_name,
+                        'vm_uuid': vm_uuid,
+                        'vm_name': getattr(vm_config, 'vm_name', vm_uuid),
+                        'proxy_index': index,
+                        'domain': getattr(proxy, 'web_addr', ''),
+                        'backend_ip': getattr(proxy, 'lan_addr', ''),
+                        'backend_port': getattr(proxy, 'lan_port', 80),
+                        'ssl_enabled': getattr(proxy, 'is_https', False),
+                        'description': getattr(proxy, 'web_tips', '')
+                    }
+                    host_proxys.append(proxy_dict)
+        
+        return self.api_response(200, 'success', {
+            'list': host_proxys,
+            'total': len(host_proxys)
+        })
+
+    # 获取指定虚拟机的反向代理 ############################################################
+    # :param hs_name: 主机名称
+    # :param vm_uuid: 虚拟机UUID
+    # :return: 包含指定虚拟机反向代理配置的API响应
+    # ####################################################################################
+    def admin_get_vm_proxys(self, hs_name, vm_uuid):
+        """管理员获取指定虚拟机的反向代理配置"""
+        server = self.hs_manage.get_host(hs_name)
+        if not server:
+            return self.api_response(404, '主机不存在')
+
+        vm_config = server.vm_saving.get(vm_uuid)
+        if not vm_config:
+            return self.api_response(404, '虚拟机不存在')
+
+        proxy_list = []
+        if hasattr(vm_config, 'web_all') and vm_config.web_all:
+            for index, proxy in enumerate(vm_config.web_all):
+                proxy_dict = {
+                    'host_name': hs_name,
+                    'vm_uuid': vm_uuid,
+                    'vm_name': getattr(vm_config, 'vm_name', vm_uuid),
+                    'proxy_index': index,
+                    'domain': getattr(proxy, 'web_addr', ''),
+                    'backend_ip': getattr(proxy, 'lan_addr', ''),
+                    'backend_port': getattr(proxy, 'lan_port', 80),
+                    'ssl_enabled': getattr(proxy, 'is_https', False),
+                    'description': getattr(proxy, 'web_tips', '')
+                }
+                proxy_list.append(proxy_dict)
+
+        return self.api_response(200, 'success', {
+            'list': proxy_list,
+            'total': len(proxy_list)
+        })
+
+    # 添加反向代理配置 ####################################################################
+    # :param hs_name: 主机名称
+    # :param vm_uuid: 虚拟机UUID
+    # :return: 反向代理配置添加结果的API响应
+    # ####################################################################################
+    def admin_add_proxy(self, hs_name, vm_uuid):
+        """管理员添加反向代理配置"""
+        server = self.hs_manage.get_host(hs_name)
+        if not server:
+            return self.api_response(404, '主机不存在')
+
+        vm_config = server.vm_saving.get(vm_uuid)
+        if not vm_config:
+            return self.api_response(404, '虚拟机不存在')
+
+        data = request.get_json() or {}
+        
+        # 创建WebProxy对象
+        from MainObject.Config.WebProxy import WebProxy
+        proxy_config = WebProxy()
+        proxy_config.web_addr = data.get('domain', '')
+        proxy_config.lan_addr = data.get('backend_ip', '')
+        proxy_config.lan_port = int(data.get('backend_port', 80))
+        proxy_config.is_https = data.get('ssl_enabled', False)
+        proxy_config.web_tips = data.get('description', '')
+
+        # 验证域名不能为空
+        if not proxy_config.web_addr:
+            return self.api_response(400, '域名不能为空')
+
+        # 检查域名是否已存在
+        if hasattr(vm_config, 'web_all') and vm_config.web_all:
+            for existing_proxy in vm_config.web_all:
+                if getattr(existing_proxy, 'web_addr', '') == proxy_config.web_addr:
+                    return self.api_response(400, f'域名 {proxy_config.web_addr} 已存在')
+
+        # 调用ProxyMap添加代理
+        result = server.ProxyMap(proxy_config, vm_uuid, self.hs_manage.proxys, in_flag=True)
+        if not result.success:
+            return self.api_response(500, f'添加代理失败: {result.message}')
+
+        # 保存配置
+        self.hs_manage.all_save()
+        return self.api_response(200, '代理配置添加成功')
+
+    # 更新反向代理配置 ####################################################################
+    # :param hs_name: 主机名称
+    # :param vm_uuid: 虚拟机UUID
+    # :param proxy_index: 反向代理配置索引
+    # :return: 反向代理配置更新结果的API响应
+    # ####################################################################################
+    def admin_update_proxy(self, hs_name, vm_uuid, proxy_index):
+        """管理员更新反向代理配置"""
+        server = self.hs_manage.get_host(hs_name)
+        if not server:
+            return self.api_response(404, '主机不存在')
+
+        vm_config = server.vm_saving.get(vm_uuid)
+        if not vm_config:
+            return self.api_response(404, '虚拟机不存在')
+
+        if not hasattr(vm_config, 'web_all') or not vm_config.web_all:
+            return self.api_response(404, '代理配置不存在')
+
+        if proxy_index < 0 or proxy_index >= len(vm_config.web_all):
+            return self.api_response(404, '代理配置索引无效')
+
+        data = request.get_json() or {}
+        
+        # 获取旧的代理配置
+        old_proxy = vm_config.web_all[proxy_index]
+        
+        # 先删除旧的代理
+        result = server.ProxyMap(old_proxy, vm_uuid, self.hs_manage.proxys, in_flag=False)
+        if not result.success:
+            return self.api_response(500, f'删除旧代理失败: {result.message}')
+
+        # 创建新的WebProxy对象
+        from MainObject.Config.WebProxy import WebProxy
+        new_proxy = WebProxy()
+        new_proxy.web_addr = data.get('domain', getattr(old_proxy, 'web_addr', ''))
+        new_proxy.lan_addr = data.get('backend_ip', getattr(old_proxy, 'lan_addr', ''))
+        new_proxy.lan_port = int(data.get('backend_port', getattr(old_proxy, 'lan_port', 80)))
+        new_proxy.is_https = data.get('ssl_enabled', getattr(old_proxy, 'is_https', False))
+        new_proxy.web_tips = data.get('description', getattr(old_proxy, 'web_tips', ''))
+
+        # 验证域名不能为空
+        if not new_proxy.web_addr:
+            # 恢复旧的代理
+            server.ProxyMap(old_proxy, vm_uuid, self.hs_manage.proxys, in_flag=True)
+            return self.api_response(400, '域名不能为空')
+
+        # 检查域名是否与其他代理冲突（排除当前索引）
+        for i, existing_proxy in enumerate(vm_config.web_all):
+            if i != proxy_index and getattr(existing_proxy, 'web_addr', '') == new_proxy.web_addr:
+                # 恢复旧的代理
+                server.ProxyMap(old_proxy, vm_uuid, self.hs_manage.proxys, in_flag=True)
+                return self.api_response(400, f'域名 {new_proxy.web_addr} 已存在')
+
+        # 添加新的代理
+        result = server.ProxyMap(new_proxy, vm_uuid, self.hs_manage.proxys, in_flag=True)
+        if not result.success:
+            # 恢复旧的代理
+            server.ProxyMap(old_proxy, vm_uuid, self.hs_manage.proxys, in_flag=True)
+            return self.api_response(500, f'添加新代理失败: {result.message}')
+
+        # 更新配置列表
+        vm_config.web_all[proxy_index] = new_proxy
+
+        # 保存配置
+        self.hs_manage.all_save()
+        return self.api_response(200, '代理配置更新成功')
+
+    # 删除反向代理配置 ####################################################################
+    # :param hs_name: 主机名称
+    # :param vm_uuid: 虚拟机UUID
+    # :param proxy_index: 反向代理配置索引
+    # :return: 反向代理配置删除结果的API响应
+    # ####################################################################################
+    def admin_delete_proxy(self, hs_name, vm_uuid, proxy_index):
+        """管理员删除反向代理配置"""
+        server = self.hs_manage.get_host(hs_name)
+        if not server:
+            return self.api_response(404, '主机不存在')
+
+        vm_config = server.vm_saving.get(vm_uuid)
+        if not vm_config:
+            return self.api_response(404, '虚拟机不存在')
+
+        if not hasattr(vm_config, 'web_all') or not vm_config.web_all:
+            return self.api_response(404, '代理配置不存在')
+
+        if proxy_index < 0 or proxy_index >= len(vm_config.web_all):
+            return self.api_response(404, '代理配置索引无效')
+
+        # 获取要删除的代理配置
+        proxy_config = vm_config.web_all[proxy_index]
+
+        # 调用ProxyMap删除代理
+        result = server.ProxyMap(proxy_config, vm_uuid, self.hs_manage.proxys, in_flag=False)
         if not result.success:
             return self.api_response(500, f'删除代理失败: {result.message}')
 
