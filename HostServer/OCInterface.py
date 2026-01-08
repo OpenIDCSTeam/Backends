@@ -156,7 +156,7 @@ class HostServer(BasicServer):
             "cap_add": [
                 "SYS_ADMIN",  # 系统管理权限
                 "SYS_PTRACE"  # 进程调试权限
-            ]
+            ],
         }
         # CPU 限制 ==============================================
         if vm_conf.cpu_num > 0:
@@ -646,6 +646,7 @@ class HostServer(BasicServer):
         client, result = self.connect_docker()
         if not result.success:
             return result
+
         # 获取容器 =============================================
         try:
             container = client.containers.get(vm_conf.vm_uuid)
@@ -656,7 +657,14 @@ class HostServer(BasicServer):
         # 配置网络 =============================================
         # 跟踪已处理的网络，避免重复连接同一网络
         processed_networks = set()
-
+        # 断开默认bridge网络（容器创建时会自动连接）============
+        if flag:
+            try:
+                default_net = client.networks.get('bridge')
+                default_net.disconnect(container, force=True)
+                logger.info(f"容器 已断开默认bridge网络")
+            except Exception as e:
+                logger.warning(f"断开默认网络失败: {str(e)}")
         for nic_name, nic_conf in vm_conf.nic_all.items():
             # 获取配置 =========================================
             nic_keys = "network_" + nic_conf.nic_type
@@ -728,6 +736,7 @@ class HostServer(BasicServer):
                 hostname=vm_conf.vm_uuid,
                 **container_config
             )
+            self.NCCreate(vm_conf, True)
             # 启动容器 =========================================================
             container.start()
             self.VMPasswd(vm_conf.vm_uuid, vm_conf.os_pass)
@@ -1309,11 +1318,12 @@ class HostServer(BasicServer):
                 hostname=vm_name,
                 **container_config
             )
-            container.start()
             # 网络配置 ======================================================
             network_result = self.NCCreate(vm_conf, flag=True)
             if not network_result.success:
                 logger.warning(f"网络配置失败: {network_result.message}")
+            # 启动容器 ======================================================
+            container.start()
             vm_conf.os_name = vb_conf.old_os_name
             logger.info(f"容器 {vm_name} 恢复成功")
             # 保存配置 ======================================================
