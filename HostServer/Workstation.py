@@ -11,6 +11,7 @@ from MainObject.Public.HWStatus import HWStatus
 from MainObject.Public.ZMessage import ZMessage
 from MainObject.Config.VMConfig import VMConfig
 from HostServer.WorkstationAPI.VMWRestAPI import VRestAPI
+from VNCConsole.VNCManager import VNCStart, VProcess
 
 
 class HostServer(BasicServer):
@@ -25,6 +26,16 @@ class HostServer(BasicServer):
             self.hs_config.server_pass,
             self.hs_config.launch_path,
         )
+
+    def VMLoader(self) -> bool:
+        cfg_name = "vnc_" + self.hs_config.server_name
+        cfg_full = "DataSaving/" + cfg_name + ".cfg"
+        if os.path.exists(cfg_full):
+            os.remove(cfg_full)
+        tp_remote = VNCStart(self.hs_config.remote_port, cfg_name)
+        self.vm_remote = VProcess(tp_remote)
+        self.vm_remote.start()
+        return True
 
     # 宿主机任务 ###############################################################
     def Crontabs(self) -> bool:

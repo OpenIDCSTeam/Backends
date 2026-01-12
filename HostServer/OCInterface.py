@@ -139,6 +139,8 @@ class HostServer(BasicServer):
             logger.error(f"同步端口转发时出错: {str(e)}")
             traceback.print_exc()
 
+
+
     # 构建容器配置 #############################################################
     def docker_builder(self, vm_conf: VMConfig) -> dict:
         # 创建基础配置 ==========================================
@@ -194,7 +196,7 @@ class HostServer(BasicServer):
             if not self.hs_config.server_addr.startswith("ssh://"):
                 return True
         return False
-    
+
     # 解析Docker容器统计信息 ###################################################
     def parse_vm_stats(self, stats: dict, vm_uuid: str) -> HWStatus:
         """
@@ -277,7 +279,7 @@ class HostServer(BasicServer):
             logger.error(f"[{self.hs_config.server_name}] 解析容器 {vm_uuid} 统计信息失败: {e}")
 
         return hw_status
-    
+
     # 定时任务 #################################################################
     def Crontabs(self) -> bool:
         """
@@ -347,7 +349,7 @@ class HostServer(BasicServer):
         if not self.http_manager:
             # 获取主机名，使用server_name，如果没有则使用默认值
             hostname = getattr(self.hs_config, 'server_name', '')
-            config_filename = f"vnc_{hostname}.txt"
+            config_filename = f"vnc-{hostname}.txt"
             self.http_manager = HttpManager(config_filename)
             # 初始化SSH代理管理
             self.http_manager.start_ssh(self.hs_config.remote_port)
@@ -1422,7 +1424,7 @@ class HostServer(BasicServer):
                 action="VCRemote",
                 message=f"SSH代理配置失败: {str(e)}")
         # 5. 构造返回URL =======================================================
-        vnc_port = 1884  # SSH代理统一使用1884端口
+        vnc_port = self.hs_config.remote_port  # SSH代理统一使用1884端口
         url = f"http://{public_ip}:{vnc_port}/{token}"
         logger.info(
             f"VMRemote for {vm_uuid}: "

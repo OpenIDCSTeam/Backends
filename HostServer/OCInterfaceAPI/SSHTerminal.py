@@ -59,7 +59,8 @@ class SSHTerminal:
     def open_tty(self,
                  hs_conf: HSConfig,
                  vm_port: str,
-                 vm_uuid: str) -> tuple[int, str]:
+                 vm_uuid: str,
+                 vm_type: str = "docker") -> tuple[int, str]:
         # 检查ttyd可执行文件是否存在 ====================================================
         if not self.ttyd_path:
             logger.error("ttyd executable not found")
@@ -95,7 +96,10 @@ class SSHTerminal:
                     and auto_cmd != "":
                 ssh_cmd += f" -p {vm_port}"
             else:  # 直接使用docker exec进入虚拟机内部 ------------------------------------
-                ssh_cmd += f" -p {ssh_port} docker exec -it {vm_uuid} bash"
+                if vm_type == "docker":
+                    ssh_cmd += f" -p {ssh_port} docker exec -it {vm_uuid} bash"
+                else:
+                    ssh_cmd += f" -p {ssh_port} lxc exec {vm_uuid} bash"
                 if auto_cmd:
                     ssh_cmd = f"{auto_cmd} {ssh_cmd}"
             # 启动ttyd进程 ================================================================

@@ -4,6 +4,7 @@ import signal
 import subprocess
 import json
 import random
+import traceback
 from pathlib import Path
 
 # 导入DataManage模块用于数据库操作
@@ -22,6 +23,7 @@ class HttpManager:
         self.proxys_sshd = {}
         # proxys_list格式: {domain: {"target": (port, ip), "is_https": bool, "listen_port": int}}
         self.proxys_list = {}
+        self.vnc_port = 0
 
         if os.name == 'nt':
             self.binary_path = ".\\HostConfig\\Server_x64.exe"
@@ -37,9 +39,10 @@ class HttpManager:
         print(f"HttpManager初始化完成，管理端口: {self.admin_port}，配置文件: {self.config_file}")
 
     # 初始化SSH代理管理 ########################################
-    def start_ssh(self, port: int):
-        if str(port) not in self.proxys_sshd:
-            self.proxys_sshd[port] = {}
+    def start_ssh(self, port: int = random.randint(8000, 9000)):
+        self.vnc_port = port
+        if str(self.vnc_port) not in self.proxys_sshd:
+            self.proxys_sshd[str(self.vnc_port)] = {}
 
     # 关闭SSH代理的管理 ########################################
     def close_ssh(self, port: int):
@@ -54,17 +57,12 @@ class HttpManager:
                 if token in token_dict:
                     print(f"令牌 {token} 的SSH代理配置已存在")
                     return False
-
-            # 使用固定端口1884作为监听端口
-            listen_port = 1884
-
-            # 如果还没有1884端口的配置，初始化一个空字典
-            if listen_port not in self.proxys_sshd:
-                self.proxys_sshd[listen_port] = {}
-
-            # 添加到SSH代理配置
-            self.proxys_sshd[listen_port][token] = (target_ip, target_port)
-            print(f"SSH代理已添加: /{token} -> {target_ip}:{target_port} (统一端口: {listen_port})")
+            # 如SSH未启动则启动 ================================
+            if self.vnc_port == 0:
+                self.start_ssh()
+            # 添加到SSH代理配置 ================================
+            self.proxys_sshd[str(self.vnc_port)][token] = (target_ip, target_port)
+            print(f"SSH代理已添加: /{token} -> {target_ip}:{target_port} (统一端口: {str(self.vnc_port)})")
 
             # 重新生成配置文件
             self._generate_config()
@@ -74,6 +72,7 @@ class HttpManager:
 
         except Exception as e:
             print(f"添加SSH代理配置时发生错误: {str(e)}")
+            traceback.print_exc()
             return False
 
     def _generate_config(self):

@@ -201,13 +201,6 @@ class BasicServer:
     # :returns: 是否成功
     # ###############################################################################
     def VMLoader(self) -> bool:
-        cfg_name = "vnc_" + self.hs_config.server_name
-        cfg_full = "DataSaving/" + cfg_name + ".cfg"
-        if os.path.exists(cfg_full):
-            os.remove(cfg_full)
-        tp_remote = VNCStart(self.hs_config.remote_port, cfg_name)
-        self.vm_remote = VProcess(tp_remote)
-        self.vm_remote.start()
         return True
 
     # 虚拟机控制台 ##################################################################
