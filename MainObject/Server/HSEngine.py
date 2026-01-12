@@ -77,7 +77,7 @@ HEConfig = {
     "vSphereESXi": {
         "Imported": vSphereESXiModule.HostServer,
         "Descript": "vSphereESXi Server",
-        "isEnable": True,
+        "isEnable": False,
         "isRemote": True,
         "Platform": ["Linux", "Windows", "MacOS"],
         "CPU_Arch": ["x86_64", "aarch64"],
@@ -88,23 +88,32 @@ HEConfig = {
         "Tab_Lock": [
         ]
     },
-
-    # "HyperVSetup": {
-    #     "Imported": None,
-    #     "Descript": "Win HyperV Platform",
-    #     "isEnable": False,
-    #     "Platform": ["Windows"],
-    #     "CPU_Arch": ["x86_64"],
-    #     "Messages": [
-    #         "1、无法单独限制上下行带宽，取二者最低值分配"
-    #     ]
-    # },
-    # "PromoxSetup": {
-    #     "Descript": "PVE Runtime Platform",
-    #     "isEnable": False,
-    #     "Platform": ["Linux", "Windows"],
-    #     "CPU_Arch": ["x86_64", "aarch64"],
-    # },
+    "HyperVSetup": {
+        "Imported": None,
+        "Descript": "Win HyperV Platform",
+        "isEnable": False,
+        "isRemote": True,
+        "Platform": ["Windows"],
+        "CPU_Arch": ["x86_64"],
+        "Messages": [
+            "1、无法单独限制上下行带宽，取二者最低值分配"
+        ],
+        "Ban_Init": [],
+        "Ban_Edit": [],
+        "Tab_Lock": []
+    },
+    "PromoxSetup": {
+        "Imported": None,
+        "Descript": "PVE Runtime Platform",
+        "isEnable": False,
+        "isRemote": True,
+        "Platform": ["Linux", "Windows"],
+        "CPU_Arch": ["x86_64", "aarch64"],
+        "Messages": [],
+        "Ban_Init": [],
+        "Ban_Edit": [],
+        "Tab_Lock": []
+    },
     # "VirtualBoxs": {
     #     "Descript": "PVE Runtime Platform",
     #     "isEnable": False,
@@ -122,11 +131,5 @@ HEConfig = {
     #         "enable_audio": "是否启用音频",
     #         "fps": "帧率"
     #     }
-    # },
-    # "MacOSFusion": {
-    #     "Descript": "VMware Fusion Pro Mac",
-    #     "isEnable": False,
-    #     "Platform": ["MacOS"],
-    #     "CPU_Arch": ["x86_64", "aarch64"],
     # }
 }

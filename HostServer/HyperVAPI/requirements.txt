@@ -1,0 +1,13 @@
+# Hyper-V API 依赖项
+
+# WinRM远程管理支持
+pywinrm>=0.4.3
+
+# 日志记录
+loguru>=0.7.0
+
+# JSON处理（Python内置，无需安装）
+# json
+
+# 子进程管理（Python内置，无需安装）
+# subprocess
