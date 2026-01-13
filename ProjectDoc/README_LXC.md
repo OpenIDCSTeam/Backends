@@ -150,7 +150,7 @@ vm_config = VMConfig(
   vm_uuid="test-container-01",
   os_name="ubuntu-22.04-rootfs.tar.gz",
   cpu_num=2,
-  ram_num=4,  # GB
+  mem_num=4,  # GB
   hdd_num=20,  # GB
 )
 
@@ -179,7 +179,7 @@ print(f"Web Terminal: {terminal_url}")
 | `vm_uuid` | 容器名称 | `"test-container-01"` |
 | `os_name` | 模板文件名 | `"ubuntu-22.04-rootfs.tar.gz"` |
 | `cpu_num` | CPU 核心数 | `2` |
-| `ram_num` | 内存大小（GB） | `4` |
+| `mem_num` | 内存大小（GB） | `4` |
 | `nic_all` | 网卡配置 | 自动选择 network_pub 或 network_nat |
 
 ### 网络配置

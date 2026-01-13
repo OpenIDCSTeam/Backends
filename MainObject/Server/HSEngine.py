@@ -1,3 +1,6 @@
+# HSEngine - 宿主机引擎配置 ######################################################
+# 定义各种虚拟化平台的配置和限制
+################################################################################
 import HostServer.Workstation as WorkstationModule
 import HostServer.LXContainer as LXContainerModule
 import HostServer.OCInterface as OCInterfaceModule

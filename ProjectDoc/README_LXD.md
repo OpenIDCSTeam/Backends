@@ -165,7 +165,7 @@ vm_conf = VMConfig(
     vm_uuid="test-container",
     os_name="ubuntu-22.04.tar.gz",  # 模板文件名
     cpu_num=2,
-    ram_num=4,  # GB
+    mem_num=4,  # GB
     hdd_num=20  # GB
 )
 
@@ -389,7 +389,7 @@ lxc storage create btrfs-pool btrfs size=100GB
 ```python
 # 在 VMConfig 中配置
 vm_conf.cpu_num = 4      # 4 核 CPU
-vm_conf.ram_num = 8      # 8 GB 内存
+vm_conf.mem_num = 8      # 8 GB 内存
 vm_conf.hdd_num = 50     # 50 GB 磁盘
 ```
 

@@ -89,7 +89,7 @@ vm_conf = VMConfig(
     vm_uuid="test-container-001",
     os_name="ubuntu-22.04.tar.gz",  # 确保模板文件存在
     cpu_num=2,
-    ram_num=4,  # GB
+    mem_num=4,  # GB
     hdd_num=20  # GB
 )
 
@@ -173,7 +173,7 @@ server.VMDelete("container-name")
 # 更新容器配置
 vm_conf = server.VMSelect("container-name")
 vm_conf.cpu_num = 4  # 修改为 4 核
-vm_conf.ram_num = 8  # 修改为 8 GB
+vm_conf.mem_num = 8  # 修改为 8 GB
 
 old_conf = deepcopy(vm_conf)
 server.VMUpdate(vm_conf, old_conf)

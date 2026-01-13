@@ -1,3 +1,6 @@
+# LXContainer - LXD容器管理服务器 ##############################################
+# 提供LXD容器的创建、管理和监控功能
+################################################################################
 import os
 import shutil
 import datetime
@@ -34,16 +37,17 @@ from HostServer.OCInterfaceAPI.SSHTerminal import SSHTerminal
 
 
 class HostServer(BasicServer):
-    # 宿主机服务 ###############################################################
+    # 宿主机服务 ##############################################################
     def __init__(self, config: HSConfig, **kwargs):
         super().__init__(config, **kwargs)
         super().__load__(**kwargs)
-        # LXD 客户端连接
+        # LXD 客户端连接 ===================================================
         self.lxd_client = None
         self.web_terminal = None
         self.http_manager = None
         self.port_forward = None
 
+    # 转换下划线 ##############################################################
     @staticmethod
     def change_under(vm_data: VMConfig | str, flag=True):
         vm_conf = vm_data
@@ -61,21 +65,25 @@ class HostServer(BasicServer):
     def VMLoader(self) -> bool:
         pass
 
-    # 连接到 LXD 服务器 ########################################################
+    # 连接到 LXD 服务器 ######################################################
+    # 支持本地和远程连接
+    # :return: (LXD客户端对象, 操作结果消息)
+    ###########################################################################
     def _connect_lxd(self) -> Tuple[Optional[Client], ZMessage]:
-        """
-        连接到 LXD 服务器（支持本地和远程）
-        :return: (LXD客户端对象, 操作结果消息)
-        """
         if not LXD_AVAILABLE:
             return None, ZMessage(
-                success=False, action="_connect_lxd",
-                message="pylxd is not installed")
+                success=False, 
+                action="_connect_lxd",
+                message="pylxd is not installed"
+            )
 
         try:
             # 如果已经连接，直接返回
             if self.lxd_client is not None:
-                return self.lxd_client, ZMessage(success=True, action="_connect_lxd")
+                return self.lxd_client, ZMessage(
+                    success=True, 
+                    action="_connect_lxd"
+                )
 
             # 判断是本地连接还是远程连接
             if self.hs_config.server_addr in ["localhost", "127.0.0.1", ""]:
@@ -84,46 +92,72 @@ class HostServer(BasicServer):
                 self.lxd_client = Client()
             else:
                 # 远程连接
-                # 如果是SSH转发模式
                 if self.hs_config.server_addr.startswith("ssh://"):
                     # 使用SSH转发连接LXD
-                    logger.info(f"Connecting to LXD via SSH: {self.hs_config.server_addr}")
-                    self.lxd_client = Client(endpoint=self.hs_config.server_addr)
+                    logger.info(
+                        f"Connecting to LXD via SSH: "
+                        f"{self.hs_config.server_addr}"
+                    )
+                    self.lxd_client = Client(
+                        endpoint=self.hs_config.server_addr
+                    )
                 else:
                     # 直接HTTPS连接
-                    endpoint = f"https://{self.hs_config.server_addr}:8443"
-                    logger.info(f"Connecting to remote LXD server: {endpoint}")
+                    endpoint = (
+                        f"https://{self.hs_config.server_addr}:8443"
+                    )
+                    logger.info(
+                        f"Connecting to remote LXD server: {endpoint}"
+                    )
 
-                    # 证书路径（从 launch_path 获取）
-                    cert_path = os.path.join(self.hs_config.launch_path, "client.crt")
-                    key_path = os.path.join(self.hs_config.launch_path, "client.key")
+                    # 证书路径（从launch_path获取）
+                    cert_path = os.path.join(
+                        self.hs_config.launch_path, "client.crt"
+                    )
+                    key_path = os.path.join(
+                        self.hs_config.launch_path, "client.key"
+                    )
+                    
                     if self.hs_config.launch_path == "":
                         return None, ZMessage(
-                            success=False, action="_connect_lxd",
-                            message=f"缺少证书路径，请设置启动路径为证书路径")
+                            success=False, 
+                            action="_connect_lxd",
+                            message=f"缺少证书路径，请设置启动路径为证书路径"
+                        )
+                    
                     if not os.path.exists(cert_path) or not os.path.exists(key_path):
                         return None, ZMessage(
-                            success=False, action="_connect_lxd",
-                            message=f"证书文件未找到，请检查 {self.hs_config.launch_path}")
+                            success=False, 
+                            action="_connect_lxd",
+                            message=(
+                                f"证书文件未找到，请检查 "
+                                f"{self.hs_config.launch_path}"
+                            )
+                        )
 
                     self.lxd_client = Client(
                         endpoint=endpoint,
                         cert=(cert_path, key_path),
-                        verify=False  # 可以设置为服务器证书路径以验证
+                        verify=False
                     )
 
             # 测试连接
             self.lxd_client.containers.all()
             logger.info("Successfully connected to LXD server")
 
-            return self.lxd_client, ZMessage(success=True, action="_connect_lxd")
+            return self.lxd_client, ZMessage(
+                success=True, 
+                action="_connect_lxd"
+            )
 
         except Exception as e:
             logger.error(f"Failed to connect to LXD server: {str(e)}")
             self.lxd_client = None
             return None, ZMessage(
-                success=False, action="_connect_lxd",
-                message=f"Failed to connect to LXD: {str(e)}")
+                success=False, 
+                action="_connect_lxd",
+                message=f"Failed to connect to LXD: {str(e)}"
+            )
 
     # 判断是否为远程宿主机 #####################################################
     def is_remote_host(self) -> bool:
@@ -133,8 +167,10 @@ class HostServer(BasicServer):
         return False
 
     # 同步端口转发配置 #########################################################
+    # 同步端口转发配置 ##########################################################
+    # 删除不需要的转发，添加缺少的转发
+    ###########################################################################
     def sync_forwarder(self):
-        """同步端口转发配置：删除不需要的转发，添加缺少的转发"""
         try:
             # 判断是否为远程主机
             is_remote = self.is_remote_host()
@@ -143,7 +179,9 @@ class HostServer(BasicServer):
             if is_remote:
                 success, message = self.port_forward.connect_ssh()
                 if not success:
-                    logger.error(f"SSH连接失败，无法同步端口转发: {message}")
+                    logger.error(
+                        f"SSH连接失败，无法同步端口转发: {message}"
+                    )
                     return
 
             # 获取系统中已有的端口转发
@@ -173,7 +211,8 @@ class HostServer(BasicServer):
                     ):
                         removed_count += 1
                         logger.info(
-                            f"删除多余的端口转发: {forward.protocol} {forward.wan_port} -> "
+                            f"删除多余的端口转发: {forward.protocol} "
+                            f"{forward.wan_port} -> "
                             f"{forward.lan_addr}:{forward.lan_port}"
                         )
 
@@ -188,11 +227,15 @@ class HostServer(BasicServer):
                     # 如果wan_port不同，需要先删除旧的再添加新的
                     if existing_forward.wan_port != wan_port:
                         self.port_forward.remove_port_forward(
-                            existing_forward.wan_port, existing_forward.protocol, is_remote
+                            existing_forward.wan_port,
+                            existing_forward.protocol,
+                            is_remote
                         )
                         logger.info(
-                            f"端口映射变更，删除旧转发: {existing_forward.protocol} "
-                            f"{existing_forward.wan_port} -> {lan_addr}:{lan_port}"
+                            f"端口映射变更，删除旧转发: "
+                            f"{existing_forward.protocol} "
+                            f"{existing_forward.wan_port} -> "
+                            f"{lan_addr}:{lan_port}"
                         )
                     else:
                         # 端口转发已存在且配置正确，跳过
@@ -206,16 +249,18 @@ class HostServer(BasicServer):
                 if success:
                     added_count += 1
                     logger.info(
-                        f"添加端口转发: TCP {wan_port} -> {lan_addr}:{lan_port} ({vm_name})"
+                        f"添加端口转发: TCP {wan_port} -> "
+                        f"{lan_addr}:{lan_port} ({vm_name})"
                     )
                 else:
                     logger.error(
-                        f"添加端口转发失败: TCP {wan_port} -> {lan_addr}:{lan_port}, "
-                        f"错误: {error}"
+                        f"添加端口转发失败: TCP {wan_port} -> "
+                        f"{lan_addr}:{lan_port}, 错误: {error}"
                     )
 
             logger.info(
-                f"端口转发同步完成: 删除 {removed_count} 个，添加 {added_count} 个"
+                f"端口转发同步完成: 删除 {removed_count} 个，"
+                f"添加 {added_count} 个"
             )
 
             # 关闭SSH连接
@@ -229,12 +274,120 @@ class HostServer(BasicServer):
     # 宿主机任务 ###############################################################
     def Crontabs(self) -> bool:
         # 专用操作 =============================================================
+        try:
+            # 连接到 LXD 服务器
+            client, result = self._connect_lxd()
+            if not result.success:
+                logger.warning(f"[{self.hs_config.server_name}] Crontabs: LXD连接失败，使用本地状态")
+                return super().Crontabs()
+            
+            # 获取远程主机状态
+            try:
+                # 通过 LXD API 获取主机信息
+                host_info = client.host_info
+                
+                # 创建 HWStatus 对象
+                hw_status = HWStatus()
+                
+                # 解析主机信息
+                if 'environment' in host_info:
+                    env = host_info['environment']
+                    
+                    # CPU 信息
+                    if 'cpu' in env:
+                        hw_status.cpu_total = env.get('cpu', 0)
+                    
+                    # 内存信息
+                    if 'memory' in env:
+                        memory_total = env.get('memory', 0)
+                        hw_status.mem_total = int(memory_total / (1024 * 1024))  # 转换为MB
+                
+                # 获取资源使用情况
+                if 'resources' in host_info:
+                    resources = host_info['resources']
+                    
+                    # CPU 使用率
+                    if 'cpu' in resources:
+                        cpu_info = resources['cpu']
+                        if 'usage' in cpu_info:
+                            hw_status.cpu_usage = int(cpu_info['usage'])
+                    
+                    # 内存使用情况
+                    if 'memory' in resources:
+                        mem_info = resources['memory']
+                        if 'used' in mem_info:
+                            hw_status.mem_usage = int(mem_info['used'] / (1024 * 1024))  # 转换为MB
+                
+                # 保存主机状态
+                self.host_set(hw_status)
+                logger.debug(f"[{self.hs_config.server_name}] 远程主机状态已保存")
+                
+            except Exception as e:
+                logger.warning(f"[{self.hs_config.server_name}] 获取远程主机状态失败: {e}，使用本地状态")
+                return super().Crontabs()
+                
+        except Exception as e:
+            logger.error(f"[{self.hs_config.server_name}] Crontabs 执行失败: {e}")
+            return super().Crontabs()
+        
         # 通用操作 =============================================================
         return super().Crontabs()
 
     # 宿主机状态 ###############################################################
     def HSStatus(self) -> HWStatus:
         # 专用操作 =============================================================
+        try:
+            # 连接到 LXD 服务器
+            client, result = self._connect_lxd()
+            if not result.success:
+                logger.error(f"无法连接到LXD获取状态: {result.message}")
+                return super().HSStatus()
+            
+            # 获取主机状态
+            try:
+                host_info = client.host_info
+                
+                # 创建 HWStatus 对象
+                hw_status = HWStatus()
+                
+                # 解析主机信息
+                if 'environment' in host_info:
+                    env = host_info['environment']
+                    
+                    # CPU 信息
+                    if 'cpu' in env:
+                        hw_status.cpu_total = env.get('cpu', 0)
+                    
+                    # 内存信息
+                    if 'memory' in env:
+                        memory_total = env.get('memory', 0)
+                        hw_status.mem_total = int(memory_total / (1024 * 1024))  # 转换为MB
+                
+                # 获取资源使用情况
+                if 'resources' in host_info:
+                    resources = host_info['resources']
+                    
+                    # CPU 使用率
+                    if 'cpu' in resources:
+                        cpu_info = resources['cpu']
+                        if 'usage' in cpu_info:
+                            hw_status.cpu_usage = int(cpu_info['usage'])
+                    
+                    # 内存使用情况
+                    if 'memory' in resources:
+                        mem_info = resources['memory']
+                        if 'used' in mem_info:
+                            hw_status.mem_usage = int(mem_info['used'] / (1024 * 1024))  # 转换为MB
+                
+                return hw_status
+                
+            except Exception as e:
+                logger.error(f"获取LXD主机状态失败: {str(e)}")
+                return super().HSStatus()
+                
+        except Exception as e:
+            logger.error(f"获取LXD主机状态失败: {str(e)}")
+        
         # 通用操作 =============================================================
         return super().HSStatus()
 

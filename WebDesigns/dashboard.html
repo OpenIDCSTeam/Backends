@@ -525,7 +525,7 @@
                                 <input type="range" id="vmRamNumSlider" min="1" max="1" value="2" step="1"
                                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                                        oninput="updateRamValue(this.value)">
-                                <input type="hidden" name="ram_num" id="vmRamNum" value="2">
+                                <input type="hidden" name="mem_num" id="vmMemNum" value="2">
                             </div>
                             <!-- GPU ID -->
                             <div>
@@ -540,15 +540,15 @@
                             <!-- GPU显存 -->
                             <div>
                                 <div class="flex justify-between items-center mb-2">
-                                    <label class="text-sm font-medium text-gray-700">GPU显存 (GB)</label>
+                                    <label class="text-sm font-medium text-gray-700">GPU显存 (MB)</label>
                                     <span class="text-sm text-gray-600">
-                                        <span id="vmGpuMemDisplay">2</span>GB / <span id="availableGpu">-</span>GB
+                                        <span id="vmGpuMemDisplay">128</span>MB / <span id="availableGpu">-</span>MB
                                     </span>
                                 </div>
-                                <input type="range" id="vmGpuMemSlider" min="0" max="32" value="2" step="1"
+                                <input type="range" id="vmGpuMemSlider" min="4" max="32768" value="128" step="4"
                                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                                        oninput="updateGpuMemValue(this.value)">
-                                <input type="hidden" name="gpu_mem" id="vmGpuMem" value="2">
+                                <input type="hidden" name="gpu_mem" id="vmGpuMem" value="128">
                             </div>
                             <!-- 硬盘 -->
                             <div>
@@ -1408,11 +1408,12 @@ const gpuPercent = user.quota_gpu > 0 ? ((user.used_gpu / 1024) / (user.quota_gp
             document.getElementById('vmHddNumDisplay').textContent = defaultHdd;
         }
 
-        // 设置GPU显存限制（GB）
+        // 设置GPU显存限制（MB）
         if (gpuMemInput && gpuMemSlider) {
-            gpuMemInput.max = availableGpuGB;
-            gpuMemSlider.max = availableGpuGB;
-            const defaultGpuMem = Math.min(2, availableGpuGB);
+            const availableGpuMB = Math.round(availableGpuGB * 1024); // 转换为MB
+            gpuMemInput.max = availableGpuMB;
+            gpuMemSlider.max = availableGpuMB;
+            const defaultGpuMem = Math.min(128, availableGpuMB); // 默认128MB
             gpuMemInput.value = defaultGpuMem;
             gpuMemSlider.value = defaultGpuMem;
             document.getElementById('vmGpuMemDisplay').textContent = defaultGpuMem;
@@ -1498,8 +1499,10 @@ const gpuPercent = user.quota_gpu > 0 ? ((user.used_gpu / 1024) / (user.quota_gp
     }
     
     function updateGpuMemValue(value) {
-        document.getElementById('vmGpuMem').value = value;
-        document.getElementById('vmGpuMemDisplay').textContent = value;
+        const valueGB = parseFloat(value);
+        const valueMB = Math.round(valueGB * 1024); // 转换为MB
+        document.getElementById('vmGpuMem').value = valueMB;
+        document.getElementById('vmGpuMemDisplay').textContent = valueGB;
     }
     
     function updateGpuMemSlider(value) {
@@ -1781,7 +1784,7 @@ const gpuPercent = user.quota_gpu > 0 ? ((user.used_gpu / 1024) / (user.quota_gp
         });
 
         // 将GB转换为MB
-        const ramGB = parseFloat(formData.get('ram_num'));
+        const ramGB = parseFloat(formData.get('mem_num'));
         const hddGB = parseFloat(formData.get('hdd_num'));
         const gpuGB = parseFloat(formData.get('gpu_mem')) || 0;
         const fluGB = parseFloat(formData.get('flu_num')) || 0;
@@ -1800,7 +1803,7 @@ const gpuPercent = user.quota_gpu > 0 ? ((user.used_gpu / 1024) / (user.quota_gp
             vc_pass: formData.get('vc_pass'),
             vc_port: parseInt(formData.get('vc_port')) || 5900,
             cpu_num: parseInt(formData.get('cpu_num')),
-            ram_num: Math.round(ramGB * 1024), // GB转MB
+            mem_num: Math.round(ramGB * 1024), // GB转MB
             hdd_num: Math.round(hddGB * 1024), // GB转MB
             gpu_num: parseInt(formData.get('gpu_num')) || 0,
             gpu_mem: Math.round(gpuGB * 1024), // GB转MB
@@ -1814,7 +1817,7 @@ const gpuPercent = user.quota_gpu > 0 ? ((user.used_gpu / 1024) / (user.quota_gp
 
         // 验证资源配额
         const cpuNeeded = data.cpu_num;
-        const ramNeeded = data.ram_num;
+        const ramNeeded = data.mem_num;
         const ssdNeeded = data.hdd_num;
 
         if (cpuNeeded > (currentUser.quota_cpu - currentUser.used_cpu)) {

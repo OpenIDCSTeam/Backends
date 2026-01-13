@@ -9,6 +9,7 @@ from copy import deepcopy
 try:
     from proxmoxer import ProxmoxAPI
     from proxmoxer.core import ResourceException
+
     PROXMOX_AVAILABLE = True
 except ImportError:
     PROXMOX_AVAILABLE = False
@@ -33,7 +34,7 @@ from HostServer.OCInterfaceAPI.SSHTerminal import SSHTerminal
 
 class HostServer(BasicServer):
     """Proxmox VE QEMU虚拟机管理服务"""
-    
+
     # 宿主机服务 ###############################################################
     def __init__(self, config: HSConfig, **kwargs):
         super().__init__(config, **kwargs)
@@ -65,7 +66,7 @@ class HostServer(BasicServer):
             host = self.hs_config.server_addr
             user = self.hs_config.server_user if hasattr(self.hs_config, 'server_user') else 'root@pam'
             password = self.hs_config.server_pass
-            
+
             # 从launch_path获取节点名称，如果没有则使用默认值
             self.node_name = self.hs_config.launch_path if self.hs_config.launch_path else 'pve'
 
@@ -176,11 +177,71 @@ class HostServer(BasicServer):
     # 宿主机任务 ###############################################################
     def Crontabs(self) -> bool:
         """定时任务"""
+        # 专用操作 =============================================================
+        try:
+            # 连接到 Proxmox
+            client, result = self._connect_proxmox()
+            if result.success and client:
+                # 获取主机状态
+                try:
+                    node_status = client.nodes(self.node_name).status.get()
+                    if node_status:
+                        hw_status = HWStatus()
+                        # CPU 使用率
+                        hw_status.cpu_usage = int(node_status.get('cpu', 0) * 100)
+                        # 内存使用率（已用/总量）
+                        mem_total = node_status.get('memory', {}).get('total', 1)
+                        mem_used = node_status.get('memory', {}).get('used', 0)
+                        hw_status.ram_usage = int((mem_used / mem_total) * 100) if mem_total > 0 else 0
+                        # 保存状态
+                        self.host_set(hw_status)
+                        logger.debug(f"[{self.hs_config.server_name}] Proxmox主机状态已更新")
+                except Exception as e:
+                    logger.error(f"获取Proxmox主机状态失败: {str(e)}")
+        except Exception as e:
+            logger.error(f"Crontabs执行失败: {str(e)}")
+        # 通用操作 =============================================================
         return super().Crontabs()
 
     # 宿主机状态 ###############################################################
     def HSStatus(self) -> HWStatus:
         """获取宿主机状态"""
+        # 专用操作 =============================================================
+        try:
+            # 连接到 Proxmox
+            client, result = self._connect_proxmox()
+            if not result.success or not client:
+                logger.error(f"无法连接到Proxmox获取状态: {result.message}")
+                return super().HSStatus()
+
+            # 获取主机状态
+            node_status = client.nodes(self.node_name).status.get()
+
+            if node_status:
+                hw_status = HWStatus()
+                # CPU 使用率
+                hw_status.cpu_usage = int(node_status.get('cpu', 0) * 100)
+                # 内存使用（MB）
+                mem_total = node_status.get('memory', {}).get('total', 0)
+                mem_used = node_status.get('memory', {}).get('used', 0)
+                hw_status.mem_total = int(mem_total / (1024 * 1024))  # 转换为MB
+                hw_status.mem_usage = int(mem_used / (1024 * 1024))  # 转换为MB
+                # 磁盘使用（MB）
+                disk_total = node_status.get('rootfs', {}).get('total', 0)
+                disk_used = node_status.get('rootfs', {}).get('used', 0)
+                hw_status.hdd_total = int(disk_total / (1024 * 1024))  # 转换为MB
+                hw_status.hdd_usage = int(disk_used / (1024 * 1024))  # 转换为MB
+
+                logger.debug(
+                    f"[{self.hs_config.server_name}] Proxmox主机状态: "
+                    f"CPU={hw_status.cpu_usage}%, "
+                    f"MEM={hw_status.mem_usage}MB/{hw_status.mem_total}MB"
+                )
+                return hw_status
+        except Exception as e:
+            logger.error(f"获取Proxmox主机状态失败: {str(e)}")
+
+        # 通用操作 =============================================================
         return super().HSStatus()
 
     # 初始宿主机 ###############################################################
@@ -477,7 +538,7 @@ class HostServer(BasicServer):
 
                     bridge = getattr(self.hs_config, nic_keys)
                     net_config = f"virtio,bridge={bridge}"
-                    
+
                     if nic_conf.mac_addr:
                         net_config += f",macaddr={nic_conf.mac_addr}"
 
@@ -531,12 +592,12 @@ class HostServer(BasicServer):
             # 获取所有现有的VMID
             vms = client.nodes(self.node_name).qemu.get()
             existing_vmids = [vm['vmid'] for vm in vms]
-            
+
             # 从100开始查找可用的VMID
             vmid = 100
             while vmid in existing_vmids:
                 vmid += 1
-            
+
             return vmid
         except Exception as e:
             logger.error(f"分配VMID失败: {str(e)}")
@@ -838,7 +899,7 @@ class HostServer(BasicServer):
             # 通过QEMU Guest Agent设置密码
             # 注意：需要虚拟机安装并运行qemu-guest-agent
             vm = client.nodes(self.node_name).qemu(vmid)
-            
+
             # 使用agent执行命令
             try:
                 vm.agent.post('exec', command=f"echo 'root:{os_pass}' | chpasswd")
@@ -881,7 +942,7 @@ class HostServer(BasicServer):
             # 检查虚拟机是否正在运行
             status = vm.status.current.get()
             is_running = status['status'] == 'running'
-            
+
             if is_running:
                 vm.status.stop.post()
                 logger.info(f"虚拟机 {vm_name} 已停止")
@@ -927,7 +988,7 @@ class HostServer(BasicServer):
             self.vm_saving[vm_name] = vm_conf
             self.logs_set(hs_result)
             self.data_set()
-            
+
             return hs_result
 
         except Exception as e:
@@ -1036,15 +1097,15 @@ class HostServer(BasicServer):
                 # 创建新的磁盘
                 disk_size = f"{vm_imgs.hdd_size}G" if hasattr(vm_imgs, 'hdd_size') else "10G"
                 disk_config = f"local-lvm:{disk_size}"
-                
+
                 # 找到可用的scsi设备号
                 config = vm.config.get()
                 scsi_num = 1
                 while f"scsi{scsi_num}" in config:
                     scsi_num += 1
-                
+
                 vm.config.put(**{f"scsi{scsi_num}": disk_config})
-                
+
                 vm_imgs.hdd_flag = 1
                 self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name] = vm_imgs
 
@@ -1107,13 +1168,13 @@ class HostServer(BasicServer):
                 # 挂载ISO
                 iso_path = f"local:iso/{vm_imgs.iso_file}"
                 vm.config.put(ide2=f"{iso_path},media=cdrom")
-                
+
                 self.vm_saving[vm_name].iso_all[vm_imgs.iso_name] = vm_imgs
                 logger.info(f"ISO已挂载到虚拟机 {vm_name}: {vm_imgs.iso_file}")
             else:
                 # 卸载ISO
                 vm.config.put(ide2="none,media=cdrom")
-                
+
                 if vm_imgs.iso_name in self.vm_saving[vm_name].iso_all:
                     del self.vm_saving[vm_name].iso_all[vm_imgs.iso_name]
                 logger.info(f"ISO已从虚拟机 {vm_name} 卸载")
@@ -1187,9 +1248,9 @@ class HostServer(BasicServer):
         return super().LDBackup(vm_back)
 
     # 移除备份 #################################################################
-    def RMBackup(self, vm_back: str) -> ZMessage:
+    def RMBackup(self, vm_name: str, vm_back: str="") -> ZMessage:
         """移除备份"""
-        return super().RMBackup(vm_back)
+        return super().RMBackup(vm_name, vm_back)
 
     # 移除磁盘 #################################################################
     def RMMounts(self, vm_name: str, vm_imgs: str) -> ZMessage:
@@ -1269,5 +1330,5 @@ class HostServer(BasicServer):
                     success=False, action="ProxyMap",
                     message="当主机为远程IP时，必须先添加NAT映射才能代理<br/>"
                             "当前映射的本地端口缺少NAT映射，请先添加映射")
-        
+
         return super().ProxyMap(pm_info, vm_uuid, in_apis, in_flag)

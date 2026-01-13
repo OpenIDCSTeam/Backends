@@ -65,7 +65,7 @@ print(f"扫描结果: {result.message}")
 vm_config = VMConfig()
 vm_config.vm_uuid = "MyFirstVM"
 vm_config.cpu_num = 2
-vm_config.ram_num = 2048  # 2GB
+vm_config.mem_num = 2048  # 2GB
 vm_config.hdd_num = 40    # 40GB
 
 result = host.VMCreate(vm_config)

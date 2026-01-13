@@ -171,7 +171,7 @@ host.VMDetect()
 vm_config = VMConfig()
 vm_config.vm_uuid = "TestVM"
 vm_config.cpu_num = 2
-vm_config.ram_num = 4096
+vm_config.mem_num = 4096
 vm_config.hdd_num = 50
 host.VMCreate(vm_config)
 

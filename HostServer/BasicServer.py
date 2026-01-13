@@ -1,3 +1,6 @@
+# BasicServer - 基础服务器类 ###################################################
+# 提供虚拟机管理的基础功能
+################################################################################
 import os
 import platform
 import subprocess
@@ -28,20 +31,20 @@ from VNCConsole.VNCManager import VNCStart, VProcess
 
 
 class BasicServer:
-    # 初始化 ########################################################################
+    # 初始化 ####################################################################
     # :params config: 物理机配置
-    # ###############################################################################
+    # ###########################################################################
     def __init__(self, config: HSConfig, **kwargs):
-        # 宿主机配置 =========================================
-        self.hs_config: HSConfig | None = config  # 物理机配置
-        # 虚拟机配置 =========================================
-        self.vm_saving: dict[str, VMConfig] = {}  # 存储的配置
-        self.vm_remote: VProcess | None = None  # 远程连接记录
-        # 数据库引用 =========================================
+        # 宿主机配置 =====================================================
+        self.hs_config: HSConfig | None = config
+        # 虚拟机配置 =====================================================
+        self.vm_saving: dict[str, VMConfig] = {}
+        self.vm_remote: VProcess | None = None
+        # 数据库引用 =====================================================
         self.save_data = kwargs.get('db', None)
-        # 加载数据 ===========================================
+        # 加载数据 =========================================================
         self.__load__(**kwargs)
-        # 日志系统配置 =======================================
+        # 日志系统配置 ===================================================
         self.LogSetup()
 
     # 转换字典 ######################################################################
@@ -69,22 +72,25 @@ class BasicServer:
     # 内置的方法
     # ###############################################################################
 
-    # 配置日志系统 ##################################################################
-    # :return: None
-    # ###############################################################################
+    # 配置日志系统 ##############################################################
     def LogSetup(self) -> None:
-        if self.hs_config.server_name:
-            # 为每个主机创建独立的日志文件
-            log_file = f"./DataSaving/log-{self.hs_config.server_name}.log"
-            logger.add(
-                log_file,
-                rotation="10 MB",  # 日志文件达到10MB时轮转
-                retention="7 days",  # 保留7天的日志
-                compression="zip",  # 压缩旧日志
-                format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
-                level="INFO"
-            )
-            logger.info(f"[{self.hs_config.server_name}] 日志系统已初始化")
+        try:
+            if self.hs_config.server_name:
+                # 为每个主机创建独立的日志文件
+                log_file = f"./DataSaving/log-{self.hs_config.server_name}.log"
+                logger.add(
+                    log_file,
+                    rotation="10 MB",
+                    retention="7 days",
+                    compression="zip",
+                    format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
+                    level="INFO"
+                )
+                logger.info(
+                    f"[{self.hs_config.server_name}] 日志系统已初始化"
+                )
+        except Exception as e:
+            logger.error(f"日志系统初始化失败: {e}")
 
     # 清理过期日志 ##################################################################
     # :param days: 保留天数，默认7天
@@ -94,21 +100,28 @@ class BasicServer:
             return self.save_data.del_hs_logger(self.hs_config.server_name, days)
         return 0
 
-    # 添加日志记录 ##################################################################
-    # :params log: 日志消息对象
-    # ###############################################################################
+    # 添加日志记录 ##############################################################
     def LogStack(self, log: ZMessage):
-        # 使用loguru记录日志
-        log_level = "ERROR" if not log.success else "INFO"
-        log_msg = f"[{self.hs_config.server_name}] {log.actions}: {log.message}"
+        try:
+            # 使用loguru记录日志
+            log_level = "ERROR" if not log.success else "INFO"
+            log_msg = (
+                f"[{self.hs_config.server_name}] "
+                f"{log.actions}: {log.message}"
+            )
 
-        if log_level == "ERROR":
-            logger.error(log_msg)
-        else:
-            logger.info(log_msg)
-        # 立即保存到数据库
-        if self.save_data and self.hs_config.server_name:
-            self.save_data.add_hs_logger(self.hs_config.server_name, log)
+            if log_level == "ERROR":
+                logger.error(log_msg)
+            else:
+                logger.info(log_msg)
+            
+            # 立即保存到数据库
+            if self.save_data and self.hs_config.server_name:
+                self.save_data.add_hs_logger(
+                    self.hs_config.server_name, log
+                )
+        except Exception as e:
+            logger.error(f"添加日志失败: {e}")
 
     # 保存主机状态数据 ##############################################################
     # :return: 保存是否成功
@@ -118,19 +131,23 @@ class BasicServer:
             return self.save_data.get_hs_status(self.hs_config.server_name)
         return []
 
-    # 保存主机状态数据 ##############################################################
-    # :return: 保存是否成功
-    # ###############################################################################
+    # 保存主机状态数据 ########################################################
     def host_set(self, hs_status: HSStatus) -> bool:
         if self.save_data and self.hs_config.server_name:
             try:
                 success = self.save_data.add_hs_status(
-                    self.hs_config.server_name, hs_status.status())
+                    self.hs_config.server_name, 
+                    hs_status.__save__()
+                )
                 if success:
-                    logger.debug(f"[{self.hs_config.server_name}] 主机状态已保存")
+                    logger.debug(
+                        f"[{self.hs_config.server_name}] 主机状态已保存"
+                    )
                 return success
             except Exception as e:
-                logger.error(f"[{self.hs_config.server_name}] 保存数据失败: {e}")
+                logger.error(
+                    f"[{self.hs_config.server_name}] 保存数据失败: {e}"
+                )
                 return False
         return False
 
@@ -168,15 +185,14 @@ class BasicServer:
                 return False
         return False
 
-    # 从数据库重新加载数据 ##########################################################
-    # :return: 加载是否成功
-    # ###############################################################################
+    # 从数据库重新加载数据 ##################################################
     def data_get(self) -> bool:
-        """从数据库重新加载虚拟机配置"""
         if self.save_data and self.hs_config.server_name:
             try:
                 # 从数据库获取虚拟机配置
-                vm_saving_data = self.save_data.get_vm_saving(self.hs_config.server_name)
+                vm_saving_data = self.save_data.get_vm_saving(
+                    self.hs_config.server_name
+                )
                 if vm_saving_data:
                     self.vm_saving = {}
                     for vm_uuid, vm_config in vm_saving_data.items():
@@ -186,7 +202,10 @@ class BasicServer:
                             self.vm_saving[vm_uuid] = vm_config
                 return True
             except Exception as e:
-                logger.error(f"[{self.hs_config.server_name}] 从数据库加载数据失败: {e}")
+                logger.error(
+                    f"[{self.hs_config.server_name}] "
+                    f"从数据库加载数据失败: {e}"
+                )
                 return False
         return False
 
@@ -203,33 +222,83 @@ class BasicServer:
     def VMLoader(self) -> bool:
         return True
 
-    # 虚拟机控制台 ##################################################################
-    # :params vm_uuid: 虚拟机UUID
-    # ###############################################################################
+    # 虚拟机控制台 ############################################################
     def VMRemote(self, vm_uuid: str, ip_addr: str = "127.0.0.1") -> ZMessage:
-        if vm_uuid not in self.vm_saving:
-            return ZMessage(success=False, action="VCRemote", message="虚拟机不存在")
-        logger.debug(f"[DEBUG VCRemote] vm_saving 内容: {self.vm_saving}")
-        logger.debug(f"[DEBUG VCRemote] {vm_uuid} 的类型: {type(self.vm_saving[vm_uuid])}")
-        logger.debug(f"[DEBUG VCRemote] {vm_uuid} 的值: {self.vm_saving[vm_uuid]}")
-        if self.vm_saving[vm_uuid].vc_port == "":
-            logger.warning(f"[VCRemote] {vm_uuid} 的 vc_port 为空")
-            return ZMessage(success=False, action="VCRemote", message="VNC端口为空")
-        if self.vm_saving[vm_uuid].vc_pass == "":
-            logger.warning(f"[VCRemote] {vm_uuid} 的 vc_pass 为空")
-            return ZMessage(success=False, action="VCRemote", message="VNC密码为空")
-        public_addr = self.hs_config.public_addr[0]
-        if len(self.vm_saving[vm_uuid].vc_pass) == 0:
-            public_addr = "127.0.0.1"
-        rand_pass = ''.join(random.sample(string.ascii_letters + string.digits, 16))
-        self.vm_remote.exec.del_port(ip_addr, int(self.vm_saving[vm_uuid].vc_port))
-        self.vm_remote.exec.add_port(
-            ip_addr, int(self.vm_saving[vm_uuid].vc_port), rand_pass
-        )
-        return ZMessage(success=True, action="VCRemote",
-                        message=f"http://{public_addr}:{self.hs_config.remote_port}"
-                                f"/vnc.html?autoconnect=true&path=websockify?"
-                                f"token={rand_pass}")
+        try:
+            if vm_uuid not in self.vm_saving:
+                return ZMessage(
+                    success=False, 
+                    action="VCRemote", 
+                    message="虚拟机不存在"
+                )
+            
+            logger.debug(
+                f"[DEBUG VCRemote] vm_saving 内容: {self.vm_saving}"
+            )
+            logger.debug(
+                f"[DEBUG VCRemote] {vm_uuid} 的类型: "
+                f"{type(self.vm_saving[vm_uuid])}"
+            )
+            logger.debug(
+                f"[DEBUG VCRemote] {vm_uuid} 的值: "
+                f"{self.vm_saving[vm_uuid]}"
+            )
+            
+            if self.vm_saving[vm_uuid].vc_port == "":
+                logger.warning(
+                    f"[VCRemote] {vm_uuid} 的 vc_port 为空"
+                )
+                return ZMessage(
+                    success=False, 
+                    action="VCRemote", 
+                    message="VNC端口为空"
+                )
+            
+            if self.vm_saving[vm_uuid].vc_pass == "":
+                logger.warning(
+                    f"[VCRemote] {vm_uuid} 的 vc_pass 为空"
+                )
+                return ZMessage(
+                    success=False, 
+                    action="VCRemote", 
+                    message="VNC密码为空"
+                )
+            
+            public_addr = self.hs_config.public_addr[0]
+            if len(self.vm_saving[vm_uuid].vc_pass) == 0:
+                public_addr = "127.0.0.1"
+            
+            rand_pass = ''.join(
+                random.sample(string.ascii_letters + string.digits, 16)
+            )
+            
+            self.vm_remote.exec.del_port(
+                ip_addr, 
+                int(self.vm_saving[vm_uuid].vc_port)
+            )
+            self.vm_remote.exec.add_port(
+                ip_addr, 
+                int(self.vm_saving[vm_uuid].vc_port), 
+                rand_pass
+            )
+            
+            return ZMessage(
+                success=True, 
+                action="VCRemote",
+                message=(
+                    f"http://{public_addr}:{self.hs_config.remote_port}"
+                    f"/vnc.html?autoconnect=true&path=websockify?"
+                    f"token={rand_pass}"
+                )
+            )
+        except Exception as e:
+            logger.error(f"虚拟机控制台访问失败: {e}")
+            traceback.print_exc()
+            return ZMessage(
+                success=False, 
+                action="VCRemote", 
+                message=str(e)
+            )
 
     # 获取当前主机所有虚拟机已分配的IP地址 ##########################################
     # :returns: IP地址列表
@@ -244,57 +313,110 @@ class BasicServer:
                     allocated.add(nic_config.ip6_addr.strip())
         return allocated
 
-    # 网络检查 ######################################################################
+    # 网络检查 ##################################################################
     # 检查并自动分配虚拟机网卡IP地址
     # :param vm_conf: 虚拟机配置对象
-    #  :return: (更新后的虚拟机配置, 操作结果消息)
+    # :return: (更新后的虚拟机配置, 操作结果消息)
+    ###########################################################################
     def NetCheck(self, vm_conf: VMConfig) -> tuple:
-        ip_config = IPConfig(self.hs_config.ipaddr_maps, self.hs_config.ipaddr_dnss)
-        allocated_ips = self.IPGrants()
-        return ip_config.check_and_allocate(vm_conf, allocated_ips)
+        try:
+            ip_config = IPConfig(
+                self.hs_config.ipaddr_maps, 
+                self.hs_config.ipaddr_dnss
+            )
+            allocated_ips = self.IPGrants()
+            return ip_config.check_and_allocate(vm_conf, allocated_ips)
+        except Exception as e:
+            logger.error(f"网络检查失败: {e}")
+            return vm_conf, ZMessage(
+                success=False, 
+                action="NetCheck", 
+                message=str(e)
+            )
 
-    # 网络静态绑定 ##################################################################
+    # 网络静态绑定 ##############################################################
     # :params ip: IP地址
     # :params mac: MAC地址
     # :params uuid: 虚拟机UUID
     # :params flag: True为添加，False为删除
-    # ###############################################################################
-    def NCStatic(self, ip, mac, uuid, flag=True, dns1=None, dns2=None) -> ZMessage:
-        nc_server = NetsManager(
-            self.hs_config.i_kuai_addr,
-            self.hs_config.i_kuai_user,
-            self.hs_config.i_kuai_pass)
-        nc_server.login()
-        if flag:
-            nc_server.add_dhcp(ip, mac, comment=uuid, lan_dns1=dns1, lan_dns2=dns2)
-            nc_server.add_arps(ip, mac)
-        else:
-            nc_server.del_dhcp(ip)
-            nc_server.del_arps(ip)
-        return ZMessage(success=True, action="NCStatic")
-
-    # 网络动态绑定 ##################################################################
-    def NCCreate(self, vm_conf: VMConfig, flag=True) -> ZMessage:
-        for nic_name, nic_conf in vm_conf.nic_all.items():
-            try:
-                logger.info(f"[API] 绑定静态IP: {nic_conf.ip4_addr} -> {nic_conf.mac_addr}")
-                nc_result = self.NCStatic(
-                    nic_conf.ip4_addr,
-                    nic_conf.mac_addr,
-                    vm_conf.vm_uuid,
-                    flag=flag,
-                    dns1=self.hs_config.ipaddr_dnss[0],
-                    dns2=self.hs_config.ipaddr_dnss[1]
+    ###########################################################################
+    def NCStatic(
+        self, ip, mac, uuid, flag=True, dns1=None, dns2=None
+    ) -> ZMessage:
+        try:
+            nc_server = NetsManager(
+                self.hs_config.i_kuai_addr,
+                self.hs_config.i_kuai_user,
+                self.hs_config.i_kuai_pass
+            )
+            nc_server.login()
+            
+            if flag:
+                nc_server.add_dhcp(
+                    ip, mac, comment=uuid, lan_dns1=dns1, lan_dns2=dns2
                 )
-                if nc_result.success:
-                    logger.success(f"[API] 静态IP绑定成功: {nic_conf.ip4_addr}")
-                else:
-                    logger.warning(f"[API] 静态IP绑定失败: {nc_result.message}")
-                return nc_result
-            except Exception as e:
-                logger.error(f"[API] 静态IP绑定异常: {str(e)}")
-                return ZMessage(success=False, action="NCStatic", message=str(e))
-        return ZMessage(success=False, action="NCStatic", message="No IP address found")
+                nc_server.add_arps(ip, mac)
+            else:
+                nc_server.del_dhcp(ip)
+                nc_server.del_arps(ip)
+            
+            return ZMessage(success=True, action="NCStatic")
+        except Exception as e:
+            logger.error(f"网络静态绑定失败: {e}")
+            return ZMessage(
+                success=False, 
+                action="NCStatic", 
+                message=str(e)
+            )
+
+    # 网络动态绑定 ##############################################################
+    def NCCreate(self, vm_conf: VMConfig, flag=True) -> ZMessage:
+        try:
+            for nic_name, nic_conf in vm_conf.nic_all.items():
+                try:
+                    logger.info(
+                        f"[API] 绑定静态IP: "
+                        f"{nic_conf.ip4_addr} -> {nic_conf.mac_addr}"
+                    )
+                    
+                    nc_result = self.NCStatic(
+                        nic_conf.ip4_addr,
+                        nic_conf.mac_addr,
+                        vm_conf.vm_uuid,
+                        flag=flag,
+                        dns1=self.hs_config.ipaddr_dnss[0],
+                        dns2=self.hs_config.ipaddr_dnss[1]
+                    )
+                    
+                    if nc_result.success:
+                        logger.success(
+                            f"[API] 静态IP绑定成功: {nic_conf.ip4_addr}"
+                        )
+                    else:
+                        logger.warning(
+                            f"[API] 静态IP绑定失败: {nc_result.message}"
+                        )
+                    return nc_result
+                except Exception as e:
+                    logger.error(f"[API] 静态IP绑定异常: {str(e)}")
+                    return ZMessage(
+                        success=False, 
+                        action="NCStatic", 
+                        message=str(e)
+                    )
+            
+            return ZMessage(
+                success=False, 
+                action="NCStatic", 
+                message="No IP address found"
+            )
+        except Exception as e:
+            logger.error(f"网络动态绑定失败: {e}")
+            return ZMessage(
+                success=False, 
+                action="NCStatic", 
+                message=str(e)
+            )
 
     # 配置虚拟机 ####################################################################
     # :params vm_conf: 虚拟机配置对象
@@ -577,10 +699,10 @@ class BasicServer:
         return self.VMUpdate(ap_config, vm_config)
 
     # 获取7z可执行文件路径 ##########################################################
+    # 根据操作系统返回对应的7z可执行文件路径
     # :return: 7z可执行文件的完整路径
-    # ###############################################################################
+    ###############################################################################
     def get_path(self) -> str:
-        """根据操作系统返回对应的7z可执行文件路径"""
         system = platform.system().lower()
         if system == "windows":
             return os.path.join("HostConfig", "7zipwinx64", "7z.exe")
@@ -887,15 +1009,13 @@ class BasicServer:
         return {}
 
     # 转移用户 ######################################################################
+    # 移交虚拟机所有权
+    # :param vm_name: 虚拟机UUID
+    # :param new_owner: 新所有者用户名
+    # :param keep_access: 是否保留原所有者的访问权限
+    # :return: 操作结果消息
+    ###############################################################################
     def Transfer(self, vm_name: str, new_owner: str, keep_access: bool = False) -> ZMessage:
-        """
-        移交虚拟机所有权
-
-        :param vm_name: 虚拟机UUID
-        :param new_owner: 新所有者用户名
-        :param keep_access: 是否保留原所有者的访问权限
-        :return: 操作结果消息
-        """
         # 检查虚拟机是否存在
         if vm_name not in self.vm_saving:
             return ZMessage(

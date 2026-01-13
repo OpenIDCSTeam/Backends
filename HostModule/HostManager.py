@@ -71,60 +71,80 @@ class HostManage:
 
     # 添加主机 ###################################################################
     def add_host(self, hs_name: str, hs_type: str, hs_conf: HSConfig) -> ZMessage:
-        if hs_name in self.engine:
-            return ZMessage(success=False, message="Host already add")
-        if hs_type not in HEConfig:
-            return ZMessage(success=False, message="Host unsupported")
-        # 设置server_name（关键！）=================
-        hs_conf.server_name = hs_name
-        self.engine[hs_name] = HEConfig[hs_type]["Imported"](hs_conf, db=self.saving)
-        self.engine[hs_name].HSCreate()
-        self.engine[hs_name].HSLoader()
-        # 保存主机配置到数据库
-        self.saving.set_hs_config(hs_name, hs_conf)
-        return ZMessage(success=True, message="Host added successful")
+        try:
+            if hs_name in self.engine:
+                return ZMessage(success=False, message="Host already add")
+            if hs_type not in HEConfig:
+                return ZMessage(success=False, message="Host unsupported")
+            # 设置server_name（关键！）=================
+            hs_conf.server_name = hs_name
+            self.engine[hs_name] = HEConfig[hs_type]["Imported"](hs_conf, db=self.saving)
+            self.engine[hs_name].HSCreate()
+            self.engine[hs_name].HSLoader()
+            # 保存主机配置到数据库
+            self.saving.set_hs_config(hs_name, hs_conf)
+            return ZMessage(success=True, message="Host added successful")
+        except Exception as e:
+            logger.error(f"添加主机失败: {e}")
+            traceback.print_exc()
+            return ZMessage(success=False, message=f"添加主机失败: {str(e)}")
 
     # 删除主机 ###################################################################
     def del_host(self, server):
-        if server in self.engine:
-            del self.engine[server]
-            # 从数据库删除主机配置
-            self.saving.del_hs_config(server)
-            return True
-        return False
+        try:
+            if server in self.engine:
+                del self.engine[server]
+                # 从数据库删除主机配置
+                self.saving.del_hs_config(server)
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"删除主机失败: {e}")
+            traceback.print_exc()
+            return False
 
     # 修改主机 ###################################################################
     def set_host(self, hs_name: str, hs_conf: HSConfig) -> ZMessage:
-        if hs_name not in self.engine:
-            return ZMessage(success=False, message="Host not found")
+        try:
+            if hs_name not in self.engine:
+                return ZMessage(success=False, message="Host not found")
 
-        # 保存原有的虚拟机配置
-        old_server = self.engine[hs_name]
-        old_vm_saving = old_server.vm_saving
+            # 保存原有的虚拟机配置
+            old_server = self.engine[hs_name]
+            old_vm_saving = old_server.vm_saving
 
-        # 设置server_name（关键！）=================
-        hs_conf.server_name = hs_name
-        # 重新创建主机实例
-        self.engine[hs_name] = HEConfig[hs_conf.server_type]["Imported"](hs_conf, db=self.saving)
+            # 设置server_name（关键！）=================
+            hs_conf.server_name = hs_name
+            # 重新创建主机实例
+            self.engine[hs_name] = HEConfig[hs_conf.server_type]["Imported"](hs_conf, db=self.saving)
 
-        # 恢复虚拟机配置（状态数据已在数据库中）
-        self.engine[hs_name].vm_saving = old_vm_saving
+            # 恢复虚拟机配置（状态数据已在数据库中）
+            self.engine[hs_name].vm_saving = old_vm_saving
 
-        self.engine[hs_name].HSUnload()
-        self.engine[hs_name].HSLoader()
-        # 保存主机配置到数据库
-        self.saving.set_hs_config(hs_name, hs_conf)
-        return ZMessage(success=True, message="Host updated successful")
+            self.engine[hs_name].HSUnload()
+            self.engine[hs_name].HSLoader()
+            # 保存主机配置到数据库
+            self.saving.set_hs_config(hs_name, hs_conf)
+            return ZMessage(success=True, message="Host updated successful")
+        except Exception as e:
+            logger.error(f"修改主机失败: {e}")
+            traceback.print_exc()
+            return ZMessage(success=False, message=f"修改主机失败: {str(e)}")
 
     # 修改主机 ###################################################################
     def pwr_host(self, hs_name: str, hs_flag: bool) -> ZMessage:
-        if hs_name not in self.engine:
-            return ZMessage(success=False, message="Host not found")
-        if hs_flag:
-            self.engine[hs_name].HSLoader()
-        else:
-            self.engine[hs_name].HSUnload()
-        return ZMessage(success=True, message="Host enable=" + str(hs_flag))
+        try:
+            if hs_name not in self.engine:
+                return ZMessage(success=False, message="Host not found")
+            if hs_flag:
+                self.engine[hs_name].HSLoader()
+            else:
+                self.engine[hs_name].HSUnload()
+            return ZMessage(success=True, message="Host enable=" + str(hs_flag))
+        except Exception as e:
+            logger.error(f"修改主机状态失败: {e}")
+            traceback.print_exc()
+            return ZMessage(success=False, message=f"修改主机状态失败: {str(e)}")
 
     # 加载信息 ###################################################################
     def all_load(self):
@@ -459,7 +479,7 @@ class HostManage:
                     
                     # 累加该用户的资源使用量
                     user_resources[first_owner]['cpu'] += getattr(vm_config, 'cpu_num', 0)
-                    # 虚拟机的ram_num字段单位是MB，需要转换为GB存储到用户表
+                    # 虚拟机的mem_num字段单位是MB，需要转换为GB存储到用户表
                     ram_mb = getattr(vm_config, 'mem_num', 0)
                     user_resources[first_owner]['ram'] += ram_mb
                     # 虚拟机的hdd_num字段单位是MB，需要转换为GB存储到用户表

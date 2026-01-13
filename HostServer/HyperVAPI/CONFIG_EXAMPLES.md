@@ -91,7 +91,7 @@ from MainObject.Config.VMConfig import VMConfig
 basic_vm = VMConfig()
 basic_vm.vm_uuid = "WebServer-01"
 basic_vm.cpu_num = 2
-basic_vm.ram_num = 4096  # 4GB
+basic_vm.mem_num = 4096  # 4GB
 basic_vm.hdd_num = 50    # 50GB
 basic_vm.os_name = "Ubuntu-22.04-Server.iso"
 ```
@@ -102,7 +102,7 @@ basic_vm.os_name = "Ubuntu-22.04-Server.iso"
 high_performance_vm = VMConfig()
 high_performance_vm.vm_uuid = "Database-01"
 high_performance_vm.cpu_num = 8
-high_performance_vm.ram_num = 16384  # 16GB
+high_performance_vm.mem_num = 16384  # 16GB
 high_performance_vm.hdd_num = 200    # 200GB
 high_performance_vm.os_name = "Windows-Server-2022.iso"
 ```
@@ -113,7 +113,7 @@ high_performance_vm.os_name = "Windows-Server-2022.iso"
 dev_vm = VMConfig()
 dev_vm.vm_uuid = "Dev-Test-01"
 dev_vm.cpu_num = 2
-dev_vm.ram_num = 2048  # 2GB
+dev_vm.mem_num = 2048  # 2GB
 dev_vm.hdd_num = 40    # 40GB
 dev_vm.os_name = "Debian-12.iso"
 ```
@@ -259,7 +259,7 @@ host_config = HSConfig(
 vm_config = VMConfig()
 vm_config.vm_uuid = "PROD-WebServer-01"
 vm_config.cpu_num = 4
-vm_config.ram_num = 8192
+vm_config.mem_num = 8192
 vm_config.hdd_num = 100
 vm_config.os_name = "Windows-Server-2022.iso"
 

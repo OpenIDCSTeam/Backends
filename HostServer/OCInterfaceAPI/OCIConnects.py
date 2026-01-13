@@ -18,25 +18,21 @@ from MainObject.Public.ZMessage import ZMessage
 from HostModule.SSHDManager import SSHDManager
 
 
+# Docker/OpenContainer Initiative 容器操作API封装类 #########################
 class OCIConnects:
-    """Docker/OpenContainer Initiative 容器操作API封装类"""
-
+    # 初始化 OCI 容器 API ######################################################
+    # :param hs_config: 宿主机配置对象
+    ###########################################################################
     def __init__(self, hs_config: HSConfig):
-        """
-        初始化 OCI 容器 API
-        
-        :param hs_config: 宿主机配置对象
-        """
         self.hs_config = hs_config
         self.docker_client = None
         self.ssh_forward = SSHDManager()
     
     # 连接到 Docker 服务器 #####################################################
+    # 支持本地、远程TCP和SSH转发
+    # :return: (Docker客户端对象, 操作结果消息)
+    ###########################################################################
     def connect_docker(self) -> tuple[docker.DockerClient | None, ZMessage]:
-        """
-        连接到 Docker 服务器（支持本地、远程TCP和SSH转发）
-        :return: (Docker客户端对象, 操作结果消息)
-        """
         if not DOCKER_AVAILABLE:
             return None, ZMessage(
                 success=False, action="connect_docker",
@@ -77,13 +73,11 @@ class OCIConnects:
                 success=False, action="connect_docker",
                 message=f"Failed to connect to Docker: {str(e)}")
 
-    # 通过SSH转发连接 #########################################################
+    # 通过SSH转发连接到远程Docker ##############################################
+    # :param server_addr: SSH服务器地址（格式: ssh://hostname）
+    # :return: (Docker客户端对象, 操作结果消息)
+    ###########################################################################
     def _connect_via_ssh(self, server_addr: str) -> tuple[docker.DockerClient | None, ZMessage]:
-        """
-        通过SSH转发连接到远程Docker
-        :param server_addr: SSH服务器地址（格式: ssh://hostname）
-        :return: (Docker客户端对象, 操作结果消息)
-        """
         try:
             from HostModule.SSHDManager import SSHDManager
             PARAMIKO_AVAILABLE = True
@@ -137,13 +131,11 @@ class OCIConnects:
         
         return self.docker_client, ZMessage(success=True, action="connect_docker")
 
-    # 通过TLS连接远程Docker ####################################################
+    # 通过TLS连接到远程Docker ##################################################
+    # :param server_addr: 远程服务器地址
+    # :return: (Docker客户端对象, 操作结果消息)
+    ###########################################################################
     def _connect_via_tls(self, server_addr: str) -> tuple[docker.DockerClient | None, ZMessage]:
-        """
-        通过TLS连接到远程Docker
-        :param server_addr: 远程服务器地址
-        :return: (Docker客户端对象, 操作结果消息)
-        """
         # 远程连接（使用 TLS）
         endpoint = server_addr
         if not endpoint.startswith("tcp://"):
@@ -177,11 +169,9 @@ class OCIConnects:
         return self.docker_client, ZMessage(success=True, action="connect_docker")
 
     # 断开Docker连接 ##########################################################
+    # :return: 操作结果消息
+    ###########################################################################
     def disconnect_docker(self) -> ZMessage:
-        """
-        断开Docker连接
-        :return: 操作结果消息
-        """
         if self.docker_client:
             self.docker_client.close()
             self.docker_client = None
@@ -189,13 +179,11 @@ class OCIConnects:
             self.ssh_forward.close()
         return ZMessage(success=True, action="disconnect_docker", message="Docker连接已断开")
 
-    # 构建容器配置 #############################################################
+    # 构建 Docker 容器配置 #####################################################
+    # :param vm_conf: 虚拟机配置对象
+    # :return: 容器配置字典
+    ###########################################################################
     def build_container_config(self, vm_conf: VMConfig) -> dict:
-        """
-        构建 Docker 容器配置
-        :param vm_conf: 虚拟机配置对象
-        :return: 容器配置字典
-        """
         config = {
             "environment": {},
             "volumes": {},
@@ -228,13 +216,11 @@ class OCIConnects:
         
         return config
 
-    # 加载/拉取镜像 ############################################################
+    # 加载或拉取Docker镜像 #####################################################
+    # :param vm_conf: 虚拟机配置对象（包含os_name）
+    # :return: 操作结果消息
+    ###########################################################################
     def load_or_pull_image(self, vm_conf: VMConfig) -> ZMessage:
-        """
-        加载或拉取Docker镜像
-        :param vm_conf: 虚拟机配置对象（包含os_name）
-        :return: 操作结果消息
-        """
         client, result = self.connect_docker()
         if not result.success:
             return result
@@ -281,12 +267,10 @@ class OCIConnects:
                 message=f"Failed to load image: {str(e)}")
 
     # 获取所有容器列表 ##########################################################
+    # :param all_containers: 是否包含停止的容器
+    # :return: 容器列表
+    ###########################################################################
     def list_containers(self, all_containers: bool = True) -> list:
-        """
-        获取所有容器列表
-        :param all_containers: 是否包含停止的容器
-        :return: 容器列表
-        """
         client, result = self.connect_docker()
         if not result.success:
             return []
@@ -298,13 +282,11 @@ class OCIConnects:
             logger.error(f"Failed to list containers: {str(e)}")
             return []
 
-    # 获取容器对象 ##############################################################
+    # 获取指定容器对象 ##########################################################
+    # :param container_name: 容器名称
+    # :return: 容器对象，不存在返回None
+    ###########################################################################
     def get_container(self, container_name: str):
-        """
-        获取指定容器对象
-        :param container_name: 容器名称
-        :return: 容器对象，不存在返回None
-        """
         client, result = self.connect_docker()
         if not result.success:
             return None

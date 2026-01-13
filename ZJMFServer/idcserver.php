@@ -41,7 +41,7 @@ function idcserver_ConfigOptions()
             'type'        => 'text',
             'name'        => '内存',
             'description' => '内存大小[单位：MB GB]',
-            'default'     => '256MB',
+            'default'     => '1024MB',
             'key'         => 'memory',
         ],
         'disk' => [

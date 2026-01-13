@@ -1,7 +1,6 @@
-"""
-Hyper-V API 实现
-通过PowerShell和WinRM远程管理Hyper-V虚拟机
-"""
+# Hyper-V API 实现 ###########################################################
+# 通过PowerShell和WinRM远程管理Hyper-V虚拟机
+################################################################################
 
 import json
 import subprocess
@@ -15,19 +14,18 @@ from MainObject.Config.HSConfig import HSConfig
 from MainObject.Config.VMPowers import VMPowers
 
 
+# Hyper-V API类 ###############################################################
+# 用于管理Hyper-V虚拟机
+################################################################################
 class HyperVAPI:
-    """Hyper-V API类，用于管理Hyper-V虚拟机"""
-    
+    # 初始化Hyper-V API ############################################################
+    # :param host: Hyper-V主机地址
+    # :param user: 用户名
+    # :param password: 密码
+    # :param port: WinRM端口（默认5985 HTTP，5986 HTTPS）
+    # :param use_ssl: 是否使用SSL
+    ################################################################################
     def __init__(self, host: str, user: str, password: str, port: int = 5985, use_ssl: bool = False):
-        """
-        初始化Hyper-V API
-        
-        :param host: Hyper-V主机地址
-        :param user: 用户名
-        :param password: 密码
-        :param port: WinRM端口（默认5985 HTTP，5986 HTTPS）
-        :param use_ssl: 是否使用SSL
-        """
         self.host = host
         self.user = user
         self.password = password
@@ -36,8 +34,8 @@ class HyperVAPI:
         self.session: Optional[winrm.Session] = None
         self.is_local = (host in ['localhost', '127.0.0.1', '::1'])
         
+    # 连接到Hyper-V主机 ############################################################
     def connect(self) -> ZMessage:
-        """连接到Hyper-V主机"""
         try:
             if self.is_local:
                 # 本地连接，不需要WinRM
@@ -67,19 +65,17 @@ class HyperVAPI:
             logger.error(f"连接Hyper-V主机失败: {str(e)}")
             return ZMessage(success=False, action="Connect", message=str(e))
     
+    # 断开连接 ####################################################################
     def disconnect(self):
-        """断开连接"""
         self.session = None
         logger.info("已断开Hyper-V连接")
     
+    # 执行PowerShell命令 ###########################################################
+    # :param command: PowerShell命令
+    # :param parse_json: 是否解析JSON输出
+    # :return: 执行结果
+    ################################################################################
     def _run_powershell(self, command: str, parse_json: bool = False) -> ZMessage:
-        """
-        执行PowerShell命令
-        
-        :param command: PowerShell命令
-        :param parse_json: 是否解析JSON输出
-        :return: 执行结果
-        """
         try:
             if self.is_local:
                 # 本地执行
@@ -128,13 +124,11 @@ class HyperVAPI:
             logger.error(f"执行PowerShell命令异常: {str(e)}")
             return ZMessage(success=False, action="PowerShell", message=str(e))
     
+    # 列出所有虚拟机 ###############################################################
+    # :param filter_prefix: 名称前缀过滤
+    # :return: 虚拟机列表
+    ################################################################################
     def list_vms(self, filter_prefix: str = "") -> List[Dict[str, Any]]:
-        """
-        列出所有虚拟机
-        
-        :param filter_prefix: 名称前缀过滤
-        :return: 虚拟机列表
-        """
         try:
             command = "Get-VM | Select-Object Name, State, ProcessorCount, MemoryStartup, Path | ConvertTo-Json"
             result = self._run_powershell(command, parse_json=True)
@@ -165,13 +159,11 @@ class HyperVAPI:
             logger.error(f"列出虚拟机失败: {str(e)}")
             return []
     
+    # 获取虚拟机详细信息 ###########################################################
+    # :param vm_name: 虚拟机名称
+    # :return: 虚拟机信息
+    ################################################################################
     def get_vm_info(self, vm_name: str) -> Optional[Dict[str, Any]]:
-        """
-        获取虚拟机详细信息
-        
-        :param vm_name: 虚拟机名称
-        :return: 虚拟机信息
-        """
         try:
             command = f"Get-VM -Name '{vm_name}' | Select-Object * | ConvertTo-Json"
             result = self._run_powershell(command, parse_json=True)
@@ -184,14 +176,12 @@ class HyperVAPI:
             logger.error(f"获取虚拟机信息失败: {str(e)}")
             return None
     
+    # 创建虚拟机 ##################################################################
+    # :param vm_conf: 虚拟机配置
+    # :param hs_config: 主机配置
+    # :return: 操作结果
+    ################################################################################
     def create_vm(self, vm_conf: VMConfig, hs_config: HSConfig) -> ZMessage:
-        """
-        创建虚拟机
-        
-        :param vm_conf: 虚拟机配置
-        :param hs_config: 主机配置
-        :return: 操作结果
-        """
         try:
             vm_name = vm_conf.vm_uuid
             vm_path = f"{hs_config.system_path}\\{vm_name}"
@@ -199,7 +189,7 @@ class HyperVAPI:
             # 构建创建命令
             command = f"""
             New-VM -Name '{vm_name}' `
-                -MemoryStartupBytes {vm_conf.ram_num}MB `
+                -MemoryStartupBytes {vm_conf.mem_num}MB `
                 -Generation 2 `
                 -Path '{hs_config.system_path}' `
                 -SwitchName 'Default Switch'
@@ -227,14 +217,12 @@ class HyperVAPI:
             logger.error(f"创建虚拟机失败: {str(e)}")
             return ZMessage(success=False, action="CreateVM", message=str(e))
     
+    # 删除虚拟机 ##################################################################
+    # :param vm_name: 虚拟机名称
+    # :param remove_files: 是否删除文件
+    # :return: 操作结果
+    ################################################################################
     def delete_vm(self, vm_name: str, remove_files: bool = True) -> ZMessage:
-        """
-        删除虚拟机
-        
-        :param vm_name: 虚拟机名称
-        :param remove_files: 是否删除文件
-        :return: 操作结果
-        """
         try:
             # 先停止虚拟机
             self.power_off(vm_name, force=True)
@@ -257,8 +245,8 @@ class HyperVAPI:
             logger.error(f"删除虚拟机失败: {str(e)}")
             return ZMessage(success=False, action="DeleteVM", message=str(e))
     
+    # 启动虚拟机 ##################################################################
     def power_on(self, vm_name: str) -> ZMessage:
-        """启动虚拟机"""
         try:
             command = f"Start-VM -Name '{vm_name}'"
             result = self._run_powershell(command)
@@ -273,8 +261,8 @@ class HyperVAPI:
             logger.error(f"启动虚拟机失败: {str(e)}")
             return ZMessage(success=False, action="PowerOn", message=str(e))
     
+    # 关闭虚拟机 ##################################################################
     def power_off(self, vm_name: str, force: bool = False) -> ZMessage:
-        """关闭虚拟机"""
         try:
             if force:
                 command = f"Stop-VM -Name '{vm_name}' -Force"
@@ -293,8 +281,8 @@ class HyperVAPI:
             logger.error(f"关闭虚拟机失败: {str(e)}")
             return ZMessage(success=False, action="PowerOff", message=str(e))
     
+    # 暂停虚拟机 ##################################################################
     def suspend(self, vm_name: str) -> ZMessage:
-        """暂停虚拟机"""
         try:
             command = f"Suspend-VM -Name '{vm_name}'"
             result = self._run_powershell(command)
@@ -309,8 +297,8 @@ class HyperVAPI:
             logger.error(f"暂停虚拟机失败: {str(e)}")
             return ZMessage(success=False, action="Suspend", message=str(e))
     
+    # 恢复虚拟机 ##################################################################
     def resume(self, vm_name: str) -> ZMessage:
-        """恢复虚拟机"""
         try:
             command = f"Resume-VM -Name '{vm_name}'"
             result = self._run_powershell(command)
@@ -325,8 +313,8 @@ class HyperVAPI:
             logger.error(f"恢复虚拟机失败: {str(e)}")
             return ZMessage(success=False, action="Resume", message=str(e))
     
+    # 重启虚拟机 ##################################################################
     def reset(self, vm_name: str) -> ZMessage:
-        """重启虚拟机"""
         try:
             command = f"Restart-VM -Name '{vm_name}' -Force"
             result = self._run_powershell(command)
@@ -341,19 +329,17 @@ class HyperVAPI:
             logger.error(f"重启虚拟机失败: {str(e)}")
             return ZMessage(success=False, action="Reset", message=str(e))
     
+    # 更新虚拟机配置 ###############################################################
+    # :param vm_name: 虚拟机名称
+    # :param vm_conf: 新配置
+    # :return: 操作结果
+    ################################################################################
     def update_vm_config(self, vm_name: str, vm_conf: VMConfig) -> ZMessage:
-        """
-        更新虚拟机配置
-        
-        :param vm_name: 虚拟机名称
-        :param vm_conf: 新配置
-        :return: 操作结果
-        """
         try:
             command = f"""
             Set-VM -Name '{vm_name}' `
                 -ProcessorCount {vm_conf.cpu_num} `
-                -MemoryStartupBytes {vm_conf.ram_num}MB
+                -MemoryStartupBytes {vm_conf.mem_num}MB
             """
             
             result = self._run_powershell(command)
@@ -368,8 +354,8 @@ class HyperVAPI:
             logger.error(f"更新虚拟机配置失败: {str(e)}")
             return ZMessage(success=False, action="UpdateConfig", message=str(e))
     
+    # 创建快照 ####################################################################
     def create_snapshot(self, vm_name: str, snapshot_name: str, description: str = "") -> ZMessage:
-        """创建快照"""
         try:
             command = f"Checkpoint-VM -Name '{vm_name}' -SnapshotName '{snapshot_name}'"
             result = self._run_powershell(command)
@@ -384,14 +370,42 @@ class HyperVAPI:
             logger.error(f"创建快照失败: {str(e)}")
             return ZMessage(success=False, action="CreateSnapshot", message=str(e))
     
+    # 恢复快照 ####################################################################
     def revert_snapshot(self, vm_name: str, snapshot_name: str) -> ZMessage:
-        """恢复快照"""
         try:
+            # 获取恢复前的虚拟机状态
+            get_state_command = f"(Get-VM -Name '{vm_name}').State"
+            state_result = self._run_powershell(get_state_command)
+            
+            was_running = False
+            if state_result.success:
+                vm_state = state_result.message.strip()
+                was_running = vm_state == "Running"
+                logger.info(f"恢复快照前虚拟机 {vm_name} 状态: {vm_state}")
+            
+            # 恢复快照
             command = f"Restore-VMSnapshot -Name '{snapshot_name}' -VMName '{vm_name}' -Confirm:$false"
             result = self._run_powershell(command)
             
             if result.success:
                 logger.info(f"虚拟机 {vm_name} 已恢复到快照 {snapshot_name}")
+                
+                # 如果恢复前是运行状态，则自动开机
+                if was_running:
+                    logger.info(f"检测到恢复前虚拟机 {vm_name} 为运行状态，正在自动开机...")
+                    import time
+                    time.sleep(2)  # 等待快照恢复完全完成
+                    
+                    power_on_result = self.power_on(vm_name)
+                    if power_on_result.success:
+                        logger.info(f"虚拟机 {vm_name} 已自动开机")
+                        return ZMessage(success=True, action="RevertSnapshot", 
+                                      message="快照恢复成功，虚拟机已自动开机")
+                    else:
+                        logger.warning(f"虚拟机 {vm_name} 自动开机失败: {power_on_result.message}")
+                        return ZMessage(success=True, action="RevertSnapshot", 
+                                      message=f"快照恢复成功，但自动开机失败: {power_on_result.message}")
+                
                 return ZMessage(success=True, action="RevertSnapshot", message="快照恢复成功")
             else:
                 return ZMessage(success=False, action="RevertSnapshot", message=result.message)
@@ -400,8 +414,8 @@ class HyperVAPI:
             logger.error(f"恢复快照失败: {str(e)}")
             return ZMessage(success=False, action="RevertSnapshot", message=str(e))
     
+    # 删除快照 ####################################################################
     def delete_snapshot(self, vm_name: str, snapshot_name: str) -> ZMessage:
-        """删除快照"""
         try:
             command = f"Remove-VMSnapshot -VMName '{vm_name}' -Name '{snapshot_name}' -Confirm:$false"
             result = self._run_powershell(command)
@@ -416,8 +430,8 @@ class HyperVAPI:
             logger.error(f"删除快照失败: {str(e)}")
             return ZMessage(success=False, action="DeleteSnapshot", message=str(e))
     
+    # 添加虚拟硬盘 #################################################################
     def add_disk(self, vm_name: str, size_gb: int, disk_name: str) -> ZMessage:
-        """添加虚拟硬盘"""
         try:
             # 获取虚拟机路径
             vm_info = self.get_vm_info(vm_name)
@@ -444,8 +458,8 @@ class HyperVAPI:
             logger.error(f"添加磁盘失败: {str(e)}")
             return ZMessage(success=False, action="AddDisk", message=str(e))
     
+    # 挂载ISO #####################################################################
     def attach_iso(self, vm_name: str, iso_path: str) -> ZMessage:
-        """挂载ISO"""
         try:
             command = f"Add-VMDvdDrive -VMName '{vm_name}' -Path '{iso_path}'"
             result = self._run_powershell(command)
@@ -460,8 +474,8 @@ class HyperVAPI:
             logger.error(f"挂载ISO失败: {str(e)}")
             return ZMessage(success=False, action="AttachISO", message=str(e))
     
+    # 卸载ISO #####################################################################
     def detach_iso(self, vm_name: str) -> ZMessage:
-        """卸载ISO"""
         try:
             command = f"Get-VMDvdDrive -VMName '{vm_name}' | Remove-VMDvdDrive"
             result = self._run_powershell(command)
@@ -476,27 +490,24 @@ class HyperVAPI:
             logger.error(f"卸载ISO失败: {str(e)}")
             return ZMessage(success=False, action="DetachISO", message=str(e))
     
+    # 获取VNC端口 ##################################################################
+    # Hyper-V使用增强会话模式，不是传统VNC
+    # :param vm_name: 虚拟机名称
+    # :return: 端口号
+    ################################################################################
     def get_vnc_port(self, vm_name: str) -> Optional[int]:
-        """
-        获取VNC端口（Hyper-V使用增强会话模式，不是传统VNC）
-        
-        :param vm_name: 虚拟机名称
-        :return: 端口号
-        """
         # Hyper-V不使用VNC，而是使用增强会话模式或RDP
         # 这里返回None，表示不支持VNC
         logger.warning("Hyper-V不支持VNC，请使用增强会话模式或RDP")
         return None
     
+    # 设置网络适配器 ###############################################################
+    # :param vm_name: 虚拟机名称
+    # :param switch_name: 虚拟交换机名称
+    # :param mac_address: MAC地址（可选）
+    # :return: 操作结果
+    ################################################################################
     def set_network_adapter(self, vm_name: str, switch_name: str, mac_address: str = None) -> ZMessage:
-        """
-        设置网络适配器
-        
-        :param vm_name: 虚拟机名称
-        :param switch_name: 虚拟交换机名称
-        :param mac_address: MAC地址（可选）
-        :return: 操作结果
-        """
         try:
             command = f"Get-VMNetworkAdapter -VMName '{vm_name}' | Connect-VMNetworkAdapter -SwitchName '{switch_name}'"
             
@@ -515,8 +526,8 @@ class HyperVAPI:
             logger.error(f"配置网络适配器失败: {str(e)}")
             return ZMessage(success=False, action="SetNetwork", message=str(e))
     
+    # 获取主机状态 #################################################################
     def get_host_status(self) -> Optional[Dict[str, Any]]:
-        """获取主机状态"""
         try:
             command = """
             $host_info = Get-VMHost

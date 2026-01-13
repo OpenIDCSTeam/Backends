@@ -148,7 +148,7 @@ class HostServer(BasicServer):
         return super().LDBackup(vm_back)
 
     # 移除备份 #################################################################
-    def RMBackup(self, vm_back: str) -> ZMessage:
+    def RMBackup(self, vm_name: str, vm_back: str = "") -> ZMessage:
         # 专用操作 =============================================================
         # TODO: 增加此主机需要执行的任务
         # 通用操作 =============================================================

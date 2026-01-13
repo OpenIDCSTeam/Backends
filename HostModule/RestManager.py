@@ -295,15 +295,15 @@ class RestManager:
         data['cpu_num'] = cpu_num
 
         # 内存验证：最低1G（注意单位是MB）
-        ram_num = int(data.get('ram_num', 2048))  # 默认2G
-        if ram_num < 1024:  # 最低1G
+        mem_num = int(data.get('mem_num', 2048))  # 默认2G
+        if mem_num < 1024:  # 最低1G
             return self.api_response(400, '内存不能少于1GB')
-        data['ram_num'] = ram_num
+        data['mem_num'] = mem_num
 
         # 显存验证：最低1G（注意单位是MB）
         gpu_mem = int(data.get('gpu_mem', 0))
-        if gpu_mem < 1024 and gpu_mem > 0:  # 如果使用GPU，最低1G
-            return self.api_response(400, 'GPU显存不能少于1GB')
+        # if gpu_mem < 1024 and gpu_mem > 0:  # 如果使用GPU，最低1G
+        #     return self.api_response(400, 'GPU显存不能少于1GB')
         data['gpu_mem'] = gpu_mem
 
         # 硬盘验证：使用传入的最小磁盘要求
@@ -374,9 +374,9 @@ class RestManager:
             used_ram = user_data.get('used_ram', 0)
             if quota_ram <= 0:
                 return self.api_response(400, '内存配额为0，不允许创建虚拟机')
-            if ram_num > (quota_ram - used_ram):
+            if mem_num > (quota_ram - used_ram):
                 return self.api_response(400,
-                                         f'内存配额不足，需要{ram_num // 1024}GB，可用{(quota_ram - used_ram) // 1024}GB')
+                                         f'内存配额不足，需要{mem_num // 1024}GB，可用{(quota_ram - used_ram) // 1024}GB')
 
             # 检查硬盘配额
             quota_ssd = user_data.get('quota_ssd', 0)
@@ -1184,7 +1184,7 @@ class RestManager:
 
             # 计算资源使用量
             cpu_needed = int(data.get('cpu_num', 0))
-            ram_needed = int(data.get('ram_num', 0))
+            ram_needed = int(data.get('mem_num', 0))
             ssd_needed = int(data.get('hdd_num', 0))
             gpu_needed = int(data.get('gpu_mem', 0))
             traffic_needed = int(data.get('flu_num', 0))
@@ -1265,7 +1265,7 @@ class RestManager:
             if hasattr(old_vm_config, '__dict__'):
                 old_resource_usage = {
                     'cpu': getattr(old_vm_config, 'cpu_num', 0),
-                    'ram': getattr(old_vm_config, 'ram_num', 0),
+                'ram': getattr(old_vm_config, 'mem_num', 0),
                     'ssd': getattr(old_vm_config, 'hdd_num', 0),
                     'gpu': getattr(old_vm_config, 'gpu_mem', 0),
                     'traffic': getattr(old_vm_config, 'flu_num', 0),
@@ -1294,7 +1294,7 @@ class RestManager:
         if not (user_data.get('is_admin') or user_data.get('is_token_login')):
             # 计算资源变化
             cpu_change = int(data.get('cpu_num', 0)) - old_resource_usage['cpu']
-            ram_change = int(data.get('ram_num', 0)) - old_resource_usage['ram']
+            ram_change = int(data.get('mem_num', 0)) - old_resource_usage['ram']
             ssd_change = int(data.get('hdd_num', 0)) - old_resource_usage['ssd']
             gpu_change = int(data.get('gpu_mem', 0)) - old_resource_usage['gpu']
             traffic_change = int(data.get('flu_num', 0)) - old_resource_usage['traffic']
@@ -1357,7 +1357,7 @@ class RestManager:
         # 如果更新成功，更新第一个所有者（排除admin）的资源使用量
         if result and result.success and vm_owners:
             cpu_change = int(data.get('cpu_num', 0)) - old_resource_usage['cpu']
-            ram_change = int(data.get('ram_num', 0)) - old_resource_usage['ram']
+            ram_change = int(data.get('mem_num', 0)) - old_resource_usage['ram']
             ssd_change = int(data.get('hdd_num', 0)) - old_resource_usage['ssd']
             gpu_change = int(data.get('gpu_mem', 0)) - old_resource_usage['gpu']
             traffic_change = int(data.get('flu_num', 0)) - old_resource_usage['traffic']
@@ -1445,7 +1445,7 @@ class RestManager:
             if hasattr(vm_config, '__dict__'):
                 vm_resource_usage = {
                     'cpu': getattr(vm_config, 'cpu_num', 0),
-                    'ram': getattr(vm_config, 'ram_num', 0),
+                'ram': getattr(vm_config, 'mem_num', 0),
                     'ssd': getattr(vm_config, 'hdd_num', 0),
                     'gpu': getattr(vm_config, 'gpu_mem', 0),
                     'traffic': getattr(vm_config, 'flu_num', 0),
@@ -1676,7 +1676,7 @@ class RestManager:
         # 检查新所有者的资源配额
         resource_usage = {
             'cpu': getattr(vm_config, 'cpu_num', 0),
-            'ram': getattr(vm_config, 'ram_num', 0),
+                'ram': getattr(vm_config, 'mem_num', 0),
             'ssd': getattr(vm_config, 'hdd_num', 0),
             'gpu': getattr(vm_config, 'gpu_mem', 0),
             'traffic': getattr(vm_config, 'flu_num', 0),
@@ -1722,7 +1722,7 @@ class RestManager:
                     # 获取虚拟机资源使用情况
                     resource_usage = {
                         'cpu': getattr(vm_config, 'cpu_num', 0),
-                        'ram': getattr(vm_config, 'ram_num', 0),
+                'ram': getattr(vm_config, 'mem_num', 0),
                         'ssd': getattr(vm_config, 'hdd_num', 0),
                         'gpu': getattr(vm_config, 'gpu_mem', 0),
                         'traffic': getattr(vm_config, 'flu_num', 0),

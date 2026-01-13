@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
-OpenIDCS Flask Server
-提供主机和虚拟机管理的Web界面和API接口
-"""
+# OpenIDCS Flask Server ###########################################################
+# 提供主机和虚拟机管理的Web界面和API接口
+################################################################################
 import sys
 import os
 import secrets
@@ -41,11 +40,10 @@ db = DataManager()
 # 全局REST管理器实例
 rest_manager = RestManager(hs_manage, db)
 
-# ============================================================================
-# 认证装饰器（保持向后兼容）
-# ============================================================================
+# 认证装饰器（保持向后兼容）###################################################
+# 需要登录或Bearer Token认证的装饰器
+################################################################################
 def require_auth(f):
-    """需要登录或Bearer Token认证的装饰器"""
     @wraps(f)
     def decorated(*args, **kwargs):
         # 检查Bearer Token
@@ -65,297 +63,326 @@ def require_auth(f):
     return decorated
 
 
+# 统一API响应格式包装器 #######################################################
 def api_response_wrapper(code=200, msg='success', data=None):
-    """统一API响应格式包装器"""
     return rest_manager.api_response(code, msg, data)
 
 
-# ============================================================================
-# 页面路由
-# ============================================================================
+# 页面路由 ####################################################################
+
+# 首页重定向 ##################################################################
 @app.route('/')
 def index():
-    """首页重定向"""
     if session.get('logged_in'):
         return redirect(url_for('dashboard'))
     return redirect(url_for('login'))
 
 
+# 登录页面 ####################################################################
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """登录页面"""
-    if request.method == 'GET':
-        return render_template('login.html', title='OpenIDCS - 登录')
+    try:
+        if request.method == 'GET':
+            return render_template('login.html', title='OpenIDCS - 登录')
 
-    # POST登录处理
-    data = request.get_json() or request.form
-    login_type = data.get('login_type', 'token')
-    
-    if login_type == 'user':
-        # 用户名密码登录
-        username = data.get('username', '')
-        password = data.get('password', '')
+        # POST登录处理
+        data = request.get_json() or request.form
+        login_type = data.get('login_type', 'token')
         
-        if not username or not password:
-            return api_response_wrapper(400, '用户名和密码不能为空')
+        if login_type == 'user':
+            # 用户名密码登录
+            username = data.get('username', '')
+            password = data.get('password', '')
+            
+            if not username or not password:
+                return api_response_wrapper(400, '用户名和密码不能为空')
+            
+            # 查询用户
+            user_data = db.get_user_by_username(username)
+            if not user_data:
+                return api_response_wrapper(401, '用户名或密码错误')
+            
+            # 验证密码
+            if not UserManager.verify_password(password, user_data['password']):
+                return api_response_wrapper(401, '用户名或密码错误')
+            
+            # 检查用户是否启用
+            if not user_data['is_active']:
+                return api_response_wrapper(403, '用户已被禁用')
+            
+            # 检查邮箱验证状态
+            system_settings = db.get_system_settings()
+            if system_settings.get('email_verification_enabled') == '1' and not user_data['email_verified']:
+                return api_response_wrapper(403, '请先验证邮箱后再登录')
+            
+            # 设置session
+            UserManager.set_user_session(user_data, is_token_login=False)
+            
+            # 更新最后登录时间
+            db.update_user_last_login(user_data['id'])
+            
+            return api_response_wrapper(200, '登录成功', {'redirect': '/admin'})
         
-        # 查询用户
-        user_data = db.get_user_by_username(username)
-        if not user_data:
-            return api_response_wrapper(401, '用户名或密码错误')
-        
-        # 验证密码
-        if not UserManager.verify_password(password, user_data['password']):
-            return api_response_wrapper(401, '用户名或密码错误')
-        
-        # 检查用户是否启用
-        if not user_data['is_active']:
-            return api_response_wrapper(403, '用户已被禁用')
-        
-        # 检查邮箱验证状态
-        system_settings = db.get_system_settings()
-        if system_settings.get('email_verification_enabled') == '1' and not user_data['email_verified']:
-            return api_response_wrapper(403, '请先验证邮箱后再登录')
-        
-        # 设置session
-        UserManager.set_user_session(user_data, is_token_login=False)
-        
-        # 更新最后登录时间
-        db.update_user_last_login(user_data['id'])
-        
-        return api_response_wrapper(200, '登录成功', {'redirect': '/admin'})
-    
-    else:
-        # Token登录
-        token = data.get('token', '')
-        if token and token == hs_manage.bearer:
-            # 获取真实的admin用户信息
-            admin_user_data = db.get_user_by_username('admin')
-            if admin_user_data:
-                # 确保admin用户是启用状态
-                if not admin_user_data.get('is_active', 1):
-                    return api_response_wrapper(403, 'Admin用户已被禁用')
-                
-                # 设置session，标记为token登录
-                UserManager.set_user_session(admin_user_data, is_token_login=True)
-                
-                # 更新最后登录时间
-                db.update_user_last_login(admin_user_data['id'])
-                
-                return api_response_wrapper(200, '登录成功', {'redirect': '/admin'})
-            else:
-                # 如果admin用户不存在，创建临时的admin session（兼容原有逻辑）
-                temp_admin_data = {
-                    'id': 1,
-                    'username': 'admin',
-                    'is_admin': 1,
-                    'is_active': 1,
-                    'assigned_hosts': []
-                }
-                UserManager.set_user_session(temp_admin_data, is_token_login=True)
-                return api_response_wrapper(200, '登录成功', {'redirect': '/admin'})
-        
-        return api_response_wrapper(401, 'Token错误')
+        else:
+            # Token登录
+            token = data.get('token', '')
+            if token and token == hs_manage.bearer:
+                # 获取真实的admin用户信息
+                admin_user_data = db.get_user_by_username('admin')
+                if admin_user_data:
+                    # 确保admin用户是启用状态
+                    if not admin_user_data.get('is_active', 1):
+                        return api_response_wrapper(403, 'Admin用户已被禁用')
+                    
+                    # 设置session，标记为token登录
+                    UserManager.set_user_session(admin_user_data, is_token_login=True)
+                    
+                    # 更新最后登录时间
+                    db.update_user_last_login(admin_user_data['id'])
+                    
+                    return api_response_wrapper(200, '登录成功', {'redirect': '/admin'})
+                else:
+                    # 如果admin用户不存在，创建临时的admin session（兼容原有逻辑）
+                    temp_admin_data = {
+                        'id': 1,
+                        'username': 'admin',
+                        'is_admin': 1,
+                        'is_active': 1,
+                        'assigned_hosts': []
+                    }
+                    UserManager.set_user_session(temp_admin_data, is_token_login=True)
+                    return api_response_wrapper(200, '登录成功', {'redirect': '/admin'})
+            
+            return api_response_wrapper(401, 'Token错误')
+    except Exception as e:
+        logger.error(f"登录失败: {e}")
+        return api_response_wrapper(500, f'登录失败: {str(e)}')
 
 
+# 退出登录 ####################################################################
 @app.route('/logout')
 def logout():
-    """退出登录"""
     session.clear()
     return redirect(url_for('login'))
 
 
+# 仪表盘页面 ##################################################################
 @app.route('/admin')
 @require_auth
 def dashboard():
-    """仪表盘页面"""
-    return render_template('dashboard.html',
-                           title='OpenIDCS - 仪表盘',
-                           username=session.get('username', 'admin'))
+    return render_template(
+        'dashboard.html',
+        title='OpenIDCS - 仪表盘',
+        username=session.get('username', 'admin')
+    )
 
 
+# 主机管理页面（仅管理员）#####################################################
 @app.route('/hosts')
 @require_admin
 def hosts_page():
-    """主机管理页面（仅管理员）"""
     from MainObject.Server.HSEngine import HEConfig
-    return render_template('hosts.html',
-                           title='OpenIDCS - 主机管理',
-                           username=session.get('username', 'admin'),
-                           engine_config=HEConfig)
+    return render_template(
+        'hosts.html',
+        title='OpenIDCS - 主机管理',
+        username=session.get('username', 'admin'),
+        engine_config=HEConfig
+    )
 
 
+# 日志管理页面（仅管理员）#####################################################
 @app.route('/debug')
 @require_admin
 def logs_page():
-    """日志管理页面（仅管理员）"""
-    return render_template('logs.html',
-                           title='OpenIDCS - 日志管理',
-                           username=session.get('username', 'admin'))
+    return render_template(
+        'logs.html',
+        title='OpenIDCS - 日志管理',
+        username=session.get('username', 'admin')
+    )
 
 
+# 任务管理页面（仅管理员）#####################################################
 @app.route('/tasks')
 @require_admin
 def tasks_page():
-    """任务管理页面（仅管理员）"""
-    return render_template('tasks.html',
-                           title='OpenIDCS - 任务管理',
-                           username=session.get('username', 'admin'))
+    return render_template(
+        'tasks.html',
+        title='OpenIDCS - 任务管理',
+        username=session.get('username', 'admin')
+    )
 
 
+# 虚拟机管理页面（仅管理员）###############################################
 @app.route('/hosts/<hs_name>/vms')
 @require_admin
 def vms_page(hs_name):
-    """虚拟机管理页面（仅管理员）"""
-    return render_template('vms.html',
-                           title=f'OpenIDCS - 虚拟机管理 - {hs_name}',
-                           username=session.get('username', 'admin'),
-                           hs_name=hs_name)
+    return render_template(
+        'vms.html',
+        title=f'OpenIDCS - 虚拟机管理 - {hs_name}',
+        username=session.get('username', 'admin'),
+        hs_name=hs_name
+    )
 
 
+# 虚拟机详情页面 ################################################################
 @app.route('/hosts/<hs_name>/vms/<vm_uuid>')
 @require_auth
 def vm_detail_page(hs_name, vm_uuid):
-    """虚拟机详情页面"""
-    return render_template('vm_detail.html',
-                           title=f'OpenIDCS - {vm_uuid}',
-                           username=session.get('username', 'admin'),
-                           hs_name=hs_name,
-                           vm_uuid=vm_uuid)
+    return render_template(
+        'vm_detail.html',
+        title=f'OpenIDCS - {vm_uuid}',
+        username=session.get('username', 'admin'),
+        hs_name=hs_name,
+        vm_uuid=vm_uuid
+    )
 
 
+# 设置页面（仅管理员）#########################################################
 @app.route('/settings')
 @require_admin
 def settings_page():
-    """设置页面（仅管理员）"""
-    return render_template('settings.html',
-                           title='OpenIDCS - 系统设置',
-                           username=session.get('username', 'admin'))
+    return render_template(
+        'settings.html',
+        title='OpenIDCS - 系统设置',
+        username=session.get('username', 'admin')
+    )
 
 
+# Web反向代理管理页面（仅管理员）###########################################
 @app.route('/web_proxys')
 @require_admin
 def web_proxys_page():
-    """Web反向代理管理页面（仅管理员）"""
-    return render_template('web_proxys.html',
-                           title='OpenIDCS - Web反向代理管理',
-                           username=session.get('username', 'admin'))
+    return render_template(
+        'web_proxys.html',
+        title='OpenIDCS - Web反向代理管理',
+        username=session.get('username', 'admin')
+    )
 
 
+# 个人设置页面 ################################################################
 @app.route('/profile')
 @require_auth
 def profile_page():
-    """个人设置页面"""
-    return render_template('profile.html',
-                           title='OpenIDCS - 个人设置',
-                           username=session.get('username', 'user'))
+    return render_template(
+        'profile.html',
+        title='OpenIDCS - 个人设置',
+        username=session.get('username', 'user')
+    )
 
 
+# 用户注册 ####################################################################
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    """用户注册"""
-    if request.method == 'GET':
-        # 检查是否开放注册
+    try:
+        if request.method == 'GET':
+            # 检查是否开放注册
+            settings = db.get_system_settings()
+            if settings.get('registration_enabled') != '1':
+                return redirect(url_for('login'))
+            return render_template('register.html')
+        
+        # POST注册处理
+        data = request.get_json() or request.form
+        username = data.get('username', '').strip()
+        email = data.get('email', '').strip()
+        password = data.get('password', '')
+        
+        # 验证输入
+        if not username or not email or not password:
+            return api_response_wrapper(400, '用户名、邮箱和密码不能为空')
+        
+        if len(username) < 3 or len(username) > 20:
+            return api_response_wrapper(400, '用户名长度必须在3-20个字符之间')
+        
+        # 禁止使用admin作为用户名
+        if username.lower() == 'admin':
+            return api_response_wrapper(400, '不能使用admin作为用户名')
+        
+        if len(password) < 6:
+            return api_response_wrapper(400, '密码长度至少6个字符')
+        
+        # 检查用户名是否已存在
+        if db.get_user_by_username(username):
+            return api_response_wrapper(400, '用户名已存在')
+        
+        # 检查邮箱是否已存在
+        if db.get_user_by_email(email):
+            return api_response_wrapper(400, '邮箱已被注册')
+        
+        # 加密密码
+        hashed_password = UserManager.hash_password(password)
+        
+        # 创建用户
         settings = db.get_system_settings()
-        if settings.get('registration_enabled') != '1':
-            return redirect(url_for('login'))
-        return render_template('register.html')
-    
-    # POST注册处理
-    data = request.get_json() or request.form
-    username = data.get('username', '').strip()
-    email = data.get('email', '').strip()
-    password = data.get('password', '')
-    
-    # 验证输入
-    if not username or not email or not password:
-        return api_response_wrapper(400, '用户名、邮箱和密码不能为空')
-    
-    if len(username) < 3 or len(username) > 20:
-        return api_response_wrapper(400, '用户名长度必须在3-20个字符之间')
-    
-    # 禁止使用admin作为用户名
-    if username.lower() == 'admin':
-        return api_response_wrapper(400, '不能使用admin作为用户名')
-    
-    if len(password) < 6:
-        return api_response_wrapper(400, '密码长度至少6个字符')
-    
-    # 检查用户名是否已存在
-    if db.get_user_by_username(username):
-        return api_response_wrapper(400, '用户名已存在')
-    
-    # 检查邮箱是否已存在
-    if db.get_user_by_email(email):
-        return api_response_wrapper(400, '邮箱已被注册')
-    
-    # 加密密码
-    hashed_password = UserManager.hash_password(password)
-    
-    # 创建用户
-    settings = db.get_system_settings()
-    
-    # 获取默认资源配置
-    default_quotas = {
-        'quota_cpu': int(settings.get('default_quota_cpu', 2)),
-        'quota_ram': int(settings.get('default_quota_ram', 4)),
-        'quota_ssd': int(settings.get('default_quota_ssd', 20)),
-        'quota_gpu': int(settings.get('default_quota_gpu', 0)),
-        'quota_nat_ports': int(settings.get('default_quota_nat_ports', 5)),
-        'quota_web_proxy': int(settings.get('default_quota_web_proxy', 0)),
-        'quota_bandwidth_up': int(settings.get('default_quota_bandwidth_up', 10)),
-        'quota_bandwidth_down': int(settings.get('default_quota_bandwidth_down', 10)),
-        'quota_traffic': int(settings.get('default_quota_traffic', 100)),
-        # 默认权限
-        'can_create_vm': settings.get('default_can_create_vm', '1') == '1',
-        'can_modify_vm': settings.get('default_can_modify_vm', '1') == '1',
-        'can_delete_vm': settings.get('default_can_delete_vm', '1') == '1',
-        'is_admin': 0,  # 新用户默认不是管理员
-        'is_active': 1,  # 新用户默认启用
-        'assigned_hosts': '[]'  # 默认无分配主机
-    }
-    
-    user_id = db.create_user(username, hashed_password, email, **default_quotas)
-    if not user_id:
-        return api_response_wrapper(500, '注册失败，请重试')
-    
-    # 检查是否需要邮箱验证
-    settings = db.get_system_settings()
-    if settings.get('email_verification_enabled') == '1':
-        # 生成验证token
-        verify_token = UserManager.generate_token()
-        db.set_user_verify_token(user_id, verify_token)
         
-        # 发送验证邮件
-        email_service = EmailService(
-            api_key=settings.get('resend_apikey', ''),
-            from_email=settings.get('resend_email', '')
-        )
-        verify_url = f"{request.host_url}verify_email?token={verify_token}"
-        email_service.send_verification_email(email, username, verify_url)
+        # 获取默认资源配置
+        default_quotas = {
+            'quota_cpu': int(settings.get('default_quota_cpu', 2)),
+            'quota_ram': int(settings.get('default_quota_ram', 4)),
+            'quota_ssd': int(settings.get('default_quota_ssd', 20)),
+            'quota_gpu': int(settings.get('default_quota_gpu', 0)),
+            'quota_nat_ports': int(settings.get('default_quota_nat_ports', 5)),
+            'quota_web_proxy': int(settings.get('default_quota_web_proxy', 0)),
+            'quota_bandwidth_up': int(settings.get('default_quota_bandwidth_up', 10)),
+            'quota_bandwidth_down': int(settings.get('default_quota_bandwidth_down', 10)),
+            'quota_traffic': int(settings.get('default_quota_traffic', 100)),
+            # 默认权限
+            'can_create_vm': settings.get('default_can_create_vm', '1') == '1',
+            'can_modify_vm': settings.get('default_can_modify_vm', '1') == '1',
+            'can_delete_vm': settings.get('default_can_delete_vm', '1') == '1',
+            'is_admin': 0,  # 新用户默认不是管理员
+            'is_active': 1,  # 新用户默认启用
+            'assigned_hosts': '[]'  # 默认无分配主机
+        }
         
-        return api_response_wrapper(200, '注册成功！请查收验证邮件')
-    else:
-        # 直接验证邮箱
-        db.verify_user_email(user_id)
-        return api_response_wrapper(200, '注册成功！请登录')
+        user_id = db.create_user(username, hashed_password, email, **default_quotas)
+        if not user_id:
+            return api_response_wrapper(500, '注册失败，请重试')
+        
+        # 检查是否需要邮箱验证
+        settings = db.get_system_settings()
+        if settings.get('email_verification_enabled') == '1':
+            # 生成验证token
+            verify_token = UserManager.generate_token()
+            db.set_user_verify_token(user_id, verify_token)
+            
+            # 发送验证邮件
+            email_service = EmailService(
+                api_key=settings.get('resend_apikey', ''),
+                from_email=settings.get('resend_email', '')
+            )
+            verify_url = f"{request.host_url}verify_email?token={verify_token}"
+            email_service.send_verification_email(email, username, verify_url)
+            
+            return api_response_wrapper(200, '注册成功！请查收验证邮件')
+        else:
+            # 直接验证邮箱
+            db.verify_user_email(user_id)
+            return api_response_wrapper(200, '注册成功！请登录')
+    except Exception as e:
+        logger.error(f"注册失败: {e}")
+        return api_response_wrapper(500, f'注册失败: {str(e)}')
 
 
+# 验证邮箱 ####################################################################
 @app.route('/verify_email')
 def verify_email():
-    """验证邮箱"""
-    token = request.args.get('token', '')
-    if not token:
-        return '无效的验证链接'
-    
-    user_data = db.get_user_by_verify_token(token)
-    if not user_data:
-        return '验证链接无效或已过期'
-    
-    # 验证邮箱
-    if db.verify_user_email(user_data['id']):
-        return redirect(url_for('login') + '?verified=1')
-    else:
+    try:
+        token = request.args.get('token', '')
+        if not token:
+            return '无效的验证链接'
+        
+        user_data = db.get_user_by_verify_token(token)
+        if not user_data:
+            return '验证链接无效或已过期'
+        
+        # 验证邮箱
+        if db.verify_user_email(user_data['id']):
+            return redirect(url_for('login') + '?verified=1')
+        else:
+            return '验证失败，请重试'
+    except Exception as e:
+        logger.error(f"验证邮箱失败: {e}")
         return '验证失败，请重试'
 
 @app.route('/verify-email-change')

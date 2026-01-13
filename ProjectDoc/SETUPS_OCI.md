@@ -115,7 +115,7 @@ vm_conf = VMConfig(
    os_name="ubuntu:22.04",  # Docker Hub 镜像
    # 或使用本地 tar 文件: "ubuntu-22.04.tar.gz"
    cpu_num=2,
-   ram_num=4  # GB
+   mem_num=4  # GB
 )
 
 # 创建容器
@@ -215,7 +215,7 @@ result = server.VMSetups(vm_conf)
 # 更新容器配置（需要重建容器）
 vm_conf = server.VMSelect("container-name")
 vm_conf.cpu_num = 4  # 修改为 4 核
-vm_conf.ram_num = 8  # 修改为 8 GB
+vm_conf.mem_num = 8  # 修改为 8 GB
 
 old_conf = deepcopy(vm_conf)
 server.VMUpdate(vm_conf, old_conf)

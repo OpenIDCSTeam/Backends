@@ -84,7 +84,7 @@ def test_vm_list(host_server):
         for vm_name, vm_config in host_server.vm_saving.items():
             print(f"   - {vm_name}")
             print(f"     CPU: {vm_config.cpu_num} 核")
-            print(f"     内存: {vm_config.ram_num} MB")
+            print(f"     内存: {vm_config.mem_num} MB")
     else:
         print("⚠️  未找到虚拟机")
 

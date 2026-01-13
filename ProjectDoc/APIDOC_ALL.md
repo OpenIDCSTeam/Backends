@@ -528,9 +528,9 @@ Authorization: Bearer <token>
       "display_name": "Ubuntu Server Production",
       "os_name": "ubuntu-22.04",
       "os_version": "22.04.3 LTS",
-      "cpu_num": 4,
-      "ram_num": 8192,
-      "hdd_num": 100,
+  "cpu_num": 2,
+  "mem_num": 8192,
+  "hdd_num": 100,
       "gpu_num": 1,
       "status": "running",
       "power_state": "powered_on",
@@ -574,7 +574,7 @@ Content-Type: application/json
 | `os_name` | string | 是 | 操作系统名称 |
 | `os_version` | string | 否 | 操作系统版本 |
 | `cpu_num` | integer | 是 | CPU核心数，1-64 |
-| `ram_num` | integer | 是 | 内存大小(MB)，512-1048576 |
+| `mem_num` | integer | 是 | 内存大小(MB)，512-1048576 |
 | `hdd_num` | integer | 是 | 磁盘大小(GB)，1-10240 |
 | `gpu_num` | integer | 否 | GPU数量，0-8，默认0 |
 | `vm_path` | string | 否 | 虚拟机存储路径 |
@@ -591,7 +591,7 @@ Content-Type: application/json
   "display_name": "Ubuntu Web Server",
   "os_name": "ubuntu-22.04",
   "cpu_num": 2,
-  "ram_num": 4096,
+  "mem_num": 4096,
   "hdd_num": 50,
   "network_type": "bridged",
   "description": "Production web server",
@@ -609,7 +609,7 @@ Content-Type: application/json
 
 **可更新字段**:
 - `vm_name`, `display_name`, `description`
-- `cpu_num`, `ram_num`, `hdd_num`, `gpu_num`
+- `cpu_num`, `mem_num`, `hdd_num`, `gpu_num`
 - `network_type`, `vm_path`
 
 ### 删除虚拟机

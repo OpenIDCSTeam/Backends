@@ -1,3 +1,6 @@
+# OCInterface - Docker容器管理服务器 ############################################
+# 提供Docker容器的创建、管理和监控功能
+################################################################################
 import os
 import time
 import shutil
@@ -29,7 +32,7 @@ except ImportError:
 
 
 class HostServer(BasicServer):
-    # 读取宿主机 ###############################################################
+    # 读取宿主机 ##############################################################
     def __init__(self, config: HSConfig, **kwargs):
         super().__init__(config, **kwargs)
         self.web_terminal = None
@@ -38,15 +41,16 @@ class HostServer(BasicServer):
         self.http_manager = None
         self.port_forward = None
 
-    # 连接到 Docker 服务器 #####################################################
+    # 连接到 Docker 服务器 ####################################################
     def connect_docker(self) -> tuple:
         if not self.oci_connects:
             self.oci_connects = OCIConnects(self.hs_config)
         return self.oci_connects.connect_docker()
 
-    # 同步端口转发配置 #########################################################
+    # 同步端口转发配置 ##########################################################
+    # 删除不需要的转发，添加缺少的转发
+    ###########################################################################
     def sync_forwarder(self):
-        """同步端口转发配置：删除不需要的转发，添加缺少的转发"""
         try:
             # 判断是否为远程主机
             is_remote = False
@@ -57,7 +61,9 @@ class HostServer(BasicServer):
             if is_remote:
                 success, message = self.port_forward.connect_ssh()
                 if not success:
-                    logger.error(f"SSH连接失败，无法同步端口转发: {message}")
+                    logger.error(
+                        f"SSH连接失败，无法同步端口转发: {message}"
+                    )
                     return
             # 获取系统中已有的端口转发
             existing_forwards = self.port_forward.list_ports(is_remote)
@@ -86,7 +92,8 @@ class HostServer(BasicServer):
                     ):
                         removed_count += 1
                         logger.info(
-                            f"删除多余的端口转发: {forward.protocol} {forward.wan_port} -> "
+                            f"删除多余的端口转发: {forward.protocol} "
+                            f"{forward.wan_port} -> "
                             f"{forward.lan_addr}:{forward.lan_port}"
                         )
 
@@ -338,6 +345,63 @@ class HostServer(BasicServer):
         except Exception as e:
             logger.error(f"[{self.hs_config.server_name}] Crontabs: 容器状态采集失败: {e}")
             return True  # 即使失败也返回True，避免影响其他定时任务
+
+    # 宿主机状态 ###############################################################
+    def HSStatus(self) -> HWStatus:
+        """获取宿主机状态"""
+        # 专用操作 =============================================================
+        try:
+            # 连接到 Docker 服务器
+            client, result = self.connect_docker()
+            if not result.success:
+                logger.error(f"无法连接到Docker获取状态: {result.message}")
+                return super().HSStatus()
+            
+            # 获取 Docker 主机信息
+            try:
+                info = client.info()
+                
+                # 创建 HWStatus 对象
+                hw_status = HWStatus()
+                
+                # CPU 信息
+                if 'NCPU' in info:
+                    hw_status.cpu_total = info['NCPU']
+                
+                # 内存信息
+                if 'MemTotal' in info:
+                    hw_status.mem_total = int(info['MemTotal'] / (1024 * 1024))  # 转换为MB
+                
+                # 获取系统信息（如果可用）
+                if 'SystemStatus' in info and info['SystemStatus']:
+                    for item in info['SystemStatus']:
+                        if len(item) >= 2:
+                            key, value = item[0], item[1]
+                            # 解析 CPU 使用率
+                            if 'CPU' in key and '%' in value:
+                                try:
+                                    hw_status.cpu_usage = int(float(value.replace('%', '').strip()))
+                                except:
+                                    pass
+                            # 解析内存使用
+                            elif 'Memory' in key and 'GiB' in value:
+                                try:
+                                    mem_used = float(value.split('/')[0].replace('GiB', '').strip())
+                                    hw_status.mem_usage = int(mem_used * 1024)  # 转换为MB
+                                except:
+                                    pass
+                
+                return hw_status
+                
+            except Exception as e:
+                logger.error(f"获取Docker主机状态失败: {str(e)}")
+                return super().HSStatus()
+                
+        except Exception as e:
+            logger.error(f"获取Docker主机状态失败: {str(e)}")
+        
+        # 通用操作 =============================================================
+        return super().HSStatus()
 
     # 加载主机配置 #############################################################
     def HSLoader(self) -> ZMessage:

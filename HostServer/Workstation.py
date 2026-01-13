@@ -1,3 +1,6 @@
+# Workstation - VMware Workstation虚拟化平台管理 ##################################
+# 提供VMware Workstation虚拟机的创建、管理和监控功能
+################################################################################
 import os
 import shutil
 import subprocess
@@ -354,7 +357,7 @@ class HostServer(BasicServer):
         return super().LDBackup(vm_back)
 
     # 移除备份 #################################################################
-    def RMBackup(self, vm_name: str, vm_back: str) -> ZMessage:
+    def RMBackup(self, vm_name: str, vm_back: str = "") -> ZMessage:
         return super().RMBackup(vm_back)
 
     # 移除磁盘 #################################################################

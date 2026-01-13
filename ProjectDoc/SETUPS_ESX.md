@@ -229,7 +229,7 @@ from MainObject.Config.VMConfig import VMConfig
 vm_config = VMConfig(
     vm_uuid="vm-test-001",
     cpu_num=2,
-    ram_num=4096,
+    mem_num=4096,
     hdd_num=50,
     os_name="ubuntu-22.04-server-amd64.iso"
 )

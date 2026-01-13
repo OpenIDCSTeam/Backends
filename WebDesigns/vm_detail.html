@@ -4789,7 +4789,7 @@
 
     async function removeOwner(username) {
         // 显示自定义确认对话框
-        showConfirmDialog(`确定要移除所有者 "${username}" 吗？`, async () => {
+        showConfirmDialog(`确定要移除使用者 "${username}" 吗？`, async () => {
             const result = await apiRequest(`/api/client/owners/${hostName}/${vmUuid}`, 'DELETE', {username: username});
             if (result && result.code === 200) {
                 showToast('所有者已移除', 'success');

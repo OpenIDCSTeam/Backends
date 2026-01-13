@@ -35,8 +35,8 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">GPU显存(MB)</label>
-            <input type="number" name="gpu_mem" id="{{ id_prefix ~ 'G' if id_prefix else 'g' }}puMem" min="0" step="256"
-                   value="2048"
+            <input type="number" name="gpu_mem" id="{{ id_prefix ~ 'G' if id_prefix else 'g' }}puMem" min="4" step="4"
+                   value="128"
                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
         </div>
     </div>

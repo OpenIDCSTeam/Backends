@@ -150,7 +150,7 @@ from MainObject.Config.VMConfig import VMConfig
 vm_config = VMConfig()
 vm_config.vm_uuid = "TestVM-001"
 vm_config.cpu_num = 2
-vm_config.ram_num = 4096  # MB
+vm_config.mem_num = 4096  # MB
 vm_config.hdd_num = 50  # GB
 vm_config.os_name = "Windows-Server-2022.iso"
 
