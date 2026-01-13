@@ -8,6 +8,7 @@ from loguru import logger
 
 from HostServer.BasicServer import BasicServer
 from HostServer.vSphereESXiAPI.vSphereAPI import vSphereAPI
+from HostModule.HttpManager import HttpManager
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Config.IMConfig import IMConfig
 from MainObject.Config.SDConfig import SDConfig
@@ -53,18 +54,32 @@ class HostServer(BasicServer):
         return ""  # 空字符串表示数据存储根目录
 
     # 读取远程 ######################################################################
-    # 初始化VNC远程控制台
+    # 初始化WebMKS远程控制台（使用HttpManager反向代理）
     # :returns: 是否成功
     # ###############################################################################
     def VMLoader(self) -> bool:
-        cfg_name = "vnc_" + self.hs_config.server_name
-        cfg_full = "DataSaving/" + cfg_name + ".cfg"
-        if os.path.exists(cfg_full):
-            os.remove(cfg_full)
-        tp_remote = VNCStart(self.hs_config.remote_port, cfg_name)
-        self.vm_remote = VProcess(tp_remote)
-        self.vm_remote.start()
-        logger.info(f"[{self.hs_config.server_name}] VNC远程控制台已启动")
+        # ===== 旧的VNC方式（已注释） =====
+        # cfg_name = "vnc_" + self.hs_config.server_name
+        # cfg_full = "DataSaving/" + cfg_name + ".cfg"
+        # if os.path.exists(cfg_full):
+        #     os.remove(cfg_full)
+        # tp_remote = VNCStart(self.hs_config.remote_port, cfg_name)
+        # self.vm_remote = VProcess(tp_remote)
+        # self.vm_remote.start()
+        # logger.info(f"[{self.hs_config.server_name}] VNC远程控制台已启动")
+
+        # ===== 新的WebMKS方式（使用HttpManager） =====
+        cfg_name = "mks_" + self.hs_config.server_name + ".txt"
+        self.http_manager = HttpManager(
+            cfg_name, "vmk",
+            self.hs_config.public_addr[0] \
+                if len(self.hs_config.public_addr) > 0 \
+                else "127.0.0.1")
+        self.http_manager.launch_vnc(self.hs_config.remote_port)
+        logger.info(
+            f"[{self.hs_config.server_name}] "
+            f"WebMKS远程控制台已初始化"
+            f"（HttpManager端口: {self.hs_config.remote_port}）")
         return True
 
     # 宿主机任务 ###############################################################
@@ -294,16 +309,16 @@ class HostServer(BasicServer):
         # 通用操作 =============================================================
         result = super().VMCreate(vm_conf)
 
-        # 配置VNC远程访问
-        if result.success:
-            try:
-                remote_result = self.VMRemote(vm_conf.vm_uuid)
-                if remote_result.success:
-                    logger.info(f"虚拟机 {vm_conf.vm_uuid} VNC远程访问配置成功")
-                else:
-                    logger.warning(f"虚拟机 {vm_conf.vm_uuid} VNC远程访问配置失败: {remote_result.message}")
-            except Exception as e:
-                logger.warning(f"配置VNC远程访问时出错: {str(e)}")
+        # ===== 旧的VNC远程访问配置（已注释） =====
+        # if result.success:
+        #     try:
+        #         remote_result = self.VMRemote(vm_conf.vm_uuid)
+        #         if remote_result.success:
+        #             logger.info(f"虚拟机 {vm_conf.vm_uuid} VNC远程访问配置成功")
+        #         else:
+        #             logger.warning(f"虚拟机 {vm_conf.vm_uuid} VNC远程访问配置失败: {remote_result.message}")
+        #     except Exception as e:
+        #         logger.warning(f"配置VNC远程访问时出错: {str(e)}")
 
         return result
 
@@ -878,3 +893,112 @@ class HostServer(BasicServer):
         # TODO: 实现ESXi GPU查询
         # 通用操作 =============================================================
         return {}
+
+    # WebMKS远程访问 ###########################################################
+    def VMRemote(self, vm_uuid: str) -> ZMessage:
+        """
+        获取虚拟机WebMKS远程访问链接
+        
+        :param vm_uuid: 虚拟机UUID
+        :return: 包含访问URL的ZMessage
+        """
+        # 专用操作 =============================================================
+        try:
+            # 1. 检查虚拟机是否存在
+            if vm_uuid not in self.vm_saving:
+                return ZMessage(
+                    success=False,
+                    action="VMRemote",
+                    message="虚拟机不存在")
+
+            # 2. 连接到ESXi
+            connect_result = self.esxi_api.connect()
+            if not connect_result.success:
+                return ZMessage(
+                    success=False,
+                    action="VMRemote",
+                    message=f"无法连接到ESXi: {connect_result.message}")
+
+            # 3. 获取WebMKS票据
+            ticket_result = self.esxi_api.get_webmks_ticket(vm_uuid)
+            self.esxi_api.disconnect()
+
+            if not ticket_result.success:
+                return ZMessage(
+                    success=False,
+                    action="VMRemote",
+                    message=f"获取WebMKS票据失败: {ticket_result.message}")
+
+            ticket_data = ticket_result.results
+            ticket = ticket_data.get('ticket', '')
+            host = self.hs_config.server_addr
+            port = ticket_data.get('port', 443)
+
+            # 4. 生成随机token（用于代理路径）
+            import random
+            import string
+            token = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+
+            # 5. 构建WebMKS WebSocket URL
+            # WebMKS URL格式: wss://host:port/ticket/ticket_string
+            webmks_url = f"wss://{host}:{port}/ticket/{ticket}"
+
+            # 6. 添加HTTP代理（使用proxy_ssh方法）
+            # 注意：这里复用proxy_ssh方法，实际上是代理WebSocket连接
+            try:
+                success = self.http_manager.create_vnc(token, host, port, ticket)
+                if not success:
+                    return ZMessage(
+                        success=False,
+                        action="VMRemote",
+                        message="添加WebMKS代理失败")
+            except Exception as e:
+                logger.error(f"WebMKS代理配置失败: {str(e)}")
+                return ZMessage(
+                    success=False,
+                    action="VMRemote",
+                    message=f"WebMKS代理配置失败: {str(e)}")
+
+            # 7. 获取主机外网IP
+            if len(self.hs_config.public_addr) == 0:
+                return ZMessage(
+                    success=False,
+                    action="VMRemote",
+                    message="主机外网IP不存在")
+
+            public_ip = self.hs_config.public_addr[0]
+            if public_ip in ["localhost", "127.0.0.1", ""]:
+                public_ip = "127.0.0.1"  # 默认使用本地
+
+            # 8. 构造返回URL
+            remote_port = self.hs_config.remote_port
+            url = f"http://{public_ip}:{remote_port}/{token}"
+
+            logger.info(
+                f"VMRemote for {vm_uuid}: "
+                f"WebMKS({host}:{port}) "
+                f"-> proxy(/{token}) -> {url}")
+
+            # 9. 返回结果
+            return ZMessage(
+                success=True,
+                action="VMRemote",
+                message=url,
+                results={
+                    "token": token,
+                    "remote_port": remote_port,
+                    "url": url,
+                    "webmks_url": webmks_url,
+                    "ticket": ticket
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"获取WebMKS远程访问失败: {str(e)}")
+            return ZMessage(
+                success=False,
+                action="VMRemote",
+                message=f"获取WebMKS远程访问失败: {str(e)}")
+
+        # 通用操作 =============================================================
+        # return super().VMRemote(vm_uuid)

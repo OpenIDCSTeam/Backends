@@ -416,8 +416,8 @@ class HostServer(BasicServer):
             config_filename = f"vnc-{hostname}.txt"
             self.http_manager = HttpManager(config_filename)
             # 初始化SSH代理管理
-            self.http_manager.start_ssh(self.hs_config.remote_port)
-            self.http_manager.start_web()
+            self.http_manager.launch_vnc(self.hs_config.remote_port)
+            self.http_manager.launch_web()
         # 初始化Socat端口转发管理器
         if not self.port_forward:
             self.port_forward = PortForward(self.hs_config)
@@ -1473,7 +1473,7 @@ class HostServer(BasicServer):
         try:
             # 使用新的SSH代理管理方法
             target_ip = "127.0.0.1"  # ttyd运行在本机
-            success = self.http_manager.proxy_ssh(token, target_ip, tty_port)
+            success = self.http_manager.create_vnc(token, target_ip, tty_port)
             if not success:
                 self.web_terminal.stop_tty(tty_port)  # 清理tty
                 return ZMessage(

@@ -529,13 +529,13 @@ class BasicServer:
                                     message=f'域名 {pm_info.web_addr} 已存在')
         # 添加或删除代理 ===========================================================
         if in_flag:
-            result = in_apis.proxy_add(
+            result = in_apis.create_web(
                 (pm_info.lan_port, pm_info.lan_addr),
                 pm_info.web_addr, pm_info.is_https)
             if result:
                 vm_config.web_all.append(pm_info)
         else:
-            result = in_apis.proxy_del(pm_info.web_addr)
+            result = in_apis.remove_web(pm_info.web_addr)
             if result:
                 vm_config.web_all.remove(pm_info)
         # 保存到数据库 =============================================================

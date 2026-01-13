@@ -266,8 +266,8 @@ class HostServer(BasicServer):
             hostname = getattr(self.hs_config, 'server_name', '')
             config_filename = f"vnc-{hostname}.txt"
             self.http_manager = HttpManager(config_filename)
-            self.http_manager.start_ssh(self.hs_config.remote_port)
-            self.http_manager.start_web()
+            self.http_manager.launch_vnc(self.hs_config.remote_port)
+            self.http_manager.launch_web()
 
         # 初始化端口转发管理器
         if not self.port_forward:

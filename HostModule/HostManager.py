@@ -158,9 +158,9 @@ class HostManage:
 
             # 启动Http实例
             self.proxys = HttpManager()
-            self.proxys.load_proxys()
-            self.proxys._generate_config()
-            self.proxys.start_web()
+            self.proxys.global_get()
+            self.proxys.config_all()
+            self.proxys.launch_web()
 
             # 加载全局代理配置
             # self.web_all = []
@@ -223,7 +223,7 @@ class HostManage:
                     else:
                         vm_saving_converted[vm_uuid] = vm_config
                     for web_data in vm_saving_converted[vm_uuid].web_all:
-                        self.proxys.proxy_add(
+                        self.proxys.create_web(
                             (web_data.lan_port, web_data.lan_addr),
                             web_data.web_addr, is_https=web_data.is_https
                         )
@@ -265,7 +265,7 @@ class HostManage:
                 success &= server.data_set()
             # 关闭web服务器
             if self.proxys is not None:
-                self.proxys.close_web()
+                self.proxys.closed_web()
             return success
         except Exception as e:
             logger.error(f"保存数据时出错: {e}")
@@ -333,7 +333,7 @@ class HostManage:
 
             # 调用HttpManage添加代理
             if self.proxys:
-                result = self.proxys.proxy_add(
+                result = self.proxys.create_web(
                     (web_proxy.lan_port, web_proxy.lan_addr),
                     web_proxy.web_addr,
                     web_proxy.is_https
@@ -352,7 +352,7 @@ class HostManage:
                 # 如果保存失败，回滚操作
                 self.web_all.remove(web_proxy)
                 if self.proxys:
-                    self.proxys.proxy_del(web_proxy.web_addr)
+                    self.proxys.remove_web(web_proxy.web_addr)
                 return ZMessage(success=False, message="保存代理配置到数据库失败")
 
             return ZMessage(success=True, message=f"代理 {web_proxy.web_addr} 添加成功")
@@ -382,7 +382,7 @@ class HostManage:
 
             # 调用HttpManage删除代理
             if self.proxys:
-                result = self.proxys.proxy_del(web_addr)
+                result = self.proxys.remove_web(web_addr)
                 if not result:
                     return ZMessage(success=False, message="从HttpManage删除代理失败")
             else:
@@ -397,7 +397,7 @@ class HostManage:
                 # 如果删除失败，回滚操作
                 self.web_all.append(web_proxy)
                 if self.proxys:
-                    self.proxys.proxy_add(
+                    self.proxys.create_web(
                         (web_proxy.lan_port, web_proxy.lan_addr),
                         web_proxy.web_addr,
                         web_proxy.is_https

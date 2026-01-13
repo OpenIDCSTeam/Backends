@@ -207,10 +207,43 @@ class vSphereAPI:
             # 设置UEFI固件
             config_spec.firmware = "efi"
 
-            # 配置VNC远程桌面访问
-            # 从vm_conf获取VNC端口，如果没有则使用默认端口
+            # ===== 旧的VNC远程桌面配置（已注释，改用WebMKS） =====
+            # # 配置VNC远程桌面访问
+            # # 从vm_conf获取VNC端口，如果没有则使用默认端口
+            # config_spec.extraConfig = []
+            #
+            # # 基础系统配置
+            # config_spec.extraConfig.append(
+            #     vim.option.OptionValue(key='sched.cpu.latencySensitivity', value='normal')
+            # )
+            # config_spec.extraConfig.append(
+            #     vim.option.OptionValue(key='tools.guest.desktop.autolock', value='TRUE')
+            # )
+            # config_spec.extraConfig.append(
+            #     vim.option.OptionValue(key='hpet0.present', value='TRUE')
+            # )
+            # config_spec.extraConfig.append(
+            #     vim.option.OptionValue(key='cpuid.coresPerSocket', value=str(vm_conf.cpu_num))
+            # )
+            # # VNC远程桌面配置
+            # vnc_port = vm_conf.vc_port if hasattr(vm_conf, 'vc_port') and vm_conf.vc_port else 5900
+            #
+            # config_spec.extraConfig.append(
+            #     vim.option.OptionValue(key='RemoteDisplay.vnc.enabled', value='TRUE')
+            # )
+            # config_spec.extraConfig.append(
+            #     vim.option.OptionValue(key='RemoteDisplay.vnc.port', value=str(vnc_port))
+            # )
+            # config_spec.extraConfig.append(
+            #     vim.option.OptionValue(key='RemoteDisplay.vnc.password', value=vm_conf.vc_pass)
+            # )
+            # config_spec.extraConfig.append(
+            #     vim.option.OptionValue(key='RemoteDisplay.vnc.keyMap', value='en-us')
+            # )
+            # logger.info(f"已配置VNC远程桌面: 端口={vnc_port}")
+            
+            # ===== 新的WebMKS方式（无需在创建时配置，通过ticket动态访问） =====
             config_spec.extraConfig = []
-
             # 基础系统配置
             config_spec.extraConfig.append(
                 vim.option.OptionValue(key='sched.cpu.latencySensitivity', value='normal')
@@ -224,22 +257,7 @@ class vSphereAPI:
             config_spec.extraConfig.append(
                 vim.option.OptionValue(key='cpuid.coresPerSocket', value=str(vm_conf.cpu_num))
             )
-            # VNC远程桌面配置
-            vnc_port = vm_conf.vc_port if hasattr(vm_conf, 'vc_port') and vm_conf.vc_port else 5900
-
-            config_spec.extraConfig.append(
-                vim.option.OptionValue(key='RemoteDisplay.vnc.enabled', value='TRUE')
-            )
-            config_spec.extraConfig.append(
-                vim.option.OptionValue(key='RemoteDisplay.vnc.port', value=str(vnc_port))
-            )
-            config_spec.extraConfig.append(
-                vim.option.OptionValue(key='RemoteDisplay.vnc.password', value=vm_conf.vc_pass)
-            )
-            config_spec.extraConfig.append(
-                vim.option.OptionValue(key='RemoteDisplay.vnc.keyMap', value='en-us')
-            )
-            logger.info(f"已配置VNC远程桌面: 端口={vnc_port}")
+            logger.info(f"虚拟机配置完成，将使用WebMKS进行远程访问")
 
             # 虚拟机文件位置
             # 从system_path获取虚拟机存储目录
@@ -1315,3 +1333,44 @@ class vSphereAPI:
             logger.error(f"复制虚拟磁盘失败: {str(e)}")
             return ZMessage(success=False, action="copy_virtual_disk",
                             message=f"复制虚拟磁盘失败: {str(e)}")
+
+    def get_webmks_ticket(self, vm_name: str) -> ZMessage:
+        """
+        获取WebMKS访问票据
+        
+        :param vm_name: 虚拟机名称
+        :return: 包含ticket信息的ZMessage
+        """
+        try:
+            vm = self.get_vm(vm_name)
+            if not vm:
+                return ZMessage(success=False, action="get_webmks_ticket",
+                                message=f"虚拟机 {vm_name} 不存在")
+            
+            # 检查虚拟机是否开机
+            if vm.runtime.powerState != vim.VirtualMachinePowerState.poweredOn:
+                return ZMessage(success=False, action="get_webmks_ticket",
+                                message=f"虚拟机 {vm_name} 未开机，无法获取WebMKS票据")
+            
+            # 获取WebMKS票据
+            ticket = vm.AcquireTicket('webmks')
+            
+            if not ticket:
+                return ZMessage(success=False, action="get_webmks_ticket",
+                                message="获取WebMKS票据失败")
+            
+            logger.info(f"成功获取虚拟机 {vm_name} 的WebMKS票据")
+            
+            return ZMessage(success=True, action="get_webmks_ticket",
+                            message="获取WebMKS票据成功",
+                            results={
+                                'ticket': ticket.ticket,
+                                'host': ticket.host if ticket.host is not None else "",
+                                'port': ticket.port,
+                                'cfgFile': ticket.cfgFile
+                            })
+        
+        except Exception as e:
+            logger.error(f"获取WebMKS票据失败: {str(e)}")
+            return ZMessage(success=False, action="get_webmks_ticket",
+                            message=f"获取WebMKS票据失败: {str(e)}")
