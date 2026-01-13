@@ -39,7 +39,7 @@ class BasicServer:
         self.hs_config: HSConfig | None = config
         # 虚拟机配置 =====================================================
         self.vm_saving: dict[str, VMConfig] = {}
-        self.vm_remote: VProcess | None = None
+        self.vm_remote: VProcess | None | str = None
         # 数据库引用 =====================================================
         self.save_data = kwargs.get('db', None)
         # 加载数据 =========================================================

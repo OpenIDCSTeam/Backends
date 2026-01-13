@@ -329,6 +329,7 @@ class HttpManager:
                 reload_cmd = [self.binary_path, "reload", "--config",
                               str(self.config_file), "--adapter", "caddyfile",
                               "--address", f"localhost:{self.manage_port}"]
+                print("重载服务命令:", " ".join(reload_cmd))
                 result = subprocess.run(reload_cmd, capture_output=True, text=True)
                 if result.returncode == 0:
                     print(f"Caddy配置已重载（管理端口: {self.manage_port}）")

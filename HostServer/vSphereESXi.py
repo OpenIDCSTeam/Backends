@@ -75,6 +75,7 @@ class HostServer(BasicServer):
             self.hs_config.public_addr[0] \
                 if len(self.hs_config.public_addr) > 0 \
                 else "127.0.0.1")
+        self.vm_remote = "done"
         self.http_manager.launch_vnc(self.hs_config.remote_port)
         logger.info(
             f"[{self.hs_config.server_name}] "
