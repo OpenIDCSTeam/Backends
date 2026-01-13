@@ -77,7 +77,7 @@ HEConfig = {
     "vSphereESXi": {
         "Imported": vSphereESXiModule.HostServer,
         "Descript": "vSphereESXi Server",
-        "isEnable": False,
+        "isEnable": True,
         "isRemote": True,
         "Platform": ["Linux", "Windows", "MacOS"],
         "CPU_Arch": ["x86_64", "aarch64"],
@@ -90,8 +90,8 @@ HEConfig = {
     },
     "HyperVSetup": {
         "Imported": None,
-        "Descript": "Win HyperV Platform",
-        "isEnable": False,
+        "Descript": "Windows HyperV x64",
+        "isEnable": True,
         "isRemote": True,
         "Platform": ["Windows"],
         "CPU_Arch": ["x86_64"],
@@ -104,8 +104,8 @@ HEConfig = {
     },
     "PromoxSetup": {
         "Imported": None,
-        "Descript": "PVE Runtime Platform",
-        "isEnable": False,
+        "Descript": "ProxmoxVE Platform",
+        "isEnable": True,
         "isRemote": True,
         "Platform": ["Linux", "Windows"],
         "CPU_Arch": ["x86_64", "aarch64"],
