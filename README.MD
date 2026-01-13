@@ -32,7 +32,7 @@ OpenIDC-Client是一个开源的IDC（Internet Data Center）虚拟化统一管�
 | Docker/Podman/K8SC | ✅ 已实现 | Windows, Linux, macOS | x86_64, ARM64 |
 | VMware Workstation | ✅ 已实现 | Windows               | x86_64        |
 | Proxmox VE Runtime | 🚧 实施中 | Windows, Linux        | x86_64, ARM64 |
-| VMware vSphere ESX | 🚧 实施中 | Windows, Linux, macOS | x86_64, ARM64 |
+| VMware vSphere ESX | ✅ 已实现 | Windows, Linux, macOS | x86_64, ARM64 |
 | Windows Hypervisor | 🚧️ 实施中 | Windows               | x86_64        |
 | Oracle Virtual Box | ❌ 计划中 | Windows, Linux        | x86_64, ARM64 |
 | QEMU & KVM Machine | ❌ 计划中 | Windows, Linux, macOS | x86_64, ARM64 |

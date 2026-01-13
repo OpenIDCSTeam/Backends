@@ -5,6 +5,7 @@ import HostServer.Workstation as WorkstationModule
 import HostServer.LXContainer as LXContainerModule
 import HostServer.OCInterface as OCInterfaceModule
 import HostServer.vSphereESXi as vSphereESXiModule
+from HostServer import ProxmoxQemu, Win64HyperV
 
 HEConfig = {
     "VMWareSetup": {
@@ -92,7 +93,7 @@ HEConfig = {
         ]
     },
     "HyperVSetup": {
-        "Imported": None,
+        "Imported": Win64HyperV.HostServer,
         "Descript": "Windows HyperV x64",
         "isEnable": True,
         "isRemote": True,
@@ -106,7 +107,7 @@ HEConfig = {
         "Tab_Lock": []
     },
     "PromoxSetup": {
-        "Imported": None,
+        "Imported": ProxmoxQemu.HostServer,
         "Descript": "ProxmoxVE Platform",
         "isEnable": True,
         "isRemote": True,

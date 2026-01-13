@@ -63,8 +63,8 @@ class HostServer(BasicServer):
                 return self.proxmox, ZMessage(success=True, action="_connect_proxmox")
 
             # 从配置中获取连接信息
-            host = self.hs_config.server_addr
-            user = self.hs_config.server_user if hasattr(self.hs_config, 'server_user') else 'root@pam'
+            host = self.hs_config.server_addr + ":8006"
+            user = self.hs_config.server_user if hasattr(self.hs_config, 'server_user') else 'root'
             password = self.hs_config.server_pass
 
             # 从launch_path获取节点名称，如果没有则使用默认值
@@ -75,7 +75,7 @@ class HostServer(BasicServer):
             # 创建Proxmox API连接
             self.proxmox = ProxmoxAPI(
                 host,
-                user=user,
+                user=user + "@pam",
                 password=password,
                 verify_ssl=False  # 可以根据需要配置SSL验证
             )
@@ -88,6 +88,7 @@ class HostServer(BasicServer):
 
         except Exception as e:
             logger.error(f"Failed to connect to Proxmox server: {str(e)}")
+            traceback.print_exc()
             self.proxmox = None
             return None, ZMessage(
                 success=False, action="_connect_proxmox",
@@ -606,6 +607,7 @@ class HostServer(BasicServer):
     # 创建虚拟机 ###############################################################
     def VMCreate(self, vm_conf: VMConfig) -> ZMessage:
         """创建虚拟机"""
+        vm_conf.vm_uuid = vm_conf.vm_uuid.replace('_', '-')
         vm_conf, net_result = self.NetCheck(vm_conf)
         if not net_result.success:
             return net_result
@@ -624,7 +626,7 @@ class HostServer(BasicServer):
             # 构建虚拟机配置
             config = {
                 'vmid': vmid,
-                'name': vm_conf.vm_uuid,
+                'name': vm_conf.vm_uuid.replace('_', '-'),
                 'memory': vm_conf.mem_num if vm_conf.mem_num > 0 else 2048,
                 'cores': vm_conf.cpu_num if vm_conf.cpu_num > 0 else 2,
                 'sockets': 1,
@@ -647,12 +649,14 @@ class HostServer(BasicServer):
                     logger.warning(f"系统安装失败: {install_result.message}")
 
         except Exception as e:
+            traceback.print_exc()
             hs_result = ZMessage(
                 success=False, action="VMCreate",
                 message=f"虚拟机创建失败: {str(e)}")
             self.logs_set(hs_result)
             return hs_result
 
+        self.data_set()
         return super().VMCreate(vm_conf)
 
     # 安装虚拟机 ###############################################################
@@ -702,7 +706,7 @@ class HostServer(BasicServer):
             return result
 
         try:
-            vmid = self._get_vmid(vm_conf)
+            vmid = self._get_vmid(vm_conf.vm_uuid.replace('_', '-'))
             if vmid is None:
                 return ZMessage(
                     success=False, action="VMUpdate",
@@ -1248,7 +1252,7 @@ class HostServer(BasicServer):
         return super().LDBackup(vm_back)
 
     # 移除备份 #################################################################
-    def RMBackup(self, vm_name: str, vm_back: str="") -> ZMessage:
+    def RMBackup(self, vm_name: str, vm_back: str = "") -> ZMessage:
         """移除备份"""
         return super().RMBackup(vm_name, vm_back)
 
