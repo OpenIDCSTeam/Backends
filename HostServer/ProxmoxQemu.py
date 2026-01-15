@@ -824,50 +824,170 @@ class HostServer(BasicServer):
                 self.VMPowers(vm_name, VMPowers.H_CLOSE)
 
             if in_flag:
-                # 挂载硬盘
-                # 获取磁盘大小（单位：MB），转换为 GB
-                hdd_size_mb = getattr(vm_imgs, 'hdd_size', 10)  # 默认 10MB（实际逻辑中应该是GB）
-                # 如果 hdd_size 是 MB 值（如 10240），需要转换为 GB
-                if hdd_size_mb > 1000:  # 假设大于1000就是MB值
-                    disk_size = f"{hdd_size_mb // 1024}G"
-                else:
-                    disk_size = f"{hdd_size_mb}G"
-
-                # 获取存储名称
-                # 如果 extern_path 包含路径分隔符，提取最后一个目录名作为存储名称
-                if '/' in self.hs_config.extern_path:
-                    storage_name = self.hs_config.extern_path.rstrip('/').split('/')[-1]
-                else:
-                    storage_name = self.hs_config.extern_path
-
-                # 目录格式：<storage_name>:<volume_name>,size=<size>
-                # 存储池格式：<storage_name>:<size>
-                # 两种格式都用 storage_name，Proxmox会自动判断
-                disk_config = f"{storage_name}:vm-{vmid}-disk-{scsi_num},size={disk_size}"
-
-                # 找到可用的scsi设备号
+                # 找到可用的scsi设备号（统一在这里计算）
                 config = vm.config.get()
                 scsi_num = 1
                 while f"scsi{scsi_num}" in config:
                     scsi_num += 1
 
+                # 检查是否是重新挂载已卸载的硬盘
+                existing_disk = None
+                if vm_imgs.hdd_name in self.vm_saving[vm_name].hdd_all:
+                    existing_disk = self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name]
+                    if existing_disk.hdd_flag == 0 and existing_disk.disk_file:
+                        # 已卸载的硬盘，重新挂载
+                        disk_name = existing_disk.disk_file
+                        logger.info(f"重新挂载已卸载的硬盘: {vm_imgs.hdd_name}, 磁盘文件: {disk_name}, 使用scsi设备号: {scsi_num}")
+                    else:
+                        # 已挂载的硬盘，不能再挂载
+                        return ZMessage(
+                            success=False, action="HDDMount",
+                            message=f"硬盘 {vm_imgs.hdd_name} 已经挂载")
+                else:
+                    # 新硬盘，需要创建
+                    # 获取磁盘大小（单位：MB），转换为 GB
+                    hdd_size_mb = getattr(vm_imgs, 'hdd_size', 10)  # 默认 10MB（实际逻辑中应该是GB）
+                    # 如果 hdd_size 是 MB 值（如 10240），需要转换为 GB
+                    if hdd_size_mb > 1000:  # 假设大于1000就是MB值
+                        disk_size = f"{hdd_size_mb // 1024}G"
+                    else:
+                        disk_size = f"{hdd_size_mb}G"
+
+                    storage_name = self.hs_config.extern_path
+                    disk_name = f"vm-{vmid}-disk-{scsi_num}.qcow2"
+                    dest_image = f"{storage_name}:{vmid}/{disk_name}"
+
+                    # 创建qcow2镜像文件
+                    try:
+                        if self.web_flag():
+                            # 远程模式：通过SSH创建qcow2文件
+                            ssh = paramiko.SSHClient()
+                            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                            ssh.connect(
+                                self.hs_config.server_addr,
+                                username=self.hs_config.server_user,
+                                password=self.hs_config.server_pass)
+                            # 创建目录
+                            disk_dir = f"/var/lib/vz/images/{vmid}"
+                            ssh.exec_command(f"mkdir -p {disk_dir}")
+                            # 创建qcow2文件
+                            create_cmd = f"qemu-img create -f qcow2 {disk_dir}/{disk_name} {disk_size}"
+                            stdin, stdout, stderr = ssh.exec_command(create_cmd)
+                            exit_status = stdout.channel.recv_exit_status()
+                            if exit_status != 0:
+                                error_msg = stderr.read().decode()
+                                ssh.close()
+                                return ZMessage(
+                                    success=False, action="HDDMount",
+                                    message=f"创建qcow2文件失败: {error_msg}")
+                            ssh.close()
+                            logger.info(f"通过SSH创建qcow2文件: {disk_dir}/{disk_name}, 大小: {disk_size}, 使用scsi设备号: {scsi_num}")
+                        else:
+                            # 本地模式：直接创建qcow2文件
+                            disk_dir = f"/var/lib/vz/images/{vmid}"
+                            os.makedirs(disk_dir, exist_ok=True)
+                            create_cmd = f"qemu-img create -f qcow2 {disk_dir}/{disk_name} {disk_size}"
+                            exit_status = os.system(create_cmd)
+                            if exit_status != 0:
+                                return ZMessage(
+                                    success=False, action="HDDMount",
+                                    message=f"创建qcow2文件失败")
+                            logger.info(f"本地创建qcow2文件: {disk_dir}/{disk_name}, 大小: {disk_size}, 使用scsi设备号: {scsi_num}")
+                    except Exception as e:
+                        traceback.print_exc()
+                        return ZMessage(
+                            success=False, action="HDDMount",
+                            message=f"创建qcow2文件异常: {str(e)}")
+
+                # 目录格式：<storage_name>:<volume_name>
+                storage_name = self.hs_config.extern_path
+                disk_config = f"{storage_name}:{vmid}/{disk_name}"
                 vm.config.put(**{f"scsi{scsi_num}": disk_config})
 
-                vm_imgs.hdd_flag = 1
+                # 保存scsi设备号和状态，方便卸载时使用
+                vm_imgs.hdd_flag = 1  # 1表示已挂载
+                vm_imgs.scsi_device = f"scsi{scsi_num}"
+                vm_imgs.disk_file = disk_name
                 self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name] = vm_imgs
-
-                logger.info(f"硬盘已挂载到虚拟机 {vm_name}")
+                self.data_set()
+                logger.info(f"硬盘已挂载到虚拟机 {vm_name}，设备: scsi{scsi_num}")
             else:
-                # 卸载硬盘
-                if vm_imgs.hdd_name in self.vm_saving[vm_name].hdd_all:
-                    self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name].hdd_flag = 0
+                # 卸载硬盘（从虚拟机中移除设备，但保留配置和磁盘文件，可以重新挂载）
+                if vm_imgs.hdd_name not in self.vm_saving[vm_name].hdd_all:
+                    return ZMessage(
+                        success=False, action="HDDMount",
+                        message=f"硬盘 {vm_imgs.hdd_name} 不在虚拟机配置中")
 
-                logger.info(f"硬盘已从虚拟机 {vm_name} 卸载")
+                # 获取硬盘配置信息
+                mounted_disk = self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name]
+                scsi_device = getattr(mounted_disk, 'scsi_device', None)
+                disk_file = getattr(mounted_disk, 'disk_file', None)
 
-            # 保存配置
-            old_conf = deepcopy(self.vm_saving[vm_name])
-            self.VMUpdate(self.vm_saving[vm_name], old_conf)
+                if not scsi_device:
+                    # 如果没有保存scsi设备号，尝试从配置中查找
+                    config = vm.config.get()
+                    scsi_device = None
+                    disk_storage = None
+                    disk_volume = None
+
+                    # 从disk_file获取要卸载的磁盘文件名
+                    target_disk_file = disk_file  # 这是我们要卸载的磁盘文件名
+                    if not target_disk_file:
+                        return ZMessage(
+                            success=False, action="HDDMount",
+                            message="无法确定要卸载的磁盘文件，请重新挂载后再尝试")
+
+                    for scsi_key, scsi_value in config.items():
+                        if scsi_key.startswith('scsi'):
+                            # scsi_value格式: "storage_name:vmid/disk_name" 或 "storage_name:vmid/disk_name,size=10G"
+                            if ':' in scsi_value:
+                                storage_part, volume_part = scsi_value.split(':', 1)
+                                current_disk_volume = volume_part.split(',')[0]  # 去掉可能存在的size等参数
+
+                                # 提取当前遍历到的磁盘文件名
+                                if '/' in current_disk_volume:
+                                    current_disk_file = current_disk_volume.split('/')[-1]
+
+                                    # 重要：验证这个scsi设备是否真的对应我们要卸载的硬盘
+                                    if current_disk_file == target_disk_file:
+                                        scsi_device = scsi_key
+                                        disk_storage = storage_part
+                                        disk_volume = current_disk_volume
+                                        logger.info(f"找到匹配的scsi设备: {scsi_device}, 磁盘文件: {current_disk_file}")
+                                        break
+                                    else:
+                                        logger.warning(f"跳过不匹配的设备: {scsi_key} (期望: {target_disk_file}, 实际: {current_disk_file})")
+
+                if not scsi_device:
+                    return ZMessage(
+                        success=False, action="HDDMount",
+                        message=f"未找到要卸载的scsi设备 (磁盘文件: {disk_file})")
+
+                # 从Proxmox配置中删除该设备（卸载，不是删除）
+                try:
+                    # 使用 'none' 值来删除配置项
+                    vm.config.put(**{scsi_device: "none"})
+                    logger.info(f"已从Proxmox配置中卸载 {scsi_device} 设备")
+
+                    # 更新本地配置：标记为已卸载，保留配置信息
+                    mounted_disk.hdd_flag = 0  # 0表示已卸载
+                    mounted_disk.scsi_device = None  # 清除设备号
+                    # 保留 disk_file，用于后续重新挂载
+                    self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name] = mounted_disk
+                    logger.info(f"硬盘 {vm_imgs.hdd_name} 已标记为已卸载状态，保留在配置列表中")
+
+                except Exception as delete_error:
+                    logger.error(f"卸载硬盘失败: {str(delete_error)}")
+                    traceback.print_exc()
+                    return ZMessage(
+                        success=False, action="HDDMount",
+                        message=f"卸载硬盘失败: {str(delete_error)}")
+
+                logger.info(f"硬盘已从虚拟机 {vm_name} 卸载，配置已保留")
+
+            # 保存配置到数据库（避免调用VMUpdate导致重启）
             self.data_set()
+            logger.info(f"虚拟机 {vm_name} 配置已保存到数据库")
 
             # 重启虚拟机（如果之前在运行）
             if was_running:
@@ -994,8 +1114,117 @@ class HostServer(BasicServer):
 
     # 移除磁盘 #################################################################
     def RMMounts(self, vm_name: str, vm_imgs: str) -> ZMessage:
-        """移除磁盘"""
-        return super().RMMounts(vm_name, vm_imgs)
+        """删除磁盘（完全移除，包括物理文件和配置记录）"""
+        client, result = self.api_conn()
+        if not result.success:
+            return result
+
+        try:
+            if vm_name not in self.vm_saving:
+                return ZMessage(
+                    success=False, action="RMMounts",
+                    message="虚拟机不存在")
+
+            if vm_imgs not in self.vm_saving[vm_name].hdd_all:
+                return ZMessage(
+                    success=False, action="RMMounts",
+                    message=f"硬盘 {vm_imgs} 不在虚拟机配置中")
+
+            vm_conf = self.vm_saving[vm_name]
+            vmid = self.get_vmid(vm_conf)
+            if vmid is None:
+                return ZMessage(
+                    success=False, action="RMMounts",
+                    message=f"虚拟机 {vm_name} 的VMID未找到")
+
+            vm = client.nodes(self.hs_config.launch_path).qemu(vmid)
+
+            # 获取硬盘配置信息
+            mounted_disk = self.vm_saving[vm_name].hdd_all[vm_imgs]
+            scsi_device = getattr(mounted_disk, 'scsi_device', None)
+            disk_file = getattr(mounted_disk, 'disk_file', None)
+
+            # 安全检查：防止删除系统盘或受保护的设备
+            if disk_file and 'vm-100-disk-0' in disk_file:
+                return ZMessage(
+                    success=False, action="RMMounts",
+                    message="不能删除系统盘（vm-100-disk-0）")
+
+            # 停止虚拟机（如果正在运行）
+            status = vm.status.current.get()
+            was_running = status['status'] == 'running'
+            if was_running:
+                self.VMPowers(vm_name, VMPowers.H_CLOSE)
+
+            # 如果硬盘已挂载（hdd_flag=1），需要先从虚拟机配置中移除
+            if mounted_disk.hdd_flag == 1 and scsi_device:
+                # 安全检查：再次确认这不是系统盘
+                if not scsi_device.startswith('scsi'):
+                    logger.error(f"尝试删除非SCSI设备: {scsi_device}")
+                    return ZMessage(
+                        success=False, action="RMMounts",
+                        message=f"只能删除SCSI设备，不支持删除 {scsi_device}")
+
+                # 检查scsi设备是否还在虚拟机配置中
+                config = vm.config.get()
+                if scsi_device in config:
+                    # 从Proxmox配置中删除该设备
+                    vm.config.put(**{scsi_device: "none"})
+                    logger.info(f"已从Proxmox配置中移除 {scsi_device} 设备")
+
+            # 删除qcow2磁盘文件
+            if disk_file:
+                try:
+                    # 构建磁盘文件路径
+                    storage_name = self.hs_config.extern_path or 'local'
+
+                    # 构建正确的磁盘文件路径
+                    if storage_name == 'local':
+                        disk_path = f"/var/lib/vz/images/{vmid}/{disk_file}"
+                    else:
+                        # 其他存储的路径构建方式
+                        disk_path = f"/var/lib/vz/{storage_name}/{vmid}/{disk_file}"
+
+                    if self.web_flag():
+                        # 远程模式：通过SSH删除文件
+                        ssh = paramiko.SSHClient()
+                        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                        ssh.connect(
+                            self.hs_config.server_addr,
+                            username=self.hs_config.server_user,
+                            password=self.hs_config.server_pass)
+                        ssh.exec_command(f"rm -f {disk_path}")
+                        ssh.close()
+                        logger.info(f"通过SSH删除qcow2文件: {disk_path}")
+                    else:
+                        # 本地模式：直接删除文件
+                        os.remove(disk_path)
+                        logger.info(f"本地删除qcow2文件: {disk_path}")
+                except Exception as file_error:
+                    logger.warning(f"删除qcow2文件失败: {str(file_error)}")
+                    # 文件删除失败不影响配置删除，继续执行
+
+            # 从配置列表中完全删除硬盘
+            del self.vm_saving[vm_name].hdd_all[vm_imgs]
+            logger.info(f"已从配置列表中删除硬盘 {vm_imgs}")
+
+            # 保存配置到数据库
+            self.data_set()
+            logger.info(f"虚拟机 {vm_name} 配置已保存到数据库")
+
+            # 重启虚拟机（如果之前在运行）
+            if was_running:
+                self.VMPowers(vm_name, VMPowers.S_START)
+
+            return ZMessage(
+                success=True, action="RMMounts",
+                message=f"硬盘 {vm_imgs} 删除成功")
+
+        except Exception as e:
+            traceback.print_exc()
+            return ZMessage(
+                success=False, action="RMMounts",
+                message=f"删除硬盘失败: {str(e)}")
 
     # 查找显卡 #################################################################
     def GPUShows(self) -> dict[str, str]:
