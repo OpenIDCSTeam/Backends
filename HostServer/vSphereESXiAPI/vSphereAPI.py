@@ -61,7 +61,7 @@ class vSphereAPI:
                                 message="无法连接到ESXi主机")
 
             self.content = self.si.RetrieveContent()
-            logger.info(f"成功连接到ESXi主机: {self.host}")
+            # logger.info(f"成功连接到ESXi主机: {self.host}")
             return ZMessage(success=True, action="connect",
                             message="连接成功")
 
@@ -77,7 +77,7 @@ class vSphereAPI:
                 Disconnect(self.si)
                 self.si = None
                 self.content = None
-                logger.info(f"已断开与ESXi主机的连接: {self.host}")
+                # logger.info(f"已断开与ESXi主机的连接: {self.host}")
             return ZMessage(success=True, action="disconnect",
                             message="断开连接成功")
         except Exception as e:

@@ -83,7 +83,7 @@ host.HSUnload()
 
 ```bash
 # 以管理员身份运行
-python HostServer/HyperVAPI/test_hyperv.py
+python HostServer/Win64HyperVAPI/test_hyperv.py
 ```
 
 ## 常见操作

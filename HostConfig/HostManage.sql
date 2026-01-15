@@ -19,7 +19,9 @@ CREATE TABLE IF NOT EXISTS hs_config
     server_addr TEXT NOT NULL,          -- 服务器的地址
     server_user TEXT NOT NULL,          -- 服务器的用户
     server_pass TEXT NOT NULL,          -- 服务器的密码
-    images_path TEXT,                   -- 虚拟机的镜像
+    server_port INTEGER   DEFAULT 0,    -- 服务访问端口
+    images_path TEXT,                   -- 系统镜像存储
+    dvdrom_path TEXT,                   -- 光盘镜像存储
     system_path TEXT,                   -- 虚拟机的系统
     backup_path TEXT,                   -- 虚拟机的备份
     extern_path TEXT,                   -- 虚拟机的数据

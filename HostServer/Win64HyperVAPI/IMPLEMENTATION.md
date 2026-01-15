@@ -205,7 +205,7 @@ loguru>=0.7.0     # 日志记录
 
 ```bash
 # 运行测试脚本
-python HostServer/HyperVAPI/test_hyperv.py
+python HostServer/Win64HyperVAPI/test_hyperv.py
 ```
 
 测试脚本会验证：

@@ -315,9 +315,9 @@
     // 收集完整UUID（前缀+输入值）
     function collectVmUuid() {
         const prefix = hostConfig.filter_name || '';
-        const prefixWithUnderscore = prefix ? (prefix.endsWith('_') ? prefix : prefix + '_') : '';
+        const prefixWithHyphen = prefix ? (prefix.endsWith('-') ? prefix : prefix + '-') : '';
         const input = document.getElementById('vmUuidInput').value || '';
-        document.getElementById('vmUuid').value = prefixWithUnderscore + input;
+        document.getElementById('vmUuid').value = prefixWithHyphen + input;
     }
 
     // 更新UUID前缀显示
@@ -325,7 +325,7 @@
         const prefix = hostConfig.filter_name || '';
         const prefixSpan = document.getElementById('vmUuidPrefix');
         if (prefixSpan) {
-            prefixSpan.textContent = prefix ? (prefix.endsWith('_') ? prefix : prefix + '_') : '';
+            prefixSpan.textContent = prefix ? (prefix.endsWith('-') ? prefix : prefix + '-') : '';
         }
     }
 

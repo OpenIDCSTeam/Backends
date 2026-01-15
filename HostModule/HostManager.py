@@ -73,9 +73,9 @@ class HostManage:
     def add_host(self, hs_name: str, hs_type: str, hs_conf: HSConfig) -> ZMessage:
         try:
             if hs_name in self.engine:
-                return ZMessage(success=False, message="Host already add")
+                return ZMessage(success=False, message="主机已添加")
             if hs_type not in HEConfig:
-                return ZMessage(success=False, message="Host unsupported")
+                return ZMessage(success=False, message="不支持的主机类型")
             # 设置server_name（关键！）=================
             hs_conf.server_name = hs_name
             self.engine[hs_name] = HEConfig[hs_type]["Imported"](hs_conf, db=self.saving)
@@ -83,7 +83,7 @@ class HostManage:
             self.engine[hs_name].HSLoader()
             # 保存主机配置到数据库
             self.saving.set_hs_config(hs_name, hs_conf)
-            return ZMessage(success=True, message="Host added successful")
+            return ZMessage(success=True, message="主机添加成功")
         except Exception as e:
             logger.error(f"添加主机失败: {e}")
             traceback.print_exc()
@@ -107,7 +107,7 @@ class HostManage:
     def set_host(self, hs_name: str, hs_conf: HSConfig) -> ZMessage:
         try:
             if hs_name not in self.engine:
-                return ZMessage(success=False, message="Host not found")
+                return ZMessage(success=False, message="主机未找到")
 
             # 保存原有的虚拟机配置
             old_server = self.engine[hs_name]
@@ -125,7 +125,7 @@ class HostManage:
             self.engine[hs_name].HSLoader()
             # 保存主机配置到数据库
             self.saving.set_hs_config(hs_name, hs_conf)
-            return ZMessage(success=True, message="Host updated successful")
+            return ZMessage(success=True, message="主机更新成功")
         except Exception as e:
             logger.error(f"修改主机失败: {e}")
             traceback.print_exc()
@@ -135,12 +135,12 @@ class HostManage:
     def pwr_host(self, hs_name: str, hs_flag: bool) -> ZMessage:
         try:
             if hs_name not in self.engine:
-                return ZMessage(success=False, message="Host not found")
+                return ZMessage(success=False, message="主机未找到")
             if hs_flag:
                 self.engine[hs_name].HSLoader()
             else:
                 self.engine[hs_name].HSUnload()
-            return ZMessage(success=True, message="Host enable=" + str(hs_flag))
+            return ZMessage(success=True, message="主机启用=" + str(hs_flag))
         except Exception as e:
             logger.error(f"修改主机状态失败: {e}")
             traceback.print_exc()
@@ -237,16 +237,6 @@ class HostManage:
                         vm_saving=vm_saving_converted
                     )
                     self.engine[hs_name].HSLoader()
-                    try:
-                        self.engine[hs_name].VMLoader()
-                    except Exception as vc_error:
-                        # 如果是多进程相关错误，记录警告但不阻止其他服务器加载
-                        if "multiprocessing" in str(vc_error) or "process" in str(vc_error).lower():
-                            logger.warning(f"服务器 {hs_name} 的VNC控制台启动失败 (多进程相关): {vc_error}")
-                            logger.info(f"服务器 {hs_name} 的VNC控制台将在首次访问时启动")
-                        else:
-                            raise vc_error
-
         except Exception as e:
             logger.error(f"加载数据时出错: {e}")
             traceback.print_exc()
@@ -286,7 +276,7 @@ class HostManage:
         :return: 操作结果
         """
         if hs_name not in self.engine:
-            return ZMessage(success=False, message=f"Host {hs_name} not found")
+            return ZMessage(success=False, message=f"主机 {hs_name} 未找到")
 
         server = self.engine[hs_name]
 

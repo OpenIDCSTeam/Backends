@@ -568,7 +568,7 @@ class VRestAPI:
         # 光盘镜像 ========================================================
         for iso_name in vm_conf.iso_all:
             iso_data = vm_conf.iso_all[iso_name]
-            iso_full = os.path.join(hs_config.images_path, iso_data.iso_file)
+            iso_full = os.path.join(hs_config.dvdrom_path, iso_data.iso_file)  # 使用dvdrom_path存储光盘镜像
             vmx_config[f"sata0:{str(hdd_nums)}"] = {
                 "fileName": iso_full,
                 "present": "TRUE",

@@ -1145,12 +1145,12 @@ class RestManager:
             if server.hs_config and hasattr(server.hs_config, 'filter_name'):
                 prefix = server.hs_config.filter_name or ''
 
-            # 如果没有配置前缀，使用默认前缀 'VM-'
+            # 如果没有配置前缀，使用默认前缀 'vmx-'
             if not prefix:
-                prefix = 'vmx_'
-            elif not prefix.endswith('_'):
-                # 如果前缀不以 '_' 结尾，添加 '_'
-                prefix = prefix + '_'
+                prefix = 'vmx-'
+            elif not prefix.endswith('-'):
+                # 如果前缀不以 '-' 结尾，添加 '-'
+                prefix = prefix + '-'
 
             # 生成格式: <前缀><8位随机字符>
             random_suffix = ''.join(
@@ -1904,8 +1904,6 @@ class RestManager:
         if not server:
             return self.api_response(404, '主机不存在')
         try:
-            if server.vm_remote is None:
-                server.VMLoader()
             result = server.VMRemote(vm_uuid)
             if not result.success:
                 return self.api_response(400, result.message)
@@ -1942,7 +1940,7 @@ class RestManager:
         vm_status_sig = inspect.signature(server.VMStatus)
         if 'start_timestamp' in vm_status_sig.parameters:
             # 支持时间戳参数的服务器（如BasicServer）
-            status_dict = server.VMStatus(vm_uuid, start_timestamp=start_timestamp, end_timestamp=current_timestamp)
+            status_dict = server.VMStatus(vm_uuid, s_t=start_timestamp, e_t=current_timestamp)
         else:
             # 不支持时间戳参数的服务器（如Workstation, OCInterface等）
             status_dict = server.VMStatus(vm_uuid)
@@ -2021,7 +2019,7 @@ class RestManager:
             # 从数据库重新加载虚拟机配置
             try:
                 server.data_get()
-                logger.info(f"[虚拟机上报] 主机 {hs_name} 已加载 {len(server.vm_saving)} 个虚拟机配置")
+                # logger.info(f"[虚拟机上报] 主机 {hs_name} 已加载 {len(server.vm_saving)} 个虚拟机配置")
             except Exception as e:
                 logger.error(f"[虚拟机上报] 主机 {hs_name} 加载配置失败: {e}")
                 continue
@@ -2058,9 +2056,11 @@ class RestManager:
                                 result = server.save_data.add_vm_status(server.hs_config.server_name, vm_uuid,
                                                                         hw_status)
                                 logger.debug(f"[虚拟机上报] add_vm_status 返回结果: {result}")
-                                if result:
-                                    logger.success(f"[虚拟机上报] 状态已成功保存到数据库")
-                                else:
+                                # if result:
+                                #     logger.success(f"[虚拟机上报] 状态已成功保存到数据库")
+                                # else:
+                                #     logger.warning(f"[虚拟机上报] 状态保存失败")
+                                if not result:
                                     logger.warning(f"[虚拟机上报] 状态保存失败")
                             else:
                                 logger.warning(
@@ -2329,7 +2329,7 @@ class RestManager:
             nic_config.mac_addr = nic_config.send_mac()
 
         # 执行NCCreate绑定静态IP
-        nc_result = server.NCCreate(vm_config, True)
+        nc_result = server.IPBinder(vm_config, True)
         if not nc_result.success:
             return self.api_response(400, f'绑定静态IP失败: {nc_result.message}')
 

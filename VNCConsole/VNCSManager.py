@@ -9,7 +9,7 @@ from multiprocessing import Process
 from loguru import logger
 
 
-class VNCStart:
+class WebsocketUI:
     # Websockify 管理器 ##########################################################
     # :param web_port: Websockify 端口
     # ############################################################################
@@ -187,10 +187,10 @@ class VNCStart:
             logger.info("")
 
 
-class VProcess:
+class VNCSManager:
     """多进程管理器，用于在独立进程中运行 websockify 服务"""
 
-    def __init__(self, in_exec: VNCStart):
+    def __init__(self, in_exec: WebsocketUI):
         self.exec = in_exec
         self.proc: Optional[Process] = None
 
@@ -240,7 +240,7 @@ class VProcess:
 
 # 使用示例
 if __name__ == "__main__":
-    web_data = VNCStart(web_port=6090)
+    web_data = WebsocketUI(web_port=6090)
 
     # 添加多个VNC目标
     # vnc_pass1 = "server1"

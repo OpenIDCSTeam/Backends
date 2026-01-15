@@ -113,13 +113,25 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-4">
+                    <!-- 语言选择器 -->
+                    <div class="relative" id="languageSelector">
+                        <button id="languageButton" class="flex items-center space-x-2 text-gray-700 bg-gray-50 px-3 py-2 rounded-lg smooth-transition hover:bg-gray-100">
+                            <span class="iconify text-gray-500" data-icon="mdi:translate" data-width="20"></span>
+                            <span class="text-sm font-medium" id="currentLanguageName">简体中文</span>
+                            <span class="iconify text-gray-500" data-icon="mdi:chevron-down" data-width="16"></span>
+                        </button>
+                        <div id="languageDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                            <!-- 语言列表将通过JavaScript动态加载 -->
+                        </div>
+                    </div>
+                    
                     <a href="/profile" class="flex items-center space-x-2 text-gray-700 bg-gray-50 px-3 py-2 rounded-lg smooth-transition hover:bg-gray-100">
                         <span class="iconify text-gray-500" data-icon="mdi:account-circle" data-width="20"></span>
                         <span class="text-sm font-medium">{{ username }}</span>
                     </a>
                     <a href="/logout" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium btn-hover shadow-sm flex items-center gap-2">
                         <span class="iconify" data-icon="mdi:logout" data-width="16"></span>
-                        退出
+                        <span data-i18n="退出">退出</span>
                     </a>
                 </div>
             </div>
@@ -154,6 +166,178 @@
     <div id="toast-container" class="fixed top-20 right-4 z-50 space-y-2"></div>
 
     <script>
+        // ============================================================================
+        // 国际化/翻译功能
+        // ============================================================================
+        
+        // 全局翻译对象
+        window.i18n = {
+            currentLanguage: 'zh-cn',
+            translations: {},
+            availableLanguages: []
+        };
+        
+        // 获取浏览器语言
+        function getBrowserLanguage() {
+            const lang = navigator.language || navigator.userLanguage;
+            // 将浏览器语言代码转换为我们的格式
+            if (lang.startsWith('zh')) {
+                return 'zh-cn';
+            } else if (lang.startsWith('en')) {
+                return 'en-us';
+            }
+            return 'zh-cn'; // 默认中文
+        }
+        
+        // 从localStorage获取保存的语言设置
+        function getSavedLanguage() {
+            return localStorage.getItem('language') || getBrowserLanguage();
+        }
+        
+        // 保存语言设置到localStorage
+        function saveLanguage(lang) {
+            localStorage.setItem('language', lang);
+        }
+        
+        // 加载可用语言列表
+        async function loadAvailableLanguages() {
+            try {
+                const response = await fetch('/api/i18n/languages');
+                const result = await response.json();
+                if (result.code === 200) {
+                    window.i18n.availableLanguages = result.data;
+                    renderLanguageDropdown();
+                }
+            } catch (error) {
+                console.error('加载语言列表失败:', error);
+            }
+        }
+        
+        // 渲染语言下拉菜单
+        function renderLanguageDropdown() {
+            const dropdown = document.getElementById('languageDropdown');
+            if (!dropdown) return;
+            
+            dropdown.innerHTML = window.i18n.availableLanguages.map(lang => `
+                <button onclick="changeLanguage('${lang.code}')" 
+                        class="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 ${lang.code === window.i18n.currentLanguage ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}">
+                    <span class="iconify" data-icon="${lang.code === window.i18n.currentLanguage ? 'mdi:check' : 'mdi:translate'}" data-width="16"></span>
+                    <span>${lang.native}</span>
+                </button>
+            `).join('');
+        }
+        
+        // 加载翻译数据
+        async function loadTranslations(lang) {
+            try {
+                const response = await fetch(`/api/i18n/translations/${lang}`);
+                const result = await response.json();
+                if (result.code === 200) {
+                    window.i18n.translations = result.data;
+                    window.i18n.currentLanguage = lang;
+                    saveLanguage(lang);
+                    applyTranslations();
+                    updateLanguageDisplay();
+                }
+            } catch (error) {
+                console.error('加载翻译数据失败:', error);
+            }
+        }
+        
+        // 应用翻译到页面
+        function applyTranslations() {
+            // 查找所有带有data-i18n属性的元素
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                const translation = window.i18n.translations[key];
+                if (translation) {
+                    // 如果元素有子元素，只替换文本节点
+                    if (element.children.length > 0) {
+                        // 保留子元素，只替换文本
+                        const childrenHTML = Array.from(element.children).map(child => child.outerHTML).join('');
+                        element.innerHTML = translation + childrenHTML;
+                    } else {
+                        element.textContent = translation;
+                    }
+                }
+            });
+            
+            // 翻译placeholder
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+                const key = element.getAttribute('data-i18n-placeholder');
+                const translation = window.i18n.translations[key];
+                if (translation) {
+                    element.placeholder = translation;
+                }
+            });
+            
+            // 翻译title
+            document.querySelectorAll('[data-i18n-title]').forEach(element => {
+                const key = element.getAttribute('data-i18n-title');
+                const translation = window.i18n.translations[key];
+                if (translation) {
+                    element.title = translation;
+                }
+            });
+        }
+        
+        // 更新语言显示
+        function updateLanguageDisplay() {
+            const currentLangName = document.getElementById('currentLanguageName');
+            if (currentLangName) {
+                const lang = window.i18n.availableLanguages.find(l => l.code === window.i18n.currentLanguage);
+                if (lang) {
+                    currentLangName.textContent = lang.native;
+                }
+            }
+            renderLanguageDropdown();
+        }
+        
+        // 切换语言
+        async function changeLanguage(lang) {
+            await loadTranslations(lang);
+            // 关闭下拉菜单
+            document.getElementById('languageDropdown').classList.add('hidden');
+        }
+        
+        // 翻译函数（供JavaScript使用）
+        function t(key, defaultValue = null) {
+            return window.i18n.translations[key] || defaultValue || key;
+        }
+        
+        // 语言选择器事件
+        document.addEventListener('DOMContentLoaded', () => {
+            const languageButton = document.getElementById('languageButton');
+            const languageDropdown = document.getElementById('languageDropdown');
+            
+            if (languageButton && languageDropdown) {
+                // 点击按钮切换下拉菜单
+                languageButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    languageDropdown.classList.toggle('hidden');
+                });
+                
+                // 点击页面其他地方关闭下拉菜单
+                document.addEventListener('click', () => {
+                    languageDropdown.classList.add('hidden');
+                });
+                
+                // 阻止下拉菜单内的点击事件冒泡
+                languageDropdown.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
+            }
+            
+            // 初始化翻译系统
+            (async () => {
+                await loadAvailableLanguages();
+                const savedLang = getSavedLanguage();
+                await loadTranslations(savedLang);
+            })();
+        });
+        
+        // ============================================================================
+        
         // 设置当前年份
         document.getElementById('current-year').textContent = new Date().getFullYear();
         

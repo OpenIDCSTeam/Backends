@@ -9,30 +9,22 @@ import traceback
 import subprocess
 from loguru import logger
 from HostServer.BasicServer import BasicServer
-from HostModule.HttpManager import HttpManager
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Config.IMConfig import IMConfig
 from MainObject.Config.SDConfig import SDConfig
 from MainObject.Config.VMBackup import VMBackup
 from MainObject.Config.VMPowers import VMPowers
-from MainObject.Config.WebProxy import WebProxy
 from MainObject.Public.ZMessage import ZMessage
 from MainObject.Config.VMConfig import VMConfig
 from MainObject.Config.PortData import PortData
 from MainObject.Public.HWStatus import HWStatus
 from HostServer.OCInterfaceAPI.OCIConnects import OCIConnects
 from HostServer.OCInterfaceAPI.PortForward import PortForward
-from HostServer.OCInterfaceAPI.SSHTerminal import SSHTerminal
-from MainObject.Server.HSStatus import HSStatus
-
-try:
-    from docker.errors import NotFound
-except ImportError:
-    NotFound = Exception  # Fallback if docker is not available
+from docker.errors import NotFound
 
 
 class HostServer(BasicServer):
-    # 读取宿主机 ##############################################################
+    # 读取宿主机 ###############################################################
     def __init__(self, config: HSConfig, **kwargs):
         super().__init__(config, **kwargs)
         self.web_terminal = None
@@ -41,115 +33,18 @@ class HostServer(BasicServer):
         self.http_manager = None
         self.port_forward = None
 
-    # 连接到 Docker 服务器 ####################################################
-    def connect_docker(self) -> tuple:
+    # 连接到 Docker 服务器 #####################################################
+    def api_conn(self) -> tuple:
         if not self.oci_connects:
             self.oci_connects = OCIConnects(self.hs_config)
         return self.oci_connects.connect_docker()
 
-    # 同步端口转发配置 ##########################################################
-    # 删除不需要的转发，添加缺少的转发
-    ###########################################################################
-    def sync_forwarder(self):
-        try:
-            # 判断是否为远程主机
-            is_remote = False
-            if self.hs_config.server_addr not in ["localhost", "127.0.0.1"]:
-                if not self.hs_config.server_addr.startswith("ssh://"):
-                    is_remote = True
-            # 如果是远程主机，先建立SSH连接
-            if is_remote:
-                success, message = self.port_forward.connect_ssh()
-                if not success:
-                    logger.error(
-                        f"SSH连接失败，无法同步端口转发: {message}"
-                    )
-                    return
-            # 获取系统中已有的端口转发
-            existing_forwards = self.port_forward.list_ports(is_remote)
-            existing_map = {}  # {(lan_addr, lan_port): forward_info}
-            for forward in existing_forwards:
-                key = (forward.lan_addr, forward.lan_port)
-                existing_map[key] = forward
-
-            # 获取配置中需要的端口转发
-            required_forwards = {}  # {(lan_addr, lan_port): (wan_port, vm_name)}
-            for vm_name, vm_conf in self.vm_saving.items():
-                if not hasattr(vm_conf, 'nat_all'):
-                    continue
-
-                for port_data in vm_conf.nat_all:
-                    key = (port_data.lan_addr, port_data.lan_port)
-                    required_forwards[key] = (port_data.wan_port, vm_name)
-
-            # 删除不需要的转发
-            removed_count = 0
-            for key, forward in existing_map.items():
-                if key not in required_forwards:
-                    # 这个转发不在配置中，删除它
-                    if self.port_forward.remove_port_forward(
-                            forward.wan_port, forward.protocol, is_remote
-                    ):
-                        removed_count += 1
-                        logger.info(
-                            f"删除多余的端口转发: {forward.protocol} "
-                            f"{forward.wan_port} -> "
-                            f"{forward.lan_addr}:{forward.lan_port}"
-                        )
-
-            # 添加缺少的转发
-            added_count = 0
-            for key, (wan_port, vm_name) in required_forwards.items():
-                lan_addr, lan_port = key
-
-                # 检查是否已存在
-                if key in existing_map:
-                    existing_forward = existing_map[key]
-                    # 如果wan_port不同，需要先删除旧的再添加新的
-                    if existing_forward.wan_port != wan_port:
-                        self.port_forward.remove_port_forward(
-                            existing_forward.wan_port, existing_forward.protocol, is_remote
-                        )
-                        logger.info(
-                            f"端口映射变更，删除旧转发: {existing_forward.protocol} "
-                            f"{existing_forward.wan_port} -> {lan_addr}:{lan_port}"
-                        )
-                    else:
-                        # 端口转发已存在且配置正确，跳过
-                        continue
-
-                # 添加新的端口转发
-                success, error = self.port_forward.add_port_forward(
-                    lan_addr, lan_port, wan_port, "TCP", is_remote, vm_name
-                )
-
-                if success:
-                    added_count += 1
-                    logger.info(
-                        f"添加端口转发: TCP {wan_port} -> {lan_addr}:{lan_port} ({vm_name})"
-                    )
-                else:
-                    logger.error(
-                        f"添加端口转发失败: TCP {wan_port} -> {lan_addr}:{lan_port}, "
-                        f"错误: {error}"
-                    )
-
-            logger.info(
-                f"端口转发同步完成: 删除 {removed_count} 个，添加 {added_count} 个"
-            )
-
-            # 关闭SSH连接
-            if is_remote:
-                self.port_forward.close_ssh()
-
-        except Exception as e:
-            logger.error(f"同步端口转发时出错: {str(e)}")
-            traceback.print_exc()
-
-
+    # 同步端口转发配置 #########################################################
+    def syn_port(self):
+        return self.syn_port_TTY()
 
     # 构建容器配置 #############################################################
-    def docker_builder(self, vm_conf: VMConfig) -> dict:
+    def oci_conf(self, vm_conf: VMConfig) -> dict:
         # 创建基础配置 ==========================================
         config = {
             "environment": {},
@@ -197,15 +92,8 @@ class HostServer(BasicServer):
             logger.info(f"  {base_path}/user:/home/user")
         return config
 
-    # 判断是否为远程宿主机 #####################################################
-    def is_remote_host(self) -> bool:
-        if self.hs_config.server_addr not in ["localhost", "127.0.0.1"]:
-            if not self.hs_config.server_addr.startswith("ssh://"):
-                return True
-        return False
-
     # 解析Docker容器统计信息 ###################################################
-    def parse_vm_stats(self, stats: dict, vm_uuid: str) -> HWStatus:
+    def get_info(self, stats: dict, vm_uuid: str) -> HWStatus:
         """
         解析Docker容器统计信息，转换为HWStatus对象
 
@@ -298,7 +186,7 @@ class HostServer(BasicServer):
         # 获取所有容器的性能状态
         try:
             # 连接到 Docker 服务器
-            client, result = self.connect_docker()
+            client, result = self.api_conn()
             if not result.success:
                 logger.warning(f"[{self.hs_config.server_name}] Crontabs: Docker连接失败，跳过容器状态采集")
                 return True
@@ -322,7 +210,7 @@ class HostServer(BasicServer):
                     stats = container.stats(stream=False)
 
                     # 解析统计信息并创建HWStatus对象
-                    hw_status = self.parse_vm_stats(stats, vm_uuid)
+                    hw_status = self.get_info(stats, vm_uuid)
 
                     # 保存到数据库
                     if self.save_data and self.hs_config.server_name:
@@ -352,7 +240,7 @@ class HostServer(BasicServer):
         # 专用操作 =============================================================
         try:
             # 连接到 Docker 服务器
-            client, result = self.connect_docker()
+            client, result = self.api_conn()
             if not result.success:
                 logger.error(f"无法连接到Docker获取状态: {result.message}")
                 return super().HSStatus()
@@ -405,32 +293,15 @@ class HostServer(BasicServer):
 
     # 加载主机配置 #############################################################
     def HSLoader(self) -> ZMessage:
-        # 专用操作 =============================================================
-        if not self.web_terminal:
-            self.web_terminal = SSHTerminal(self.hs_config)
-
-        # 初始化HttpManage，使用caddy_主机名.txt作为配置文件名
-        if not self.http_manager:
-            # 获取主机名，使用server_name，如果没有则使用默认值
-            hostname = getattr(self.hs_config, 'server_name', '')
-            config_filename = f"vnc-{hostname}.txt"
-            self.http_manager = HttpManager(config_filename)
-            # 初始化SSH代理管理
-            self.http_manager.launch_vnc(self.hs_config.remote_port)
-            self.http_manager.launch_web()
-        # 初始化Socat端口转发管理器
-        if not self.port_forward:
-            self.port_forward = PortForward(self.hs_config)
-        # 连接到 Docker 服务器 =================================================
-        client, result = self.connect_docker()
+        # 连接到Docker服务器 ===================================================
+        client, result = self.api_conn()
         if not result.success:
             return result
-
+        result = super().HSLoader()
         # 同步端口转发配置 =====================================================
-        self.sync_forwarder()
-
+        self.syn_port()
         # 通用操作 =============================================================
-        return super().HSLoader()
+        return result
 
     # 卸载宿主机 ###############################################################
     def HSUnload(self) -> ZMessage:
@@ -453,13 +324,13 @@ class HostServer(BasicServer):
     #  :return: (更新后的虚拟机配置, 操作结果消息)
     def NetCheck(self, vm_conf: VMConfig) -> tuple:
         # 连接到 Docker 服务器
-        client, result = self.connect_docker()
+        client, result = self.api_conn()
         if not result.success:
             return vm_conf, result
 
         try:
             # 获取所有已分配的IP地址（包括其他虚拟机）
-            allocated_ips = self.IPGrants()
+            allocated_ips = self.IPCollect()
 
             # 检查是否有重复的网卡类型（禁止同一容器分配多个相同类型的网卡）
             nic_types = {}
@@ -645,14 +516,11 @@ class HostServer(BasicServer):
                 message=f"网络检查失败: {str(e)}"
             )
 
-    # 加载虚拟机 ###############################################################
-    def VMLoader(self) -> bool:
-        pass
 
     # 虚拟机扫描 ###############################################################
     def VMDetect(self) -> ZMessage:
         # 专用操作 =============================================================
-        client, result = self.connect_docker()
+        client, result = self.api_conn()
         if not result.success:
             return result
         try:
@@ -699,18 +567,15 @@ class HostServer(BasicServer):
                 success=False, action="VScanner",
                 message=f"扫描容器时出错: {str(e)}")
 
-    def NCUpdate(self, vm_conf: VMConfig, vm_last: VMConfig) -> ZMessage:
-        self.NCCreate(vm_last, False)
-        self.NCCreate(vm_conf, True)
-        return ZMessage(success=True, action="VMUpdate")
+    def IPUpdate(self, vm_conf: VMConfig, vm_last: VMConfig) -> ZMessage:
+        return self.IPUpdate_TTY(vm_conf, vm_last)
 
     # 网络动态绑定 #############################################################
-    def NCCreate(self, vm_conf: VMConfig, flag=True) -> ZMessage:
+    def IPBinder_MAN(self, vm_conf: VMConfig, flag=True) -> ZMessage:
         # 连接服务 =============================================
-        client, result = self.connect_docker()
+        client, result = self.api_conn()
         if not result.success:
             return result
-
         # 获取容器 =============================================
         try:
             container = client.containers.get(vm_conf.vm_uuid)
@@ -740,10 +605,9 @@ class HostServer(BasicServer):
             # 检查是否已经处理过这个网络
             if nic_main in processed_networks:
                 logger.warning(
-                    f"跳过重复网络连接: {vm_conf.vm_uuid} 已连接到 {nic_main}，"
+                    f"跳过重复网络连接: {vm_conf.vm_uuid}，"
                     f"网卡 {nic_name} 使用相同网络类型")
                 continue
-
             # 连接容器网络 =====================================
             try:
                 nic_apis = client.networks.get(nic_main)
@@ -776,7 +640,7 @@ class HostServer(BasicServer):
         if not results.success:
             return results
         # 专用操作 =============================================================
-        client, result = self.connect_docker()
+        client, result = self.api_conn()
         if not result.success:
             return result
         try:
@@ -792,7 +656,7 @@ class HostServer(BasicServer):
             if not install_result.success:
                 raise Exception(f"无法加载镜像: {install_result.message}")
             # 构建容器配置 ================================================
-            container_config = self.docker_builder(vm_conf)
+            container_config = self.oci_conf(vm_conf)
             container = client.containers.create(
                 image=vm_conf.os_name,
                 name=vm_conf.vm_uuid,
@@ -800,7 +664,7 @@ class HostServer(BasicServer):
                 hostname=vm_conf.vm_uuid,
                 **container_config
             )
-            self.NCCreate(vm_conf, True)
+            self.IPBinder(vm_conf, True)
             # 启动容器 =========================================================
             container.start()
             self.VMPasswd(vm_conf.vm_uuid, vm_conf.os_pass)
@@ -819,7 +683,7 @@ class HostServer(BasicServer):
     # 安装虚拟机 ###############################################################
     def VMSetups(self, vm_conf: VMConfig) -> ZMessage:
         # 专用操作 =============================================================
-        client, result = self.connect_docker()
+        client, result = self.api_conn()
         if not result.success:
             return result
 
@@ -872,7 +736,7 @@ class HostServer(BasicServer):
         if not net_result.success:
             return net_result
         # 专用操作 =============================================================
-        client, result = self.connect_docker()
+        client, result = self.api_conn()
         if not result.success:
             return result
         try:
@@ -914,7 +778,7 @@ class HostServer(BasicServer):
                     self.VMPowers(container_name, VMPowers.H_RESET)
                     logger.info(f"容器 {container_name} 已重启以应用资源限制")
             # 更新网络配置 ======================================================
-            network_result = self.NCUpdate(vm_conf, vm_last)
+            network_result = self.IPUpdate(vm_conf, vm_last)
             if not network_result.success:
                 return ZMessage(
                     success=False, action="VMUpdate",
@@ -928,20 +792,16 @@ class HostServer(BasicServer):
                 message=f"容器 {container_name} 配置更新成功")
             self.logs_set(hs_result)
             return hs_result
-
         except Exception as e:
             traceback.print_exc()
             return ZMessage(
                 success=False, action="VMUpdate",
                 message=f"容器更新失败: {str(e)}")
 
-        # 通用操作 =============================================================
-        return super().VMUpdate(vm_conf, vm_last)
-
     # 删除虚拟机 ###############################################################
     def VMDelete(self, vm_name: str, rm_back=True) -> ZMessage:
         # 专用操作 =============================================================
-        client, result = self.connect_docker()
+        client, result = self.api_conn()
         if not result.success:
             return result
         # 获取虚拟机配置 =======================================================
@@ -1013,7 +873,7 @@ class HostServer(BasicServer):
     # 虚拟机电源 ###############################################################
     def VMPowers(self, vm_name: str, power: VMPowers) -> ZMessage:
         # 专用操作 =============================================================
-        client, result = self.connect_docker()
+        client, result = self.api_conn()
         if not result.success:
             return result
         try:
@@ -1132,7 +992,7 @@ class HostServer(BasicServer):
     # 设置虚拟机密码 ###########################################################
     def VMPasswd(self, vm_name: str, os_pass: str) -> ZMessage:
         # 专用操作 =============================================================
-        client, result = self.connect_docker()
+        client, result = self.api_conn()
         if not result.success:
             return result
 
@@ -1174,7 +1034,7 @@ class HostServer(BasicServer):
     # 备份虚拟机 ###############################################################
     def VMBackup(self, vm_name: str, vm_tips: str) -> ZMessage:
         # 专用操作 =============================================================
-        client, result = self.connect_docker()
+        client, result = self.api_conn()
         if not result.success:
             return result
         vm_conf = self.VMSelect(vm_name)
@@ -1198,7 +1058,7 @@ class HostServer(BasicServer):
             cmd_exec = f"docker export {vm_name} | gzip > \"{bak_path}\""
             bak_flag = False
             # 远程主机：使用SSH连接执行docker export命令 =================
-            if self.is_remote_host():
+            if self.web_flag():
                 logger.info(f"检测到远程主机，使用SSH连接进行备份")
                 # 建立SSH连接 --------------------------------------------
                 bak_flag, message = self.port_forward.connect_ssh()
@@ -1268,7 +1128,7 @@ class HostServer(BasicServer):
     # 恢复虚拟机 ###############################################################
     def Restores(self, vm_name: str, vm_back: str) -> ZMessage:
         # 连接接口 =============================================================
-        client, result = self.connect_docker()
+        client, result = self.api_conn()
         if not result.success:
             return result
         # 获取VM配置 ===========================================================
@@ -1292,7 +1152,7 @@ class HostServer(BasicServer):
         # 检查备份文件是否存在 =================================================
         file_exists = False
         # 远程主机：使用SSH检查文件是否存在 ====================================
-        if self.is_remote_host():
+        if self.web_flag():
             success, message = self.port_forward.connect_ssh()
             if not success:
                 return ZMessage(
@@ -1329,7 +1189,7 @@ class HostServer(BasicServer):
             logger.info(f"开始恢复容器 {vm_name}，"
                         f"备份文件: {backup_file}")
             # 选择恢复方式 =====================================================
-            if self.is_remote_host():
+            if self.web_flag():
                 logger.info(f"从远程主机恢复备份")
                 # Docker镜像名称必须是小写
                 image_tag = vm_back.split('.')[0].lower()
@@ -1372,7 +1232,7 @@ class HostServer(BasicServer):
                 else:
                     raise Exception(f"未知备份文件格式: {backup_file}")
             # 构建容器配置 =================================================
-            container_config = self.docker_builder(vm_conf)
+            container_config = self.oci_conf(vm_conf)
             # 从备份恢复的镜像没有默认CMD，需要指定启动命令
             container = client.containers.create(
                 image=image.id,
@@ -1383,7 +1243,7 @@ class HostServer(BasicServer):
                 **container_config
             )
             # 网络配置 ======================================================
-            network_result = self.NCCreate(vm_conf, flag=True)
+            network_result = self.IPBinder(vm_conf, flag=True)
             if not network_result.success:
                 logger.warning(f"网络配置失败: {network_result.message}")
             # 启动容器 ======================================================
@@ -1517,172 +1377,12 @@ class HostServer(BasicServer):
 
     # 端口映射 #################################################################
     def PortsMap(self, map_info: PortData, flag=True) -> ZMessage:
-        socat_forward = PortForward(self.hs_config)
-
-        # 判断是否为远程主机（排除 SSH 转发模式）
-        is_remote = (self.hs_config.server_addr not in ["localhost", "127.0.0.1", ""] and
-                     not self.hs_config.server_addr.startswith("ssh://"))
-
-        # 如果是远程主机，先建立SSH连接
-        if is_remote:
-            success, message = socat_forward.connect_ssh()
-            if not success:
-                return ZMessage(
-                    success=False, action="PortsMap",
-                    message=f"SSH 连接失败: {message}")
-
-        # 如果wan_port为0，自动分配一个未使用的端口
-        if map_info.wan_port == 0:
-            map_info.wan_port = socat_forward.allocate_port(is_remote)
-        else:
-            # 检查端口是否已被占用
-            existing_ports = socat_forward.get_host_ports(is_remote)
-            if map_info.wan_port in existing_ports:
-                if is_remote:
-                    socat_forward.close_ssh()
-                return ZMessage(
-                    success=False, action="PortsMap",
-                    message=f"端口 {map_info.wan_port} 已被占用")
-
-        # 执行端口映射操作
-        if flag:
-            success, error = socat_forward.add_port_forward(
-                map_info.lan_addr, map_info.lan_port, map_info.wan_port,
-                "TCP", is_remote, map_info.nat_tips)
-
-            if success:
-                hs_message = f"端口 {map_info.wan_port} 成功映射到 {map_info.lan_addr}:{map_info.lan_port}"
-                hs_success = True
-            else:
-                if is_remote:
-                    socat_forward.close_ssh()
-                return ZMessage(
-                    success=False, action="PortsMap",
-                    message=f"端口映射失败: {error}")
-        else:
-            socat_forward.remove_port_forward(
-                map_info.wan_port, "TCP", is_remote)
-            hs_message = f"端口 {map_info.wan_port} 映射已删除"
-            hs_success = True
-
-        hs_result = ZMessage(
-            success=hs_success, action="PortsMap",
-            message=hs_message)
-        self.logs_set(hs_result)
-
-        # 关闭 SSH 连接
-        if is_remote:
-            socat_forward.close_ssh()
-
-        return hs_result
-
-    # 反向代理 #################################################################
-    def ProxyMap(self,
-                 pm_info: WebProxy,
-                 vm_uuid: str,
-                 in_apis: HttpManager,
-                 in_flag=True) -> ZMessage:
-        # 获取虚拟机端口 ============================================================
-        if self.hs_config.server_addr not in ["localhost", "127.0.0.1"]:
-            pm_info.lan_port = self.FindPort(vm_uuid, pm_info.lan_port)
-            pm_info.lan_addr = self.hs_config.server_addr
-            if pm_info.lan_port == 0 and in_flag:
-                return ZMessage(
-                    success=False, action="ProxyMap",
-                    message="当主机为远程IP时，必须先添加NAT映射才能代理<br/>"
-                            "当前映射的本地端口缺少NAT映射，请先添加映射")
-        # 调用父类方法 ==============================================================
-        return super().ProxyMap(pm_info, vm_uuid, in_apis, in_flag)
+        return self.PortsMap_TTY(map_info, flag)
 
     # 删除VM备份 ###############################################################
     def RMBackup(self, vm_name: str, vm_back: str = "") -> ZMessage:
-        # 删除虚拟机备份文件 ===========================================
-        is_remote = self.is_remote_host()
-        del_files = []
-        # 远程主机：通过SSH获取并删除备份文件
-        if is_remote:
-            try:
-                flag, message = self.port_forward.connect_ssh()
-                if not flag:
-                    raise Exception(message)
-                # 列出备份 =============================================
-                list_cmd = (f"ls -1 {self.hs_config.backup_path}"
-                            f"/{vm_name}_* 2>/dev/null || true")
-                flag, out, err = \
-                    self.port_forward.execute_command(
-                        list_cmd, is_remote=True)
-                backup_files = []
-                if flag and out.strip():
-                    backup_files = out.strip().split('\n')
-                # 删除每个备份文件 =====================================
-                for bk_name in backup_files:
-                    if bk_name and (bk_name == vm_back or vm_back == ""):
-                        rm_cmd = f"rm -f \"{bk_name}\""
-                        flag, _, rm_err = \
-                            self.port_forward.execute_command(
-                                rm_cmd, is_remote=True)
-                        del_files.append(os.path.basename(bk_name))
-                        logger.info(f"已删除远程备份: "
-                                    f"{os.path.basename(bk_name)}")
-                self.port_forward.close_ssh()
-            # 处理删除失败 ==============================================
-            except Exception as e:
-                logger.warning(f"删除远程备份文件失败: {str(e)}")
-        # 本地主机：直接删除备份文件 ====================================
-        else:
-            if os.path.exists(self.hs_config.backup_path):
-                try:  # 扫描备份目录 ------------------------------------
-                    for bk_file in os.listdir(self.hs_config.backup_path):
-                        # 检查文件名是否以虚拟机名开头 ------------------
-                        if bk_file.startswith(f"{vm_name}_") and \
-                                (bk_file == vm_back or vm_back == ""):
-                            bk_path = os.path.join(
-                                self.hs_config.backup_path, bk_file)
-                            os.remove(bk_path)
-                            del_files.append(bk_file)
-                            logger.info(f"删除备份: {bk_file}")
-                except Exception as e:
-                    logger.warning(f"扫描备份目录失败: {str(e)}")
-        # 记录删除的备份文件 ===========================================
-        logger.info(f"共删除 {len(del_files)} 个备份文件")
-        return ZMessage(success=True,
-                        message=f"已删除 {len(del_files)} 个备份文件")
+        return self.RMBackup_TTY(vm_name, vm_back)
 
     # 删除容器挂载路径 #########################################################
     def RMMounts(self, vm_name: str, vm_imgs: str = "") -> ZMessage:
-        if vm_imgs != "":
-            return ZMessage(
-                success=True, action="ISOMount",
-                message="Docker containers do not support SSD mounting")
-        # 删除容器挂载路径 =============================================
-        if not self.hs_config.extern_path:
-            pass  # 没有配置挂载路径，跳过
-        else:
-            ct_path = f"{self.hs_config.extern_path}/{vm_name}"
-            # 远程主机删除挂载路径 =====================================
-            if self.is_remote_host():
-                try:
-                    flag, message = self.port_forward.connect_ssh()
-                    if not flag:
-                        logger.error(f"SSH连接失败: {message}")
-                        raise Exception(message)
-                    cmd = f"rm -rf {ct_path}"
-                    flag, out, err = self.port_forward.execute_command(
-                        cmd, is_remote=True)
-                    if flag:
-                        logger.info(f"删除挂载路径: {ct_path}")
-                    else:
-                        logger.warning(f"删除挂载失败 {ct_path}: {err}")
-                    self.port_forward.close_ssh()
-                except Exception as e:
-                    logger.warning(f"删除挂载失败 {ct_path}: {str(e)}")
-            # 本地主机删除挂载路径 =====================================
-            else:
-                try:
-                    if os.path.exists(ct_path):
-                        shutil.rmtree(ct_path)
-                        logger.info(f"删除挂载路径: {ct_path}")
-                except Exception as e:
-                    logger.warning(f"删除挂载失败 {ct_path}: {str(e)}")
-        # 返回结果 =============================================================
-        return ZMessage(success=True, action="RMMounts", message="删除成功")
+        return self.RMMounts_TTY(vm_name, vm_imgs)

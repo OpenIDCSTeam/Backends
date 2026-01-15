@@ -9,7 +9,7 @@ from MainObject.Public.ZMessage import ZMessage
 from HostModule.SSHDManager import SSHDManager
 
 
-class PortForwardInfo:
+class PortConfig:
     """端口转发信息"""
 
     def __init__(self, wan_port: int, lan_addr: str, lan_port: int,
@@ -24,11 +24,9 @@ class PortForwardInfo:
 
 class PortForward:
     """基于socat的端口转发管理API"""
-
     def __init__(self, hs_config: HSConfig):
         """
         初始化 Socat 端口转发 API
-        
         :param hs_config: 宿主机配置对象
         """
         self.hs_config = hs_config
@@ -61,7 +59,7 @@ class PortForward:
             return False, "", str(e)
 
     # 列出所有端口转发 #########################################################
-    def list_ports(self, is_remote: bool = False) -> list[PortForwardInfo]:
+    def list_ports(self, is_remote: bool = False) -> list[PortConfig]:
         """
         列出当前所有socat端口转发
         :param is_remote: 是否为远程主机
@@ -161,7 +159,7 @@ class PortForward:
                     logger.warning(f"无法解析PID: {line}")
                     continue
 
-                forward_info = PortForwardInfo(
+                forward_info = PortConfig(
                     wan_port=wan_port,
                     lan_addr=lan_addr,
                     lan_port=lan_port,

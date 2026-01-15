@@ -193,12 +193,12 @@ class DataManager:
             
             sql = """
             INSERT OR REPLACE INTO hs_config 
-            (hs_name, server_name, server_type, server_addr, server_user, server_pass, 
-             filter_name, images_path, system_path, backup_path, extern_path,
+            (hs_name, server_name, server_type, server_addr, server_user, server_pass, server_port,
+             filter_name, images_path, dvdrom_path, system_path, backup_path, extern_path,
              launch_path, network_nat, network_pub, i_kuai_addr, i_kuai_user, 
              i_kuai_pass, ports_start, ports_close, remote_port, system_maps, images_maps,
              public_addr, extend_data, server_dnss, limits_nums, ipaddr_maps, ipaddr_dnss, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             """
             params = (
                 hs_name,
@@ -207,8 +207,10 @@ class DataManager:
                 hs_config.server_addr,
                 hs_config.server_user,
                 hs_config.server_pass,
+                hs_config.server_port,  # 服务访问端口
                 hs_config.filter_name,
                 hs_config.images_path,
+                hs_config.dvdrom_path,  # 光盘镜像存储路径
                 hs_config.system_path,
                 hs_config.backup_path,
                 hs_config.extern_path,

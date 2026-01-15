@@ -1,11 +1,8 @@
 # vSphereESXi - VMware ESXi虚拟化平台管理 ########################################
 # 提供ESXi虚拟机的创建、管理和监控功能
 ################################################################################
-import os
-import shutil
 import datetime
 from loguru import logger
-
 from HostServer.BasicServer import BasicServer
 from HostServer.vSphereESXiAPI.vSphereAPI import vSphereAPI
 from HostModule.HttpManager import HttpManager
@@ -17,7 +14,6 @@ from MainObject.Public.HWStatus import HWStatus
 from MainObject.Public.ZMessage import ZMessage
 from MainObject.Config.VMConfig import VMConfig
 from MainObject.Config.VMBackup import VMBackup
-from VNCConsole.VNCManager import VNCStart, VProcess
 
 
 class HostServer(BasicServer):
@@ -57,19 +53,9 @@ class HostServer(BasicServer):
     # 初始化WebMKS远程控制台（使用HttpManager反向代理）
     # :returns: 是否成功
     # ###############################################################################
-    def VMLoader(self) -> bool:
-        # ===== 旧的VNC方式（已注释） =====
-        # cfg_name = "vnc_" + self.hs_config.server_name
-        # cfg_full = "DataSaving/" + cfg_name + ".cfg"
-        # if os.path.exists(cfg_full):
-        #     os.remove(cfg_full)
-        # tp_remote = VNCStart(self.hs_config.remote_port, cfg_name)
-        # self.vm_remote = VProcess(tp_remote)
-        # self.vm_remote.start()
-        # logger.info(f"[{self.hs_config.server_name}] VNC远程控制台已启动")
-
+    def VMLoader_VNC(self) -> bool:
         # ===== 新的WebMKS方式（使用HttpManager） =====
-        cfg_name = "mks_" + self.hs_config.server_name + ".txt"
+        cfg_name = "vmk" + self.hs_config.server_name + ".txt"
         self.http_manager = HttpManager(
             cfg_name, "vmk",
             self.hs_config.public_addr[0] \
@@ -171,7 +157,9 @@ class HostServer(BasicServer):
         return super().HSUnload()
 
     # 虚拟机列出 ###############################################################
-    def VMStatus(self, vm_name: str = "") -> dict[str, list[HWStatus]]:
+    def VMStatus(self, vm_name: str = "",
+                 s_t: int = None, e_t: int = None) -> dict[str, list[HWStatus]]:
+
         # 专用操作 =============================================================
         # ESXi的虚拟机状态通过API实时获取
         # 通用操作 =============================================================
@@ -227,7 +215,7 @@ class HostServer(BasicServer):
                         "power_state": vm_info.get("power_state", "unknown")
                     }
                 )
-                self.LogStack(log_msg)
+                self.push_log(log_msg)
 
             # 断开连接
             self.esxi_api.disconnect()
@@ -266,7 +254,7 @@ class HostServer(BasicServer):
         vm_conf, net_result = self.NetCheck(vm_conf)
         if not net_result.success:
             return net_result
-        self.NCCreate(vm_conf, True)
+        self.IPBinder(vm_conf, True)
 
         # 专用操作 =============================================================
         try:
@@ -346,7 +334,7 @@ class HostServer(BasicServer):
         vm_conf, net_result = self.NetCheck(vm_conf)
         if not net_result.success:
             return net_result
-        self.NCCreate(vm_conf, True)
+        self.IPBinder(vm_conf, True)
 
         # 专用操作 =============================================================
         try:
@@ -396,7 +384,7 @@ class HostServer(BasicServer):
                     message=f"虚拟机 {vm_conf.vm_uuid} 网卡设备更新失败: {network_result.message}")
 
             # 更新网络绑定（IP-MAC映射）
-            binding_result = self.NCUpdate(vm_conf, vm_last)
+            binding_result = self.IPUpdate(vm_conf, vm_last)
             if not binding_result.success:
                 self.esxi_api.disconnect()
                 return ZMessage(
@@ -441,7 +429,7 @@ class HostServer(BasicServer):
                 return connect_result
 
             # 删除网络绑定
-            self.NCCreate(vm_conf, False)
+            self.IPBinder(vm_conf, False)
 
             # 删除虚拟机
             delete_result = self.esxi_api.delete_vm(vm_name)
@@ -477,7 +465,7 @@ class HostServer(BasicServer):
                 hs_result = self.esxi_api.power_on(vm_name)
             elif power == VMPowers.H_CLOSE:
                 hs_result = self.esxi_api.power_off(vm_name)
-            elif power == VMPowers.S_PAUSE:
+            elif power == VMPowers.A_PAUSE:
                 hs_result = self.esxi_api.suspend(vm_name)
             elif power == VMPowers.H_RESET or power == VMPowers.S_RESET:
                 hs_result = self.esxi_api.reset(vm_name)
@@ -667,10 +655,10 @@ class HostServer(BasicServer):
             self.esxi_api.power_off(vm_name)
 
             if in_flag:  # 挂载ISO
-                # ISO文件路径，从images_path配置读取
-                # images_path格式: datastore1/images
-                if self.hs_config.images_path and '/' in self.hs_config.images_path:
-                    images_parts = self.hs_config.images_path.split('/', 1)
+                # ISO文件路径，从dvdrom_path配置读取
+                # dvdrom_path格式: datastore1/images
+                if self.hs_config.dvdrom_path and '/' in self.hs_config.dvdrom_path:  # 使用dvdrom_path存储光盘镜像
+                    images_parts = self.hs_config.dvdrom_path.split('/', 1)
                     iso_datastore = images_parts[0]
                     iso_dir = images_parts[1]
                 else:
@@ -896,7 +884,7 @@ class HostServer(BasicServer):
         return {}
 
     # WebMKS远程访问 ###########################################################
-    def VMRemote(self, vm_uuid: str) -> ZMessage:
+    def VMRemote(self, vm_uuid: str, ip_addr: str = "127.0.0.1") -> ZMessage:
         """
         获取虚拟机WebMKS远程访问链接
         

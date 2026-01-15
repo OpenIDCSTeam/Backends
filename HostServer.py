@@ -1574,6 +1574,53 @@ def api_update_system_settings():
 
 
 # ============================================================================
+# 国际化/语言API
+# ============================================================================
+
+# 获取可用语言列表 ##################################################################
+@app.route('/api/i18n/languages', methods=['GET'])
+def api_get_available_languages():
+    """获取所有可用的语言列表（无需认证）"""
+    try:
+        from HostModule.Translation import get_translation
+        translation = get_translation()
+        languages = translation.get_available_languages()
+        
+        # 返回语言列表及其显示名称
+        language_info = []
+        for lang in languages:
+            if lang == 'zh-cn':
+                language_info.append({'code': lang, 'name': '简体中文', 'native': '简体中文'})
+            elif lang == 'en-us':
+                language_info.append({'code': lang, 'name': 'English', 'native': 'English'})
+            else:
+                language_info.append({'code': lang, 'name': lang, 'native': lang})
+        
+        return api_response_wrapper(200, '获取成功', language_info)
+    except Exception as e:
+        logger.error(f"获取语言列表失败: {e}")
+        return api_response_wrapper(500, f'获取失败: {str(e)}')
+
+
+# 获取指定语言的翻译数据 ##############################################################
+@app.route('/api/i18n/translations/<lang_code>', methods=['GET'])
+def api_get_translations(lang_code):
+    """获取指定语言的所有翻译数据（无需认证）"""
+    try:
+        from HostModule.Translation import get_translation
+        translation = get_translation()
+        translations = translation.get_language_data(lang_code)
+        
+        if not translations:
+            return api_response_wrapper(404, f'语言 {lang_code} 不存在')
+        
+        return api_response_wrapper(200, '获取成功', translations)
+    except Exception as e:
+        logger.error(f"获取翻译数据失败: {e}")
+        return api_response_wrapper(500, f'获取失败: {str(e)}')
+
+
+# ============================================================================
 # 定时任务
 # ============================================================================
 def cron_scheduler():
@@ -1628,6 +1675,15 @@ def init_app():
         # 如果是多进程相关错误，记录详细信息但不阻止启动
         if "multiprocessing" in str(e) or "process" in str(e).lower():
             logger.warning("检测到多进程相关错误，将在用户访问时重试加载")
+
+    # 初始化翻译模块
+    try:
+        logger.info("正在加载翻译文件...")
+        from HostModule.Translation import get_translation
+        translation = get_translation()
+        logger.info(f"翻译文件加载完成，已加载 {len(translation.get_available_languages())} 种语言")
+    except Exception as e:
+        logger.error(f"加载翻译文件失败: {e}")
 
     # 如果没有Token，生成一个
     if not hs_manage.bearer:

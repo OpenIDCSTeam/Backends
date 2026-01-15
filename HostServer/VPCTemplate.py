@@ -1,5 +1,7 @@
 from HostServer.BasicServer import BasicServer
 from MainObject.Config.HSConfig import HSConfig
+from MainObject.Config.IMConfig import IMConfig
+from MainObject.Config.SDConfig import SDConfig
 from MainObject.Config.VMPowers import VMPowers
 from MainObject.Public.HWStatus import HWStatus
 from MainObject.Public.ZMessage import ZMessage

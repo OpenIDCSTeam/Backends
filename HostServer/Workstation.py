@@ -3,7 +3,10 @@
 ################################################################################
 import os
 import shutil
+import string
 import subprocess
+import traceback
+import random
 
 from HostServer.BasicServer import BasicServer
 from MainObject.Config.HSConfig import HSConfig
@@ -14,7 +17,6 @@ from MainObject.Public.HWStatus import HWStatus
 from MainObject.Public.ZMessage import ZMessage
 from MainObject.Config.VMConfig import VMConfig
 from HostServer.WorkstationAPI.VMWRestAPI import VRestAPI
-from VNCConsole.VNCManager import VNCStart, VProcess
 
 
 class HostServer(BasicServer):
@@ -30,15 +32,6 @@ class HostServer(BasicServer):
             self.hs_config.launch_path,
         )
 
-    def VMLoader(self) -> bool:
-        cfg_name = "vnc_" + self.hs_config.server_name
-        cfg_full = "DataSaving/" + cfg_name + ".cfg"
-        if os.path.exists(cfg_full):
-            os.remove(cfg_full)
-        tp_remote = VNCStart(self.hs_config.remote_port, cfg_name)
-        self.vm_remote = VProcess(tp_remote)
-        self.vm_remote.start()
-        return True
 
     # 宿主机任务 ###############################################################
     def Crontabs(self) -> bool:
@@ -105,7 +98,8 @@ class HostServer(BasicServer):
         return super().HSUnload()
 
     # 虚拟机列出 ###############################################################
-    def VMStatus(self, vm_name: str = "") -> dict[str, list[HWStatus]]:
+    def VMStatus(self, vm_name: str = "",
+                 s_t: int = None, e_t: int = None) -> dict[str, list[HWStatus]]:
         # 专用操作 =============================================================
         # 通用操作 =============================================================
         return super().VMStatus(vm_name)
@@ -158,7 +152,7 @@ class HostServer(BasicServer):
                         "vm_id": vm_id,
                         "vm_path": vm_path}
                 )
-                self.LogStack(log_msg)
+                self.push_log(log_msg)
 
             # 保存到数据库
             if added_count > 0:
@@ -190,7 +184,7 @@ class HostServer(BasicServer):
         vm_conf, net_result = self.NetCheck(vm_conf)
         if not net_result.success:
             return net_result
-        self.NCCreate(vm_conf, True)
+        self.IPBinder(vm_conf, True)
         # 专用操作 =============================================================
         try:
             # 路径处理 =========================================================
@@ -245,7 +239,7 @@ class HostServer(BasicServer):
         vm_conf, net_result = self.NetCheck(vm_conf)
         if not net_result.success:
             return net_result
-        self.NCCreate(vm_conf, True)
+        self.IPBinder(vm_conf, True)
         # 专用操作 =============================================================
         vm_saving = os.path.join(self.hs_config.system_path, vm_conf.vm_uuid)
         vm_locker = os.path.join(vm_saving, vm_conf.vm_uuid + ".vmx.lck")
@@ -267,10 +261,9 @@ class HostServer(BasicServer):
         # 更新硬盘 =============================================================
         if vm_conf.hdd_num > vm_last.hdd_num:
             disk_file = f"{vm_path}.{vm_conf.os_name.split('.')[-1]}"
-            back_data = self.vmrest_api.extend_hdd(
-                disk_file, vm_conf.hdd_num)
+            self.vmrest_api.extend_hdd(disk_file, vm_conf.hdd_num)
         # 更新网卡 =============================================================
-        network_result = self.NCUpdate(vm_conf, vm_last)
+        network_result = self.IPUpdate(vm_conf, vm_last)
         if not network_result.success:
             return ZMessage(
                 success=False, action="VMUpdate",
@@ -304,7 +297,7 @@ class HostServer(BasicServer):
         return super().VMUpdate(vm_conf, vm_last)
 
     # 删除虚拟机 ###############################################################
-    def VMDelete(self, vm_name: str) -> ZMessage:
+    def VMDelete(self, vm_name: str, rm_back=True) -> ZMessage:
         # 专用操作 =============================================================
         vm_conf = self.VMSelect(vm_name)
         if vm_conf is None:
@@ -313,7 +306,7 @@ class HostServer(BasicServer):
                 action="VMDelete",
                 messages=f"虚拟机 {vm_name} 不存在")
         self.VMPowers(vm_name, VMPowers.H_CLOSE)
-        self.NCCreate(vm_conf, False)
+        self.IPBinder(vm_conf, False)
         vm_saving = os.path.join(self.hs_config.system_path, vm_name)
         vm_locker = os.path.join(vm_saving, vm_name + ".vmx.lck")
         if os.path.exists(vm_locker):
@@ -358,7 +351,7 @@ class HostServer(BasicServer):
 
     # 移除备份 #################################################################
     def RMBackup(self, vm_name: str, vm_back: str = "") -> ZMessage:
-        return super().RMBackup(vm_back)
+        return super().RMBackup(vm_name, vm_back)
 
     # 移除磁盘 #################################################################
     def RMMounts(self, vm_name: str, vm_imgs: str) -> ZMessage:
@@ -367,3 +360,43 @@ class HostServer(BasicServer):
     # 查找显卡 #################################################################
     def GPUShows(self) -> dict[str, str]:
         return {}
+
+    # 虚拟机控制台 #############################################################
+    def VMRemote(self, vm_uuid: str, ip_addr: str = "127.0.0.1") -> ZMessage:
+        try:
+            # 检查端口和密码配置 ===============================================
+            result = super().VMRemote(vm_uuid, ip_addr)
+            if not result.success:
+                return result
+            # 检查VNC端口和密码 ================================================
+            public_addr = self.hs_config.public_addr[0]
+            if len(self.vm_saving[vm_uuid].vc_pass) == 0:
+                public_addr = "127.0.0.1"
+            rand_pass = ''.join(
+                random.sample(string.ascii_letters + string.digits, 16)
+            )
+            self.vm_remote.exec.del_port(
+                ip_addr,
+                int(self.vm_saving[vm_uuid].vc_port)
+            )
+            self.vm_remote.exec.add_port(
+                ip_addr,
+                int(self.vm_saving[vm_uuid].vc_port),
+                rand_pass
+            )
+            return ZMessage(
+                success=True,
+                action="VCRemote",
+                message=(
+                    f"http://{public_addr}:{self.hs_config.remote_port}"
+                    f"/vnc.html?autoconnect=true&path=websockify?"
+                    f"token={rand_pass}"
+                )
+            )
+        except Exception as e:
+            traceback.print_exc()
+            return ZMessage(
+                success=False,
+                action="VCRemote",
+                message=str(e)
+            )

@@ -5,39 +5,25 @@ import os
 import shutil
 import datetime
 import traceback
+from pylxd import Client
+from loguru import logger
 from copy import deepcopy
 from typing import Optional, Tuple
-from loguru import logger
-
-try:
-    import pylxd
-    from pylxd import Client
-    from pylxd.exceptions import LXDAPIException, NotFound
-
-    LXD_AVAILABLE = True
-except ImportError:
-    LXD_AVAILABLE = False
-    logger.warning("pylxd not available, LXD functionality will be disabled")
-    Client = None  # 定义一个占位符，避免类型注解错误
-
+from pylxd.exceptions import NotFound
 from HostServer.BasicServer import BasicServer
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Config.IMConfig import IMConfig
 from MainObject.Config.SDConfig import SDConfig
 from MainObject.Config.VMPowers import VMPowers
 from MainObject.Config.VMBackup import VMBackup
-from MainObject.Config.WebProxy import WebProxy
 from MainObject.Config.PortData import PortData
 from MainObject.Public.HWStatus import HWStatus
 from MainObject.Public.ZMessage import ZMessage
 from MainObject.Config.VMConfig import VMConfig
-from HostModule.HttpManager import HttpManager
-from HostServer.OCInterfaceAPI.PortForward import PortForward
-from HostServer.OCInterfaceAPI.SSHTerminal import SSHTerminal
 
 
 class HostServer(BasicServer):
-    # 宿主机服务 ##############################################################
+    # 宿主机服务 ###############################################################
     def __init__(self, config: HSConfig, **kwargs):
         super().__init__(config, **kwargs)
         super().__load__(**kwargs)
@@ -47,9 +33,9 @@ class HostServer(BasicServer):
         self.http_manager = None
         self.port_forward = None
 
-    # 转换下划线 ##############################################################
+    # 转换下划线 ###############################################################
     @staticmethod
-    def change_under(vm_data: VMConfig | str, flag=True):
+    def set_uuid(vm_data: VMConfig | str, flag=True):
         vm_conf = vm_data
         if isinstance(vm_conf, VMConfig):
             vm_data = vm_data.vm_uuid
@@ -62,26 +48,13 @@ class HostServer(BasicServer):
             return vm_conf
         return vm_data
 
-    def VMLoader(self) -> bool:
-        pass
-
-    # 连接到 LXD 服务器 ######################################################
-    # 支持本地和远程连接
-    # :return: (LXD客户端对象, 操作结果消息)
-    ###########################################################################
-    def _connect_lxd(self) -> Tuple[Optional[Client], ZMessage]:
-        if not LXD_AVAILABLE:
-            return None, ZMessage(
-                success=False, 
-                action="_connect_lxd",
-                message="pylxd is not installed"
-            )
-
+    # 连接到LXD服务器 ##########################################################
+    def lxd_conn(self) -> Tuple[Optional[Client], ZMessage]:
         try:
             # 如果已经连接，直接返回
             if self.lxd_client is not None:
                 return self.lxd_client, ZMessage(
-                    success=True, 
+                    success=True,
                     action="_connect_lxd"
                 )
 
@@ -117,17 +90,17 @@ class HostServer(BasicServer):
                     key_path = os.path.join(
                         self.hs_config.launch_path, "client.key"
                     )
-                    
+
                     if self.hs_config.launch_path == "":
                         return None, ZMessage(
-                            success=False, 
+                            success=False,
                             action="_connect_lxd",
                             message=f"缺少证书路径，请设置启动路径为证书路径"
                         )
-                    
+
                     if not os.path.exists(cert_path) or not os.path.exists(key_path):
                         return None, ZMessage(
-                            success=False, 
+                            success=False,
                             action="_connect_lxd",
                             message=(
                                 f"证书文件未找到，请检查 "
@@ -146,7 +119,7 @@ class HostServer(BasicServer):
             logger.info("Successfully connected to LXD server")
 
             return self.lxd_client, ZMessage(
-                success=True, 
+                success=True,
                 action="_connect_lxd"
             )
 
@@ -154,181 +127,130 @@ class HostServer(BasicServer):
             logger.error(f"Failed to connect to LXD server: {str(e)}")
             self.lxd_client = None
             return None, ZMessage(
-                success=False, 
+                success=False,
                 action="_connect_lxd",
                 message=f"Failed to connect to LXD: {str(e)}"
             )
 
-    # 判断是否为远程宿主机 #####################################################
-    def is_remote_host(self) -> bool:
-        if self.hs_config.server_addr not in ["localhost", "127.0.0.1", ""]:
-            if not self.hs_config.server_addr.startswith("ssh://"):
-                return True
-        return False
-
     # 同步端口转发配置 #########################################################
-    # 同步端口转发配置 ##########################################################
-    # 删除不需要的转发，添加缺少的转发
-    ###########################################################################
-    def sync_forwarder(self):
-        try:
-            # 判断是否为远程主机
-            is_remote = self.is_remote_host()
+    def syn_port(self):
+        return self.syn_port_TTY()
 
-            # 如果是远程主机，先建立SSH连接
-            if is_remote:
-                success, message = self.port_forward.connect_ssh()
-                if not success:
-                    logger.error(
-                        f"SSH连接失败，无法同步端口转发: {message}"
-                    )
-                    return
+    # 构建容器配置 #############################################################
+    def oci_conf(self, vm_conf: VMConfig) -> dict:
+        config = {
+            "security.nesting": "true",
+            "security.privileged": "false"  # 非特权容器
+        }
+        # CPU 限制 =========================================
+        if vm_conf.cpu_num > 0:
+            config["limits.cpu"] = str(vm_conf.cpu_num)
+        # 内存限制 =========================================
+        if vm_conf.mem_num > 0:
+            config["limits.memory"] = f"{vm_conf.mem_num}MB"
+        return config
 
-            # 获取系统中已有的端口转发
-            existing_forwards = self.port_forward.list_ports(is_remote)
-            existing_map = {}  # {(lan_addr, lan_port): forward_info}
-            for forward in existing_forwards:
-                key = (forward.lan_addr, forward.lan_port)
-                existing_map[key] = forward
+    # 构建容器设备 #############################################################
+    def dev_conf(self, vm_conf: VMConfig) -> dict:
+        """构建 LXD 容器设备配置"""
+        devices = {}
 
-            # 获取配置中需要的端口转发
-            required_forwards = {}  # {(lan_addr, lan_port): (wan_port, vm_name)}
-            for vm_name, vm_conf in self.vm_saving.items():
-                if not hasattr(vm_conf, 'nat_all'):
-                    continue
+        # 网络设备
+        nic_index = 0
+        for nic_name, nic_config in vm_conf.nic_all.items():
+            # 选择网桥（根据配置选择 nat 或 pub）
+            bridge = self.hs_config.network_nat
+            # 可以根据某些条件选择 network_pub
+            # 例如：if nic_config.is_public: bridge = self.hs_config.network_pub
 
-                for port_data in vm_conf.nat_all:
-                    key = (port_data.lan_addr, port_data.lan_port)
-                    required_forwards[key] = (port_data.wan_port, vm_name)
+            device_name = f"eth{nic_index}"
+            devices[device_name] = {
+                "type": "nic",
+                "nictype": "bridged",
+                "parent": bridge,
+                "name": device_name
+            }
 
-            # 删除不需要的转发
-            removed_count = 0
-            for key, forward in existing_map.items():
-                if key not in required_forwards:
-                    # 这个转发不在配置中，删除它
-                    if self.port_forward.remove_port_forward(
-                            forward.wan_port, forward.protocol, is_remote
-                    ):
-                        removed_count += 1
-                        logger.info(
-                            f"删除多余的端口转发: {forward.protocol} "
-                            f"{forward.wan_port} -> "
-                            f"{forward.lan_addr}:{forward.lan_port}"
-                        )
+            if nic_config.mac_addr:
+                devices[device_name]["hwaddr"] = nic_config.mac_addr
 
-            # 添加缺少的转发
-            added_count = 0
-            for key, (wan_port, vm_name) in required_forwards.items():
-                lan_addr, lan_port = key
+            if nic_config.ip4_addr:
+                devices[device_name]["ipv4.address"] = nic_config.ip4_addr
 
-                # 检查是否已存在
-                if key in existing_map:
-                    existing_forward = existing_map[key]
-                    # 如果wan_port不同，需要先删除旧的再添加新的
-                    if existing_forward.wan_port != wan_port:
-                        self.port_forward.remove_port_forward(
-                            existing_forward.wan_port,
-                            existing_forward.protocol,
-                            is_remote
-                        )
-                        logger.info(
-                            f"端口映射变更，删除旧转发: "
-                            f"{existing_forward.protocol} "
-                            f"{existing_forward.wan_port} -> "
-                            f"{lan_addr}:{lan_port}"
-                        )
-                    else:
-                        # 端口转发已存在且配置正确，跳过
-                        continue
+            nic_index += 1
 
-                # 添加新的端口转发
-                success, error = self.port_forward.add_port_forward(
-                    lan_addr, lan_port, wan_port, "TCP", is_remote, vm_name
-                )
+        # 根文件系统
+        devices["root"] = {
+            "type": "disk",
+            "path": "/",
+            "pool": "default"  # 使用默认存储池
+        }
 
-                if success:
-                    added_count += 1
-                    logger.info(
-                        f"添加端口转发: TCP {wan_port} -> "
-                        f"{lan_addr}:{lan_port} ({vm_name})"
-                    )
-                else:
-                    logger.error(
-                        f"添加端口转发失败: TCP {wan_port} -> "
-                        f"{lan_addr}:{lan_port}, 错误: {error}"
-                    )
+        # 如果指定了硬盘大小
+        if vm_conf.hdd_num > 0:
+            devices["root"]["size"] = f"{vm_conf.hdd_num}GB"
 
-            logger.info(
-                f"端口转发同步完成: 删除 {removed_count} 个，"
-                f"添加 {added_count} 个"
-            )
-
-            # 关闭SSH连接
-            if is_remote:
-                self.port_forward.close_ssh()
-        except Exception as e:
-            logger.error(f"同步端口转发时出错: {str(e)}")
-            traceback.print_exc()
+        return devices
 
     # 宿主机任务 ###############################################################
     def Crontabs(self) -> bool:
         # 专用操作 =============================================================
         try:
             # 连接到 LXD 服务器
-            client, result = self._connect_lxd()
+            client, result = self.lxd_conn()
             if not result.success:
                 logger.warning(f"[{self.hs_config.server_name}] Crontabs: LXD连接失败，使用本地状态")
                 return super().Crontabs()
-            
+
             # 获取远程主机状态
             try:
                 # 通过 LXD API 获取主机信息
                 host_info = client.host_info
-                
+
                 # 创建 HWStatus 对象
                 hw_status = HWStatus()
-                
+
                 # 解析主机信息
                 if 'environment' in host_info:
                     env = host_info['environment']
-                    
+
                     # CPU 信息
                     if 'cpu' in env:
                         hw_status.cpu_total = env.get('cpu', 0)
-                    
+
                     # 内存信息
                     if 'memory' in env:
                         memory_total = env.get('memory', 0)
                         hw_status.mem_total = int(memory_total / (1024 * 1024))  # 转换为MB
-                
+
                 # 获取资源使用情况
                 if 'resources' in host_info:
                     resources = host_info['resources']
-                    
+
                     # CPU 使用率
                     if 'cpu' in resources:
                         cpu_info = resources['cpu']
                         if 'usage' in cpu_info:
                             hw_status.cpu_usage = int(cpu_info['usage'])
-                    
+
                     # 内存使用情况
                     if 'memory' in resources:
                         mem_info = resources['memory']
                         if 'used' in mem_info:
                             hw_status.mem_usage = int(mem_info['used'] / (1024 * 1024))  # 转换为MB
-                
+
                 # 保存主机状态
                 self.host_set(hw_status)
                 logger.debug(f"[{self.hs_config.server_name}] 远程主机状态已保存")
-                
+
             except Exception as e:
                 logger.warning(f"[{self.hs_config.server_name}] 获取远程主机状态失败: {e}，使用本地状态")
                 return super().Crontabs()
-                
+
         except Exception as e:
             logger.error(f"[{self.hs_config.server_name}] Crontabs 执行失败: {e}")
             return super().Crontabs()
-        
+
         # 通用操作 =============================================================
         return super().Crontabs()
 
@@ -337,56 +259,56 @@ class HostServer(BasicServer):
         # 专用操作 =============================================================
         try:
             # 连接到 LXD 服务器
-            client, result = self._connect_lxd()
+            client, result = self.lxd_conn()
             if not result.success:
                 logger.error(f"无法连接到LXD获取状态: {result.message}")
                 return super().HSStatus()
-            
+
             # 获取主机状态
             try:
                 host_info = client.host_info
-                
+
                 # 创建 HWStatus 对象
                 hw_status = HWStatus()
-                
+
                 # 解析主机信息
                 if 'environment' in host_info:
                     env = host_info['environment']
-                    
+
                     # CPU 信息
                     if 'cpu' in env:
                         hw_status.cpu_total = env.get('cpu', 0)
-                    
+
                     # 内存信息
                     if 'memory' in env:
                         memory_total = env.get('memory', 0)
                         hw_status.mem_total = int(memory_total / (1024 * 1024))  # 转换为MB
-                
+
                 # 获取资源使用情况
                 if 'resources' in host_info:
                     resources = host_info['resources']
-                    
+
                     # CPU 使用率
                     if 'cpu' in resources:
                         cpu_info = resources['cpu']
                         if 'usage' in cpu_info:
                             hw_status.cpu_usage = int(cpu_info['usage'])
-                    
+
                     # 内存使用情况
                     if 'memory' in resources:
                         mem_info = resources['memory']
                         if 'used' in mem_info:
                             hw_status.mem_usage = int(mem_info['used'] / (1024 * 1024))  # 转换为MB
-                
+
                 return hw_status
-                
+
             except Exception as e:
                 logger.error(f"获取LXD主机状态失败: {str(e)}")
                 return super().HSStatus()
-                
+
         except Exception as e:
             logger.error(f"获取LXD主机状态失败: {str(e)}")
-        
+
         # 通用操作 =============================================================
         return super().HSStatus()
 
@@ -405,34 +327,15 @@ class HostServer(BasicServer):
     # 读取宿主机 ###############################################################
     def HSLoader(self) -> ZMessage:
         # 专用操作 =============================================================
-        # 初始化SSHTerminal
-        if not self.web_terminal:
-            self.web_terminal = SSHTerminal(self.hs_config)
-
-        # 初始化HttpManager，使用vnc_主机名.txt作为配置文件名
-        if not self.http_manager:
-            # 获取主机名，使用server_name，如果没有则使用默认值
-            hostname = getattr(self.hs_config, 'server_name', '')
-            config_filename = f"vnc-{hostname}.txt"
-            self.http_manager = HttpManager(config_filename)
-            # 初始化SSH代理管理
-            self.http_manager.launch_vnc(self.hs_config.remote_port)
-            self.http_manager.launch_web()
-
-        # 初始化端口转发管理器
-        if not self.port_forward:
-            self.port_forward = PortForward(self.hs_config)
-
         # 连接到 LXD 服务器
-        client, result = self._connect_lxd()
+        client, result = self.lxd_conn()
         if not result.success:
             return result
-
+        result = super().HSLoader()
         # 同步端口转发配置
-        self.sync_forwarder()
-
+        self.syn_port()
         # 通用操作 =============================================================
-        return super().HSLoader()
+        return result
 
     # 卸载宿主机 ###############################################################
     def HSUnload(self) -> ZMessage:
@@ -447,7 +350,9 @@ class HostServer(BasicServer):
         return super().HSUnload()
 
     # 虚拟机列出 ###############################################################
-    def VMStatus(self, vm_name: str = "") -> dict[str, list[HWStatus]]:
+    def VMStatus(self, vm_name: str = "",
+                 s_t: int = None, e_t: int = None) -> dict[str, list[HWStatus]]:
+
         # 专用操作 =============================================================
         # 通用操作 =============================================================
         return super().VMStatus(vm_name)
@@ -455,7 +360,7 @@ class HostServer(BasicServer):
     # 虚拟机扫描 ###############################################################
     def VMDetect(self) -> ZMessage:
         # 专用操作 =============================================================
-        client, result = self._connect_lxd()
+        client, result = self.lxd_conn()
         if not result.success:
             return result
 
@@ -479,7 +384,7 @@ class HostServer(BasicServer):
                 scanned_count += 1
 
                 # 规范化容器名（将下划线转换为连字符）
-                normalized_name = self.change_under(container_name, flag=True)
+                normalized_name = self.set_uuid(container_name, flag=True)
 
                 # 检查是否已存在（使用规范化后的名称）
                 if normalized_name in self.vm_saving:
@@ -500,7 +405,7 @@ class HostServer(BasicServer):
                     message=f"发现并添加容器: {container_name} (规范化为: {normalized_name})",
                     results={"container_name": container_name, "normalized_name": normalized_name}
                 )
-                self.LogStack(log_msg)
+                self.push_log(log_msg)
 
             # 保存到数据库
             if added_count > 0:
@@ -530,14 +435,12 @@ class HostServer(BasicServer):
     def NetCheck(self, vm_conf: VMConfig) -> tuple:
         """检查并自动分配虚拟机网卡IP地址"""
         # 连接到 LXD 服务器
-        client, result = self._connect_lxd()
+        client, result = self.lxd_conn()
         if not result.success:
             return vm_conf, result
-
         try:
             # 获取所有已分配的IP地址（包括其他虚拟机）
-            allocated_ips = self.IPGrants()
-
+            allocated_ips = self.IPCollect()
             # 检查是否有重复的网卡类型（禁止同一容器分配多个相同类型的网卡）
             nic_types = {}
             for nic_name, nic_conf in vm_conf.nic_all.items():
@@ -549,16 +452,13 @@ class HostServer(BasicServer):
                                 f"网卡 {nic_name} 和 {nic_types[nic_conf.nic_type]} 都是 {nic_conf.nic_type} 类型"
                     )
                 nic_types[nic_conf.nic_type] = nic_name
-
             # 排除当前虚拟机自己的IP地址，避免误判为冲突
             current_vm_ips = set()
             for nic_name, nic_conf in vm_conf.nic_all.items():
                 if nic_conf.ip4_addr and nic_conf.ip4_addr.strip():
                     current_vm_ips.add(nic_conf.ip4_addr.strip())
-
             # 只保留其他虚拟机的IP地址
             other_vms_ips = allocated_ips - current_vm_ips
-
             # 遍历虚拟机的所有网卡
             for nic_name, nic_conf in vm_conf.nic_all.items():
                 # 检查是否需要分配IP
@@ -679,10 +579,10 @@ class HostServer(BasicServer):
             )
 
     # 网络动态绑定 #############################################################
-    def NCCreate(self, vm_conf: VMConfig, flag=True) -> ZMessage:
+    def IPBinder_MAN(self, vm_conf: VMConfig, flag=True) -> ZMessage:
         """配置容器网络（通过LXD设备配置）"""
         # 连接服务
-        client, result = self._connect_lxd()
+        client, result = self.lxd_conn()
         if not result.success:
             return result
 
@@ -754,17 +654,14 @@ class HostServer(BasicServer):
                 action="NCCreate",
                 message=f"网络配置失败: {str(e)}")
 
-    def NCUpdate(self, vm_conf: VMConfig, vm_last: VMConfig) -> ZMessage:
-        """更新容器网络配置"""
-        self.NCCreate(vm_last, False)
-        self.NCCreate(vm_conf, True)
-        return ZMessage(success=True, action="VMUpdate")
+    def IPUpdate(self, vm_conf: VMConfig, vm_last: VMConfig) -> ZMessage:
+        return self.IPUpdate_TTY(vm_conf, vm_last)
 
     # 创建虚拟机 ###############################################################
     def VMCreate(self, vm_conf: VMConfig) -> ZMessage:
         # 规范化容器名（将下划线转换为连字符）
         original_name = vm_conf.vm_uuid
-        vm_conf = self.change_under(vm_conf, flag=True)
+        vm_conf = self.set_uuid(vm_conf, flag=True)
 
         # 如果名称发生了变化，记录日志
         if original_name != vm_conf.vm_uuid:
@@ -773,10 +670,10 @@ class HostServer(BasicServer):
         vm_conf, net_result = self.NetCheck(vm_conf)
         if not net_result.success:
             return net_result
-        self.NCCreate(vm_conf, True)
+        self.IPBinder(vm_conf, True)
 
         # 专用操作 =============================================================
-        client, result = self._connect_lxd()
+        client, result = self.lxd_conn()
         if not result.success:
             return result
 
@@ -798,8 +695,8 @@ class HostServer(BasicServer):
                 "source": {
                     "type": "none"  # 先创建空容器，稍后安装系统
                 },
-                "config": self._build_container_config(vm_conf),
-                "devices": self._build_container_devices(vm_conf)
+                "config": self.oci_conf(vm_conf),
+                "devices": self.dev_conf(vm_conf)
             }
 
             # 创建容器
@@ -827,82 +724,19 @@ class HostServer(BasicServer):
         # 通用操作 =============================================================
         return super().VMCreate(vm_conf)
 
-    # 构建容器配置 #############################################################
-    def _build_container_config(self, vm_conf: VMConfig) -> dict:
-        """构建 LXD 容器配置"""
-        config = {
-            "security.nesting": "true",
-            "security.privileged": "false"  # 非特权容器
-        }
-
-        # CPU 限制
-        if vm_conf.cpu_num > 0:
-            config["limits.cpu"] = str(vm_conf.cpu_num)
-
-        # 内存限制（转换为MB）
-        if vm_conf.mem_num > 0:
-            config["limits.memory"] = f"{vm_conf.mem_num}MB"
-
-        return config
-
-    # 构建容器设备 #############################################################
-    def _build_container_devices(self, vm_conf: VMConfig) -> dict:
-        """构建 LXD 容器设备配置"""
-        devices = {}
-
-        # 网络设备
-        nic_index = 0
-        for nic_name, nic_config in vm_conf.nic_all.items():
-            # 选择网桥（根据配置选择 nat 或 pub）
-            bridge = self.hs_config.network_nat
-            # 可以根据某些条件选择 network_pub
-            # 例如：if nic_config.is_public: bridge = self.hs_config.network_pub
-
-            device_name = f"eth{nic_index}"
-            devices[device_name] = {
-                "type": "nic",
-                "nictype": "bridged",
-                "parent": bridge,
-                "name": device_name
-            }
-
-            if nic_config.mac_addr:
-                devices[device_name]["hwaddr"] = nic_config.mac_addr
-
-            if nic_config.ip4_addr:
-                devices[device_name]["ipv4.address"] = nic_config.ip4_addr
-
-            nic_index += 1
-
-        # 根文件系统
-        devices["root"] = {
-            "type": "disk",
-            "path": "/",
-            "pool": "default"  # 使用默认存储池
-        }
-
-        # 如果指定了硬盘大小
-        if vm_conf.hdd_num > 0:
-            devices["root"]["size"] = f"{vm_conf.hdd_num}GB"
-
-        return devices
-
     # 安装虚拟机 ###############################################################
     def VMSetups(self, vm_conf: VMConfig) -> ZMessage:
         # 专用操作 =============================================================
-        client, result = self._connect_lxd()
+        client, result = self.lxd_conn()
         if not result.success:
             return result
-
         try:
             os_name = vm_conf.os_name
             container_name = vm_conf.vm_uuid
-
             # 判断是使用文件模板还是LXD镜像
             if os_name.endswith('.tar.gz'):
                 # 模式1: 从文件系统加载 tar.gz 模板
                 template_file = os.path.join(self.hs_config.images_path, os_name)
-
                 if not os.path.exists(template_file):
                     # 提供更友好的错误提示
                     available_templates = []
@@ -914,7 +748,6 @@ class HostServer(BasicServer):
                             ]
                         except Exception:
                             pass
-
                     error_msg = f"模板文件未找到: {os_name}\n"
                     error_msg += f"搜索路径: {self.hs_config.images_path}\n"
                     if available_templates:
@@ -925,26 +758,19 @@ class HostServer(BasicServer):
                     return ZMessage(
                         success=False, action="VInstall",
                         message=error_msg)
-
                 container = client.containers.get(container_name)
-
                 # 停止容器（如果正在运行）
                 if container.status == "Running":
                     container.stop(wait=True)
-
                 # 上传并解压模板到容器
                 logger.info(f"Installing template {template_file} to container {container_name}")
-
                 # 读取 tar.gz 文件并推送到容器
                 with open(template_file, "rb") as f:
                     container.files.put("/", f.read())
-
                 logger.info(f"Template installed successfully from file: {template_file}")
-
             else:
                 # 模式2: 使用LXD镜像列表中的镜像（通过别名）
                 logger.info(f"Using LXD image alias: {os_name} for container {container_name}")
-
                 # 检查镜像是否存在
                 try:
                     image = client.images.get_by_alias(os_name)
@@ -986,8 +812,8 @@ class HostServer(BasicServer):
                         "type": "image",
                         "alias": os_name
                     },
-                    "config": self._build_container_config(vm_conf),
-                    "devices": self._build_container_devices(vm_conf)
+                    "config": self.oci_conf(vm_conf),
+                    "devices": self.dev_conf(vm_conf)
                 }
 
                 container = client.containers.create(config, wait=True)
@@ -1005,10 +831,10 @@ class HostServer(BasicServer):
         vm_conf, net_result = self.NetCheck(vm_conf)
         if not net_result.success:
             return net_result
-        self.NCCreate(vm_conf, True)
+        self.IPBinder(vm_conf, True)
 
         # 专用操作 =============================================================
-        client, result = self._connect_lxd()
+        client, result = self.lxd_conn()
         if not result.success:
             return result
 
@@ -1027,15 +853,15 @@ class HostServer(BasicServer):
                     return install_result
 
             # 更新网络配置
-            network_result = self.NCUpdate(vm_conf, vm_last)
+            network_result = self.IPUpdate(vm_conf, vm_last)
             if not network_result.success:
                 return ZMessage(
                     success=False, action="VMUpdate",
                     message=f"网络配置更新失败: {network_result.message}")
 
             # 更新容器配置
-            container.config.update(self._build_container_config(vm_conf))
-            container.devices.update(self._build_container_devices(vm_conf))
+            container.config.update(self.oci_conf(vm_conf))
+            container.devices.update(self.dev_conf(vm_conf))
             container.save(wait=True)
 
             # 启动容器
@@ -1054,9 +880,9 @@ class HostServer(BasicServer):
         return super().VMUpdate(vm_conf, vm_last)
 
     # 删除虚拟机 ###############################################################
-    def VMDelete(self, vm_name: str) -> ZMessage:
+    def VMDelete(self, vm_name: str, rm_back=True) -> ZMessage:
         # 专用操作 =============================================================
-        client, result = self._connect_lxd()
+        client, result = self.lxd_conn()
         if not result.success:
             return result
 
@@ -1074,7 +900,7 @@ class HostServer(BasicServer):
                 self.VMPowers(vm_name, VMPowers.H_CLOSE)
 
             # 删除网络配置
-            self.NCCreate(vm_conf, False)
+            self.IPBinder(vm_conf, False)
 
             # 删除容器
             container.delete(wait=True)
@@ -1089,12 +915,12 @@ class HostServer(BasicServer):
                 message=f"删除容器失败: {str(e)}")
 
         # 通用操作 =============================================================
-        return super().VMDelete(vm_name)
+        return super().VMDelete(vm_name, rm_back)
 
     # 虚拟机电源 ###############################################################
     def VMPowers(self, vm_name: str, power: VMPowers) -> ZMessage:
         # 专用操作 =============================================================
-        client, result = self._connect_lxd()
+        client, result = self.lxd_conn()
         if not result.success:
             return result
 
@@ -1191,7 +1017,7 @@ class HostServer(BasicServer):
     # 设置虚拟机密码 ###########################################################
     def VMPasswd(self, vm_name: str, os_pass: str) -> ZMessage:
         # 专用操作 =============================================================
-        client, result = self._connect_lxd()
+        client, result = self.lxd_conn()
         if not result.success:
             return result
 
@@ -1232,7 +1058,7 @@ class HostServer(BasicServer):
     # 备份虚拟机 ###############################################################
     def VMBackup(self, vm_name: str, vm_tips: str) -> ZMessage:
         # 专用操作 =============================================================
-        client, result = self._connect_lxd()
+        client, result = self.lxd_conn()
         if not result.success:
             return result
 
@@ -1274,7 +1100,7 @@ class HostServer(BasicServer):
             # 使用LXD的publish功能创建镜像，然后导出
             # 创建临时镜像别名
             image_alias = f"backup-{vm_name}-{bak_time}"
-            
+
             # 先删除可能存在的同名别名镜像
             try:
                 old_image = client.images.get_by_alias(image_alias)
@@ -1282,13 +1108,13 @@ class HostServer(BasicServer):
                 logger.info(f"删除旧的临时镜像: {image_alias}")
             except NotFound:
                 pass  # 镜像不存在，继续
-            
+
             # 创建新镜像（带别名）
             image = container.publish(wait=True)
-            
+
             # 为镜像添加别名（方便后续清理）
             image.add_alias(image_alias, "Temporary backup image")
-            
+
             # 导出镜像到文件
             # image.export() 返回一个文件对象，需要读取其内容
             exported_data = image.export()
@@ -1321,7 +1147,7 @@ class HostServer(BasicServer):
             self.vm_saving[vm_name] = vm_conf
             self.logs_set(hs_result)
             self.data_set()
-            
+
             # 如果容器之前在运行，重新启动
             if is_running:
                 try:
@@ -1329,7 +1155,7 @@ class HostServer(BasicServer):
                     logger.info(f"容器 {vm_name} 已重新启动")
                 except Exception as e:
                     logger.warning(f"容器 {vm_name} 重新启动失败: {str(e)}")
-            
+
             return hs_result
 
         except NotFound:
@@ -1346,7 +1172,7 @@ class HostServer(BasicServer):
     # 恢复虚拟机 ###############################################################
     def Restores(self, vm_name: str, vm_back: str) -> ZMessage:
         # 连接接口
-        client, result = self._connect_lxd()
+        client, result = self.lxd_conn()
         if not result.success:
             return result
 
@@ -1403,11 +1229,11 @@ class HostServer(BasicServer):
                 logger.info(f"删除旧的还原临时镜像: {restore_alias}")
             except NotFound:
                 pass  # 镜像不存在，继续
-            
+
             # 导入镜像
             with open(backup_file, 'rb') as f:
                 image = client.images.create(f.read(), wait=True)
-            
+
             # 为镜像添加别名（方便识别和后续清理）
             image.add_alias(restore_alias, f"Restore image for {vm_name}")
 
@@ -1425,7 +1251,7 @@ class HostServer(BasicServer):
             container = client.containers.create(config, wait=True)
 
             # 网络配置
-            network_result = self.NCCreate(vm_conf, flag=True)
+            network_result = self.IPBinder(vm_conf, flag=True)
             if not network_result.success:
                 logger.warning(f"网络配置失败: {network_result.message}")
 
@@ -1433,7 +1259,7 @@ class HostServer(BasicServer):
             container.start(wait=True)
             vm_conf.os_name = vb_conf.old_os_name
             logger.info(f"容器 {vm_name} 恢复成功")
-            
+
             # 删除临时镜像（还原完成后清理）
             try:
                 image.delete(wait=True)
@@ -1462,7 +1288,7 @@ class HostServer(BasicServer):
     # VM镜像挂载 ###############################################################
     def HDDMount(self, vm_name: str, vm_imgs: SDConfig, in_flag=True) -> ZMessage:
         # 专用操作 =============================================================
-        client, result = self._connect_lxd()
+        client, result = self.lxd_conn()
         if not result.success:
             return result
 
@@ -1589,7 +1415,7 @@ class HostServer(BasicServer):
 
         # 启动tty会话web
         tty_port, token = self.web_terminal.open_tty(
-            self.hs_config, wan_port, HostServer.change_under(vm_uuid),
+            self.hs_config, wan_port, HostServer.set_uuid(vm_uuid),
             vm_type="lxclxd")
         if tty_port <= 0:
             return ZMessage(
@@ -1647,123 +1473,12 @@ class HostServer(BasicServer):
 
     # 移除备份 #################################################################
     def RMBackup(self, vm_name: str, vm_back: str = "") -> ZMessage:
-        # 删除虚拟机备份文件
-        del_files = []
-        if os.path.exists(self.hs_config.backup_path):
-            try:
-                # 扫描备份目录
-                for bk_file in os.listdir(self.hs_config.backup_path):
-                    # 检查文件名是否以虚拟机名开头
-                    if bk_file.startswith(f"{vm_name}_") and \
-                            (bk_file == vm_back or vm_back == ""):
-                        bk_path = os.path.join(
-                            self.hs_config.backup_path, bk_file)
-                        os.remove(bk_path)
-                        del_files.append(bk_file)
-                        logger.info(f"删除备份: {bk_file}")
-            except Exception as e:
-                logger.warning(f"扫描备份目录失败: {str(e)}")
-
-        # 记录删除的备份文件
-        logger.info(f"共删除 {len(del_files)} 个备份文件")
-        return ZMessage(success=True,
-                        message=f"已删除 {len(del_files)} 个备份文件")
+        return self.RMBackup_TTY(vm_name, vm_back)
 
     # 移除磁盘 #################################################################
     def RMMounts(self, vm_name: str, vm_imgs: str = "") -> ZMessage:
-        if vm_imgs != "":
-            return ZMessage(
-                success=True, action="RMMounts",
-                message="指定磁盘已删除")
-
-        # 删除容器挂载路径
-        if not self.hs_config.extern_path:
-            pass  # 没有配置挂载路径，跳过
-        else:
-            ct_path = f"{self.hs_config.extern_path}/{vm_name}"
-            try:
-                if os.path.exists(ct_path):
-                    shutil.rmtree(ct_path)
-                    logger.info(f"删除挂载路径: {ct_path}")
-            except Exception as e:
-                logger.warning(f"删除挂载失败 {ct_path}: {str(e)}")
-
-        # 返回结果
-        return ZMessage(success=True, action="RMMounts", message="删除成功")
+        return self.RMMounts_TTY(vm_name, vm_imgs)
 
     # 端口映射 #################################################################
     def PortsMap(self, map_info: PortData, flag=True) -> ZMessage:
-        # 判断是否为远程主机（排除 SSH 转发模式）
-        is_remote = (self.hs_config.server_addr not in ["localhost", "127.0.0.1", ""] and
-                     not self.hs_config.server_addr.startswith("ssh://"))
-
-        # 如果是远程主机，先建立SSH连接
-        if is_remote:
-            success, message = self.port_forward.connect_ssh()
-            if not success:
-                return ZMessage(
-                    success=False, action="PortsMap",
-                    message=f"SSH 连接失败: {message}")
-
-        # 如果wan_port为0，自动分配一个未使用的端口
-        if map_info.wan_port == 0:
-            map_info.wan_port = self.port_forward.allocate_port(is_remote)
-        else:
-            # 检查端口是否已被占用
-            existing_ports = self.port_forward.get_host_ports(is_remote)
-            if map_info.wan_port in existing_ports:
-                if is_remote:
-                    self.port_forward.close_ssh()
-                return ZMessage(
-                    success=False, action="PortsMap",
-                    message=f"端口 {map_info.wan_port} 已被占用")
-
-        # 执行端口映射操作
-        if flag:
-            success, error = self.port_forward.add_port_forward(
-                map_info.lan_addr, map_info.lan_port, map_info.wan_port,
-                "TCP", is_remote, map_info.nat_tips)
-
-            if success:
-                hs_message = f"端口 {map_info.wan_port} 成功映射到 {map_info.lan_addr}:{map_info.lan_port}"
-                hs_success = True
-            else:
-                if is_remote:
-                    self.port_forward.close_ssh()
-                return ZMessage(
-                    success=False, action="PortsMap",
-                    message=f"端口映射失败: {error}")
-        else:
-            self.port_forward.remove_port_forward(
-                map_info.wan_port, "TCP", is_remote)
-            hs_message = f"端口 {map_info.wan_port} 映射已删除"
-            hs_success = True
-
-        hs_result = ZMessage(
-            success=hs_success, action="PortsMap",
-            message=hs_message)
-        self.logs_set(hs_result)
-
-        # 关闭 SSH 连接
-        if is_remote:
-            self.port_forward.close_ssh()
-
-        return hs_result
-
-    # 反向代理 #################################################################
-    def ProxyMap(self,
-                 pm_info: WebProxy,
-                 vm_uuid: str,
-                 in_apis: HttpManager,
-                 in_flag=True) -> ZMessage:
-        # 获取虚拟机端口 ============================================================
-        if self.hs_config.server_addr not in ["localhost", "127.0.0.1", ""]:
-            pm_info.lan_port = self.FindPort(vm_uuid, pm_info.lan_port)
-            pm_info.lan_addr = self.hs_config.server_addr
-            if pm_info.lan_port == 0 and in_flag:
-                return ZMessage(
-                    success=False, action="ProxyMap",
-                    message="当主机为远程IP时，必须先添加NAT映射才能代理<br/>"
-                            "当前映射的本地端口缺少NAT映射，请先添加映射")
-        # 调用父类方法 ==============================================================
-        return super().ProxyMap(pm_info, vm_uuid, in_apis, in_flag)
+        return self.PortsMap_TTY(map_info, flag)

@@ -10,7 +10,8 @@ from copy import deepcopy
 from loguru import logger
 
 from HostServer.BasicServer import BasicServer
-from HostServer.HyperVAPI.HyperVAPI import HyperVAPI
+from VNCConsole.VNCSManager import VNCSManager
+from HostServer.Win64HyperVAPI.HyperVAPI import HyperVAPI
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Config.IMConfig import IMConfig
 from MainObject.Config.SDConfig import SDConfig
@@ -19,7 +20,7 @@ from MainObject.Public.HWStatus import HWStatus
 from MainObject.Public.ZMessage import ZMessage
 from MainObject.Config.VMConfig import VMConfig
 from MainObject.Config.VMBackup import VMBackup
-from VNCConsole.VNCManager import VNCStart, VProcess
+
 
 
 class HostServer(BasicServer):
@@ -41,22 +42,7 @@ class HostServer(BasicServer):
         )
 
         # VNC远程控制（Hyper-V使用增强会话模式，但保留接口兼容性）
-        self.vm_remote: VProcess | None = None
-
-    def VMLoader(self) -> bool:
-        """加载VNC服务（Hyper-V使用增强会话模式）"""
-        try:
-            cfg_name = "vnc_" + self.hs_config.server_name
-            cfg_full = "DataSaving/" + cfg_name + ".cfg"
-            if os.path.exists(cfg_full):
-                os.remove(cfg_full)
-            tp_remote = VNCStart(self.hs_config.remote_port, cfg_name)
-            self.vm_remote = VProcess(tp_remote)
-            self.vm_remote.start()
-            return True
-        except Exception as e:
-            logger.warning(f"VNC服务启动失败（Hyper-V使用增强会话模式）: {str(e)}")
-            return False
+        self.vm_remote: VNCSManager | None = None
 
     # 宿主机任务 ###############################################################
     def Crontabs(self) -> bool:
@@ -141,10 +127,6 @@ class HostServer(BasicServer):
         else:
             logger.error(f"无法连接到Hyper-V主机: {result.message}")
             return result
-
-        # 加载VNC服务
-        self.VMLoader()
-
         # 通用操作 =============================================================
         return super().HSLoader()
 
@@ -166,13 +148,13 @@ class HostServer(BasicServer):
         return super().HSUnload()
 
     # 虚拟机列出 ###############################################################
-    def VMStatus(self, vm_name: str = "", start_timestamp: int = None,
-                 end_timestamp: int = None) -> dict[str, list[HWStatus]]:
+    def VMStatus(self, vm_name: str = "", s_t: int = None,
+                 e_t: int = None) -> dict[str, list[HWStatus]]:
         """获取虚拟机状态"""
         # 专用操作 =============================================================
         # Hyper-V的虚拟机状态通过API实时获取
         # 通用操作 =============================================================
-        return super().VMStatus(vm_name, start_timestamp, end_timestamp)
+        return super().VMStatus(vm_name, s_t, e_t)
 
     # 虚拟机扫描 ###############################################################
     def VMDetect(self) -> ZMessage:
@@ -225,7 +207,7 @@ class HostServer(BasicServer):
                         "state": vm_info.get("state", "unknown")
                     }
                 )
-                self.LogStack(log_msg)
+                self.push_log(log_msg)
 
             # 断开连接
             self.hyperv_api.disconnect()
@@ -262,7 +244,7 @@ class HostServer(BasicServer):
         vm_conf, net_result = self.NetCheck(vm_conf)
         if not net_result.success:
             return net_result
-        self.NCCreate(vm_conf, True)
+        self.IPBinder(vm_conf, True)
 
         # 专用操作 =============================================================
         try:
@@ -369,7 +351,7 @@ class HostServer(BasicServer):
         vm_conf, net_result = self.NetCheck(vm_conf)
         if not net_result.success:
             return net_result
-        self.NCCreate(vm_conf, True)
+        self.IPBinder(vm_conf, True)
 
         # 专用操作 =============================================================
         try:
@@ -411,7 +393,7 @@ class HostServer(BasicServer):
                 logger.warning("Hyper-V磁盘扩容功能待实现")
 
             # 更新网卡
-            network_result = self.NCUpdate(vm_conf, vm_last)
+            network_result = self.IPUpdate(vm_conf, vm_last)
             if not network_result.success:
                 self.hyperv_api.disconnect()
                 return ZMessage(
@@ -456,7 +438,7 @@ class HostServer(BasicServer):
                 return connect_result
 
             # 删除网络绑定
-            self.NCCreate(vm_conf, False)
+            self.IPBinder(vm_conf, False)
 
             # 删除虚拟机
             delete_result = self.hyperv_api.delete_vm(vm_name, remove_files=True)
@@ -492,9 +474,9 @@ class HostServer(BasicServer):
                 hs_result = self.hyperv_api.power_on(vm_name)
             elif power == VMPowers.H_CLOSE:
                 hs_result = self.hyperv_api.power_off(vm_name, force=True)
-            elif power == VMPowers.S_PAUSE:
+            elif power == VMPowers.A_PAUSE:
                 hs_result = self.hyperv_api.suspend(vm_name)
-            elif power == VMPowers.S_RESUME:
+            elif power == VMPowers.A_WAKED:
                 hs_result = self.hyperv_api.resume(vm_name)
             elif power == VMPowers.H_RESET or power == VMPowers.S_RESET:
                 hs_result = self.hyperv_api.reset(vm_name)
@@ -686,7 +668,7 @@ class HostServer(BasicServer):
 
             if in_flag:  # 挂载ISO
                 # ISO文件路径
-                iso_path = os.path.join(self.hs_config.images_path, vm_imgs.iso_file)
+                iso_path = os.path.join(self.hs_config.dvdrom_path, vm_imgs.iso_file)  # 使用dvdrom_path存储光盘镜像
 
                 if not os.path.exists(iso_path):
                     self.hyperv_api.power_on(vm_name)

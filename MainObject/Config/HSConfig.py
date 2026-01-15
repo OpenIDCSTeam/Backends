@@ -4,19 +4,20 @@ import json
 class HSConfig:
     def __init__(self, config=None, /, **kwargs):
         self.server_name: str = ""  # 服务器名称
-        self.server_type: str = ""  # 服务器类型（Workstation/vSphereESXi/LXD等）
-        self.server_addr: str = ""  # 服务器地址（ESXi主机IP地址）
-        self.server_user: str = ""  # 服务器用户（ESXi用户名，通常是root）
-        self.server_pass: str = ""  # 服务器密码（ESXi密码）
-        self.server_port: int = 443  # 服务器端口（ESXi API端口，默认443）
+        self.server_type: str = ""  # 服务器类型
+        self.server_addr: str = ""  # 服务器地址
+        self.server_user: str = ""  # 服务器用户
+        self.server_pass: str = ""  # 服务器密码
+        self.server_port: int = 22  # 服务访问端口（ESXi: web端口，LXC/Docker: api端口，VMware: restapi端口）
         self.filter_name: str = ""  # 过滤器名称
-        self.images_path: str = ""  # 镜像存储池（ESXi: 数据存储中的ISO目录，如datastore1/ISO）
-        self.system_path: str = ""  # 系统存储池（ESXi: 数据存储名称，如datastore1）
-        self.backup_path: str = ""  # 备份存储池（ESXi: 使用快照，此路径用于导出备份）
+        self.images_path: str = ""  # 系统镜像存储池（vmdk等）
+        self.dvdrom_path: str = ""  # 光盘镜像存储池（ISO文件）
+        self.system_path: str = ""  # 系统存储池
+        self.backup_path: str = ""  # 备份存储池
         self.extern_path: str = ""  # 数据存储池
-        self.launch_path: str = ""  # 二进制路径（ESXi不需要）
-        self.network_nat: str = ""  # NAT网络NIC（ESXi: 虚拟交换机或端口组名称）
-        self.network_pub: str = ""  # PUB网络NIC（ESXi: 虚拟交换机或端口组名称）
+        self.launch_path: str = ""  # 二进制路径
+        self.network_nat: str = ""  # NAT网络NIC
+        self.network_pub: str = ""  # PUB网络NIC
         self.i_kuai_addr: str = ""  # 爱快OS地址
         self.i_kuai_user: str = ""  # 爱快OS用户
         self.i_kuai_pass: str = ""  # 爱快OS密码
@@ -28,7 +29,7 @@ class HSConfig:
         self.server_dnss: list = []  # DNS服务器
         self.extend_data: dict = {}  # API可选项
         self.system_maps: dict[str, list] = {}  # 系统映射: 显示名称->[文件名(xxx.iso),最低大小]
-        self.images_maps: dict[str, str] = {}  # ISO镜像映射: 显示名称->文件名(xxx.iso)
+        self.images_maps: dict[str, str] = {}  # 镜像映射: 显示名称->文件名(xxx.iso)
         self.ipaddr_maps: dict[str, dict] = {}
 
         self.ipaddr_dnss: list = ["119.29.29.29", "223.5.5.5"]
@@ -60,6 +61,7 @@ class HSConfig:
             "server_port": self.server_port,
             "filter_name": self.filter_name,
             "images_path": self.images_path,
+            "dvdrom_path": self.dvdrom_path,
             "system_path": self.system_path,
             "backup_path": self.backup_path,
             "extern_path": self.extern_path,
