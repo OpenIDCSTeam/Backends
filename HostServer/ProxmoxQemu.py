@@ -47,8 +47,8 @@ class HostServer(BasicServer):
                 host, user=user + "@pam", password=password, verify_ssl=False)
             # 测试连接 =========================================================
             self.proxmox.version.get()
-            logger.info("Successfully connected to Proxmox server")
-            return self.proxmox, ZMessage(success=True, action="_connect_proxmox")
+            logger.info("PVE连接成功")
+            return self.proxmox, ZMessage(success=True, action="api_conn")
         except Exception as e:
             logger.error(f"Failed to connect to Proxmox server: {str(e)}")
             traceback.print_exc()
@@ -62,17 +62,14 @@ class HostServer(BasicServer):
         client, result = self.api_conn()
         if not result.success:
             return 100  # 默认起始VMID
-
         try:
             # 获取所有现有的VMID
             vms = client.nodes(self.hs_config.launch_path).qemu.get()
             existing_vmids = [vm['vmid'] for vm in vms]
-
             # 从100开始查找可用的VMID
             vmid = 100
             while vmid in existing_vmids:
                 vmid += 1
-
             return vmid
         except Exception as e:
             logger.error(f"分配VMID失败: {str(e)}")
@@ -917,12 +914,10 @@ class HostServer(BasicServer):
                     return ZMessage(
                         success=False, action="HDDMount",
                         message=f"硬盘 {vm_imgs.hdd_name} 不在虚拟机配置中")
-
                 # 获取硬盘配置信息
                 mounted_disk = self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name]
-                scsi_device = getattr(mounted_disk, 'scsi_device', None)
-                disk_file = getattr(mounted_disk, 'disk_file', None)
-
+                scsi_device = getattr(mounted_disk, 'uid_scsi', None)
+                disk_file = getattr(mounted_disk, 'hdd_file', None)
                 if not scsi_device:
                     # 如果没有保存scsi设备号，尝试从配置中查找
                     config = vm.config.get()
@@ -957,7 +952,6 @@ class HostServer(BasicServer):
                                         break
                                     else:
                                         logger.warning(f"跳过不匹配的设备: {scsi_key} (期望: {target_disk_file}, 实际: {current_disk_file})")
-
                 if not scsi_device:
                     return ZMessage(
                         success=False, action="HDDMount",
@@ -1124,7 +1118,6 @@ class HostServer(BasicServer):
                 return ZMessage(
                     success=False, action="RMMounts",
                     message="虚拟机不存在")
-
             if vm_imgs not in self.vm_saving[vm_name].hdd_all:
                 return ZMessage(
                     success=False, action="RMMounts",
@@ -1203,11 +1196,9 @@ class HostServer(BasicServer):
                 except Exception as file_error:
                     logger.warning(f"删除qcow2文件失败: {str(file_error)}")
                     # 文件删除失败不影响配置删除，继续执行
-
             # 从配置列表中完全删除硬盘
             del self.vm_saving[vm_name].hdd_all[vm_imgs]
             logger.info(f"已从配置列表中删除硬盘 {vm_imgs}")
-
             # 保存配置到数据库
             self.data_set()
             logger.info(f"虚拟机 {vm_name} 配置已保存到数据库")
