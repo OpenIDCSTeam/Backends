@@ -64,7 +64,7 @@ def require_auth(f):
 
 
 # 统一API响应格式包装器 #######################################################
-def api_response_wrapper(code=200, msg='success', data=None):
+def api_response_wrapper(code=200, msg='成功', data=None):
     return rest_manager.api_response(code, msg, data)
 
 
@@ -807,7 +807,7 @@ def api_get_hosts():
     if all_hosts_data.get('code') == 200:
         all_hosts = all_hosts_data.get('data', {})
         filtered_hosts = {k: v for k, v in all_hosts.items() if k in assigned_hosts}
-        return api_response_wrapper(200, 'success', filtered_hosts)
+        return api_response_wrapper(200, '成功', filtered_hosts)
     
     return all_hosts_result
 

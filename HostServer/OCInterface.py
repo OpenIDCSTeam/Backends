@@ -310,7 +310,7 @@ class HostServer(BasicServer):
             self.web_terminal = None
         # 断开 Docker 连接 =====================================================
         if self.oci_connects:
-            self.oci_connects.close()
+            self.oci_connects.disconnect_docker()
             self.oci_connects = None
         # 关闭 SSH 转发连接 ====================================================
         if self.ssh_forwards:

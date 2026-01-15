@@ -37,17 +37,17 @@ class SSHTerminal:
             else:
                 ttyd_file = "ttyd.x86_64"
         else:
-            logger.warning(f"Unsupported platform: {system} {machine}")
+            logger.warning(f"不支持的平台: {system} {machine}")
             return ""
 
         ttyd_path = os.path.join(ttyd_dir, ttyd_file)
 
         # 检查文件是否存在
         if os.path.exists(ttyd_path):
-            logger.info(f"Found ttyd at: {ttyd_path}")
+            logger.info(f"找到ttyd: {ttyd_path}")
             return ttyd_path
         else:
-            logger.warning(f"ttyd not found at: {ttyd_path}")
+            logger.warning(f"ttyd未找到: {ttyd_path}")
             return ""
 
     # 启动 ttyd SSH会话 #################################################################
@@ -63,7 +63,7 @@ class SSHTerminal:
                  vm_type: str = "docker") -> tuple[int, str]:
         # 检查ttyd可执行文件是否存在 ====================================================
         if not self.ttyd_path:
-            logger.error("ttyd executable not found")
+            logger.error("ttyd可执行文件未找到")
             return -1, ""
         # 生成随机端口和token ===========================================================
         rand_port = random.randint(7000, 8000)
@@ -148,4 +148,4 @@ class SSHTerminal:
                 del self.ttyd_processes[port]
                 if port in self.ttyd_tokens:
                     del self.ttyd_tokens[port]
-                logger.info(f"Stopped ttyd session on port {port}")
+                logger.info(f"已停止端口{port}上ttyd会话")

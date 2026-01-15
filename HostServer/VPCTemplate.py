@@ -70,7 +70,7 @@ class HostServer(BasicServer):
         # 专用操作 =============================================================
         # TODO: 增加此主机需要执行的任务
         # 通用操作 =============================================================
-        return ZMessage(success=False, action="VScanner", message="Not implemented")
+        return ZMessage(success=False, action="VScanner", message="未实现")
 
     # 创建虚拟机 ###############################################################
     def VMCreate(self, vm_conf: VMConfig) -> ZMessage:

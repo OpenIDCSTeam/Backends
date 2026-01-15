@@ -825,9 +825,25 @@ class HostServer(BasicServer):
 
             if in_flag:
                 # 挂载硬盘
-                # 创建新的磁盘
-                disk_size = f"{vm_imgs.hdd_size}G" if hasattr(vm_imgs, 'hdd_size') else "10G"
-                disk_config = f"{self.hs_config.extern_path}:{disk_size}"
+                # 获取磁盘大小（单位：MB），转换为 GB
+                hdd_size_mb = getattr(vm_imgs, 'hdd_size', 10)  # 默认 10MB（实际逻辑中应该是GB）
+                # 如果 hdd_size 是 MB 值（如 10240），需要转换为 GB
+                if hdd_size_mb > 1000:  # 假设大于1000就是MB值
+                    disk_size = f"{hdd_size_mb // 1024}G"
+                else:
+                    disk_size = f"{hdd_size_mb}G"
+
+                # 获取存储名称
+                # 如果 extern_path 包含路径分隔符，提取最后一个目录名作为存储名称
+                if '/' in self.hs_config.extern_path:
+                    storage_name = self.hs_config.extern_path.rstrip('/').split('/')[-1]
+                else:
+                    storage_name = self.hs_config.extern_path
+
+                # 目录格式：<storage_name>:<volume_name>,size=<size>
+                # 存储池格式：<storage_name>:<size>
+                # 两种格式都用 storage_name，Proxmox会自动判断
+                disk_config = f"{storage_name}:vm-{vmid}-disk-{scsi_num},size={disk_size}"
 
                 # 找到可用的scsi设备号
                 config = vm.config.get()
@@ -863,6 +879,7 @@ class HostServer(BasicServer):
                 message=f"硬盘{action_text}成功")
 
         except Exception as e:
+            traceback.print_exc()
             return ZMessage(
                 success=False, action="HDDMount",
                 message=f"硬盘挂载操作失败: {str(e)}")

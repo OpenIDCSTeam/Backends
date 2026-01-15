@@ -218,7 +218,7 @@ class HostServer(BasicServer):
                 if not success:
                     return ZMessage(
                         success=False, action="VScanner",
-                        message="Failed to save scanned VMs to database")
+                        message="保存扫描的虚拟机到数据库失败")
 
             # 返回成功消息
             return ZMessage(

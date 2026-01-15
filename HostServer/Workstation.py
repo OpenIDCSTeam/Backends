@@ -66,7 +66,7 @@ class HostServer(BasicServer):
         # 检查文件是否存在 ================================================
         if not os.path.exists(vmrest_path):
             return ZMessage(success=False, action="HSLoader",
-                            message=f"vmrest.exe not found")
+                            message=f"未找到vmrest.exe文件")
         # 配置后台运行隐藏窗口 ============================================
         startupinfo = subprocess.STARTUPINFO()
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
@@ -86,7 +86,7 @@ class HostServer(BasicServer):
         if self.vmrest_pid is None:  # VM Rest Server未启动 ================
             return ZMessage(
                 success=False, action="HSUnload",
-                message="VM Rest Server is not running", )
+                message="VM Rest Server未运行", )
         try:
             self.vmrest_pid.terminate()  # 尝试正常终止
             self.vmrest_pid.wait(timeout=5)  # 等待最多5秒
@@ -115,7 +115,7 @@ class HostServer(BasicServer):
             if not vms_result.success:
                 return ZMessage(
                     success=False, action="VScanner",
-                    message=f"Failed to get VM list: {vms_result.message}")
+                    message=f"获取虚拟机列表失败: {vms_result.message}")
 
             vms_list = vms_result.results \
                 if isinstance(vms_result.results, list) else []
@@ -160,7 +160,7 @@ class HostServer(BasicServer):
                 if not success:
                     return ZMessage(
                         success=False, action="VScanner",
-                        message="Failed to save scanned VMs to database")
+                        message="保存扫描的虚拟机到数据库失败")
             # 返回成功消息 =====================================================
             return ZMessage(
                 success=True,

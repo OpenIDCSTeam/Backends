@@ -443,6 +443,9 @@ class BasicServer:
     def IPBinder_ROS(self, vm_conf: VMConfig, flag=True) -> ZMessage:
         # 创建网卡 ==================================================================
         # 遍历所有网络适配器->绑定静态IP ============================================
+        all_success = True
+        error_message = ""
+        
         for nic_name, nic_conf in vm_conf.nic_all.items():
             try:
                 logger.info(
@@ -459,19 +462,27 @@ class BasicServer:
                     logger.success(f"[API] 静态IP绑定成功: {nic_conf.ip4_addr}")
                 else:
                     logger.warning(f"[API] 静态IP绑定失败: {nc_result.message}")
-                return nc_result
+                    all_success = False
+                    if not error_message:
+                        error_message = nc_result.message
             except Exception as e:
                 logger.error(f"[API] 静态IP绑定异常: {str(e)}")
-                return ZMessage(
-                    success=False,
-                    action="NCStatic",
-                    message=str(e)
-                )
-        return ZMessage(
-            success=False,
-            action="NCStatic",
-            message="No IP address found"
-        )
+                all_success = False
+                if not error_message:
+                    error_message = str(e)
+        
+        if all_success:
+            return ZMessage(
+                success=True,
+                action="NCStatic",
+                message="所有网卡IP绑定成功"
+            )
+        else:
+            return ZMessage(
+                success=False,
+                action="NCStatic",
+                message=f"部分网卡IP绑定失败: {error_message}"
+            )
 
     # 手动实现绑定 ==================================================================
     def IPBinder_MAN(self, vm_conf: VMConfig, flag=True) -> ZMessage:
@@ -787,7 +798,7 @@ class BasicServer:
         hs_result = ZMessage(
             success=True,
             action="HSUnload",
-            message="VM Rest Server stopped",
+            message="VM Rest服务器已停止",
         )
         self.logs_set(hs_result)
         return hs_result

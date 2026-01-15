@@ -56,7 +56,7 @@ class IPTablesAPI:
         except subprocess.CalledProcessError:
             return set()
         except Exception as e:
-            logger.warning(f"Failed to get host ports: {str(e)}")
+            logger.warning(f"获取主机端口失败: {str(e)}")
             return set()
 
     # 执行iptables命令 #########################################################

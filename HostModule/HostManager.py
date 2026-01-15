@@ -140,7 +140,7 @@ class HostManage:
                 self.engine[hs_name].HSLoader()
             else:
                 self.engine[hs_name].HSUnload()
-            return ZMessage(success=True, message="主机启用=" + str(hs_flag))
+            return ZMessage(success=True, message="主机启用状态=" + str(hs_flag))
         except Exception as e:
             logger.error(f"修改主机状态失败: {e}")
             traceback.print_exc()
@@ -276,7 +276,7 @@ class HostManage:
         :return: 操作结果
         """
         if hs_name not in self.engine:
-            return ZMessage(success=False, message=f"主机 {hs_name} 未找到")
+            return ZMessage(success=False, message=f"Host {hs_name} not found")
 
         server = self.engine[hs_name]
 

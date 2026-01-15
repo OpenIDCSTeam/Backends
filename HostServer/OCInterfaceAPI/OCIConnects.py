@@ -10,7 +10,7 @@ try:
     DOCKER_AVAILABLE = True
 except ImportError:
     DOCKER_AVAILABLE = False
-    logger.warning("docker SDK not available, Docker functionality will be disabled")
+    logger.warning("docker SDK不可用，Docker功能将被禁用")
 
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Config.VMConfig import VMConfig
@@ -36,7 +36,7 @@ class OCIConnects:
         if not DOCKER_AVAILABLE:
             return None, ZMessage(
                 success=False, action="connect_docker",
-                message="docker SDK is not installed")
+                message="docker SDK未安装")
         
         try:
             # 如果已经连接，直接返回
@@ -52,7 +52,7 @@ class OCIConnects:
             
             # 本地连接模式
             elif server_addr in ["localhost", "127.0.0.1", ""]:
-                logger.info("Connecting to local Docker server")
+                logger.info("连接到本地Docker服务器")
                 self.docker_client = docker.from_env()
             
             # 远程 TLS 连接模式
@@ -61,17 +61,17 @@ class OCIConnects:
             
             # 测试连接
             self.docker_client.ping()
-            logger.info("Successfully connected to Docker server")
+            logger.info("成功连接到Docker服务器")
             
             return self.docker_client, ZMessage(success=True, action="connect_docker")
             
         except Exception as e:
-            logger.error(f"Failed to connect to Docker server: {str(e)}")
+            logger.error(f"连接到Docker服务器失败: {str(e)}")
             self.docker_client = None
             self.ssh_forward.close()
             return None, ZMessage(
                 success=False, action="connect_docker",
-                message=f"Failed to connect to Docker: {str(e)}")
+                message=f"连接到Docker失败: {str(e)}")
 
     # 通过SSH转发连接到远程Docker ##############################################
     # :param server_addr: SSH服务器地址（格式: ssh://hostname）
@@ -83,7 +83,7 @@ class OCIConnects:
             PARAMIKO_AVAILABLE = True
         except ImportError:
             PARAMIKO_AVAILABLE = False
-            logger.warning("paramiko not available, remote SSH execution will be disabled")
+            logger.warning("paramiko不可用，远程SSH执行将被禁用")
         
         if not PARAMIKO_AVAILABLE:
             return None, ZMessage(
@@ -236,9 +236,9 @@ class OCIConnects:
                 if not os.path.exists(image_file):
                     return ZMessage(
                         success=False, action="load_image",
-                        message=f"Image file not found: {image_file}")
+                        message=f"镜像文件未找到: {image_file}")
                 
-                logger.info(f"Loading image from {image_file}")
+                logger.info(f"从{image_file}加载镜像")
                 
                 with open(image_file, 'rb') as f:
                     client.images.load(f.read())
@@ -246,25 +246,25 @@ class OCIConnects:
                 # 获取加载的镜像名称（从 tar 中提取）
                 vm_conf.os_name = image_name.replace('.tar.gz', '').replace('.tar', '')
                 
-                logger.info(f"Image loaded successfully: {vm_conf.os_name}")
+                logger.info(f"镜像加载成功: {vm_conf.os_name}")
             else:
                 # 从 Docker Hub 或本地镜像库加载
                 try:
                     # 先检查本地是否存在
                     client.images.get(image_name)
-                    logger.info(f"Image {image_name} already exists locally")
+                    logger.info(f"镜像{image_name}已存在于本地")
                 except NotFound:
                     # 本地不存在，尝试拉取
-                    logger.info(f"Pulling image {image_name} from registry")
+                    logger.info(f"从仓库拉取镜像{image_name}")
                     client.images.pull(image_name)
-                    logger.info(f"Image {image_name} pulled successfully")
+                    logger.info(f"镜像{image_name}拉取成功")
             
             return ZMessage(success=True, action="load_image")
             
         except Exception as e:
             return ZMessage(
                 success=False, action="load_image",
-                message=f"Failed to load image: {str(e)}")
+                message=f"加载镜像失败: {str(e)}")
 
     # 获取所有容器列表 ##########################################################
     # :param all_containers: 是否包含停止的容器
@@ -279,7 +279,7 @@ class OCIConnects:
             containers = client.containers.list(all=all_containers)
             return containers
         except Exception as e:
-            logger.error(f"Failed to list containers: {str(e)}")
+            logger.error(f"列出容器失败: {str(e)}")
             return []
 
     # 获取指定容器对象 ##########################################################
@@ -296,7 +296,7 @@ class OCIConnects:
         except NotFound:
             return None
         except Exception as e:
-            logger.error(f"Failed to get container {container_name}: {str(e)}")
+            logger.error(f"获取容器{container_name}失败: {str(e)}")
             return None
 
     # 创建容器 ##################################################################
@@ -317,7 +317,7 @@ class OCIConnects:
             if self.get_container(container_name):
                 return ZMessage(
                     success=False, action="create_container",
-                    message=f"Container {container_name} already exists")
+                    message=f"容器{container_name}已存在")
             
             # 先加载镜像
             install_result = self.load_or_pull_image(vm_conf)
@@ -341,13 +341,13 @@ class OCIConnects:
             # 启动容器
             container.start()
             
-            logger.info(f"Container {container_name} created successfully")
+            logger.info(f"容器{container_name}创建成功")
             
             return ZMessage(success=True, action="create_container", 
                           message=f"容器 {container_name} 创建成功")
             
         except Exception as e:
-            logger.error(f"Failed to create container: {str(e)}")
+            logger.error(f"创建容器失败: {str(e)}")
             return ZMessage(
                 success=False, action="create_container",
                 message=f"容器创建失败: {str(e)}")
@@ -364,7 +364,7 @@ class OCIConnects:
         if not container:
             return ZMessage(
                 success=False, action="remove_container",
-                message=f"Container {container_name} does not exist")
+                message=f"容器{container_name}不存在")
         
         try:
             # 停止容器（如果正在运行）
@@ -374,13 +374,13 @@ class OCIConnects:
             # 删除容器
             container.remove(v=True, force=force)
             
-            logger.info(f"Container {container_name} deleted successfully")
+            logger.info(f"容器{container_name}删除成功")
             
             return ZMessage(success=True, action="remove_container", 
                           message=f"容器 {container_name} 删除成功")
             
         except Exception as e:
-            logger.error(f"Failed to remove container: {str(e)}")
+            logger.error(f"删除容器失败: {str(e)}")
             return ZMessage(
                 success=False, action="remove_container",
                 message=f"删除容器失败: {str(e)}")
@@ -397,35 +397,35 @@ class OCIConnects:
         if not container:
             return ZMessage(
                 success=False, action="power_operation",
-                message=f"Container {container_name} does not exist")
+                message=f"容器{container_name}不存在")
         
         try:
             if action == "start":
                 if container.status != "running":
                     container.start()
-                    logger.info(f"Container {container_name} started")
+                    logger.info(f"容器{container_name}已启动")
                 else:
-                    logger.info(f"Container {container_name} is already running")
+                    logger.info(f"容器{container_name}已经在运行")
             
             elif action == "stop":
                 if container.status == "running":
                     container.stop(timeout=10)
-                    logger.info(f"Container {container_name} stopped")
+                    logger.info(f"容器{container_name}已停止")
                 else:
-                    logger.info(f"Container {container_name} is already stopped")
+                    logger.info(f"容器{container_name}已经停止")
             
             elif action == "restart":
                 if container.status == "running":
                     container.restart(timeout=10)
                 else:
                     container.start()
-                logger.info(f"Container {container_name} restarted")
+                logger.info(f"容器{container_name}已重启")
             
             return ZMessage(success=True, action="power_operation", 
                           message=f"容器 {container_name} {action} 操作成功")
             
         except Exception as e:
-            logger.error(f"Failed to {action} container: {str(e)}")
+            logger.error(f"容器{action}操作失败: {str(e)}")
             return ZMessage(
                 success=False, action="power_operation",
                 message=f"电源操作失败: {str(e)}")
@@ -440,17 +440,17 @@ class OCIConnects:
         """
         container = self.get_container(container_name)
         if not container:
-            return -1, f"Container {container_name} does not exist"
+            return -1, f"容器{container_name}不存在"
         
         try:
             if container.status != "running":
-                return -1, f"Container {container_name} is not running"
+                return -1, f"容器{container_name}未运行"
             
             exec_result = container.exec_run(cmd=cmd)
             return exec_result.exit_code, exec_result.output.decode()
             
         except Exception as e:
-            logger.error(f"Failed to exec command: {str(e)}")
+            logger.error(f"执行命令失败: {str(e)}")
             return -1, str(e)
 
     # 设置容器密码 ##############################################################
@@ -471,7 +471,7 @@ class OCIConnects:
                 success=False, action="set_password",
                 message=f"设置密码失败: {output}")
         
-        logger.info(f"Password set for container {container_name}")
+        logger.info(f"容器{container_name}密码已设置")
         return ZMessage(success=True, action="set_password", 
                       message="密码设置成功")
 
@@ -495,7 +495,7 @@ class OCIConnects:
             if not container:
                 return ZMessage(
                     success=False, action="recreate_container",
-                    message=f"Container {container_name} does not exist")
+                    message=f"容器{container_name}不存在")
             
             # 停止并删除旧容器
             if container.status == "running":
@@ -533,7 +533,7 @@ class OCIConnects:
                           message="容器重新创建成功")
             
         except Exception as e:
-            logger.error(f"Failed to recreate container: {str(e)}")
+            logger.error(f"重新创建容器失败: {str(e)}")
             return ZMessage(
                 success=False, action="recreate_container",
                 message=f"容器重新创建失败: {str(e)}")
@@ -558,7 +558,7 @@ class OCIConnects:
                 if ip:
                     return ip
         except Exception as e:
-            logger.warning(f"Failed to get container IP: {str(e)}")
+            logger.warning(f"获取容器IP失败: {str(e)}")
         
         return None
 
