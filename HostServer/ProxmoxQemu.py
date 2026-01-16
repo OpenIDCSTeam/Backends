@@ -65,10 +65,10 @@ class HostServer(BasicServer):
         try:
             # 获取所有现有的VMID
             vms = client.nodes(self.hs_config.launch_path).qemu.get()
-            existing_vmids = [vm['vmid'] for vm in vms]
+            now_vmid = [vm['vmid'] for vm in vms]
             # 从100开始查找可用的VMID
             vmid = 100
-            while vmid in existing_vmids:
+            while vmid in now_vmid:
                 vmid += 1
             return vmid
         except Exception as e:
@@ -340,6 +340,7 @@ class HostServer(BasicServer):
             result = self.VMSetups(vm_conf)
             if not result.success:
                 logger.warning(f"系统安装失败: {result.message}")
+            self.VMPowers(vm_conf.vm_uuid, VMPowers.S_START)
         # 捕获所有异常 ==============================================
         except Exception as e:
             traceback.print_exc()
@@ -650,40 +651,35 @@ class HostServer(BasicServer):
 
     # 备份虚拟机 ###############################################################
     def VMBackup(self, vm_name: str, vm_tips: str) -> ZMessage:
-        """备份虚拟机"""
+        # 连接到 Proxmox 服务器 ================================================
         client, result = self.api_conn()
         if not result.success:
             return result
-
+        # 获取虚拟机配置 =======================================================
         vm_conf = self.VMSelect(vm_name)
         if not vm_conf:
             return ZMessage(
                 success=False,
                 action="Backup",
                 message="虚拟机不存在")
-
+        # 备份虚拟机 ========================================================
         try:
             vmid = self.get_vmid(vm_conf)
             if vmid is None:
                 return ZMessage(
                     success=False, action="VMBackup",
                     message=f"虚拟机 {vm_name} 的VMID未找到")
-
             vm = client.nodes(self.hs_config.launch_path).qemu(vmid)
-
             # 检查虚拟机是否正在运行
             status = vm.status.current.get()
             is_running = status['status'] == 'running'
-
             if is_running:
                 vm.status.stop.post()
                 logger.info(f"虚拟机 {vm_name} 已停止")
                 time.sleep(5)  # 等待虚拟机完全停止
-
             # 构建备份文件名
             bak_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             bak_file = f"{vm_name}_{bak_time}.vma"
-
             # 创建备份
             backup_config = {
                 'vmid': vmid,
@@ -691,38 +687,54 @@ class HostServer(BasicServer):
                 'compress': 'gzip',
                 'storage': 'local',  # 备份存储位置
             }
-
-            task_id = client.nodes(self.hs_config.launch_path).vzdump.post(**backup_config)
-            logger.info(f"备份任务已创建: {task_id}")
-
-            # 等待备份完成
-            # 注意：这里简化处理，实际应该轮询任务状态
-            time.sleep(10)
-
-            # 记录备份信息
+            task_id = client.nodes(
+                self.hs_config.launch_path
+            ).vzdump.post(**backup_config)
+            logger.info(f"备份任务已创建，任务ID: {task_id}")
+            # 等待备份完成 ==================================================
+            max_wait_time = 3600  # 最大等待时间（秒），1小时
+            check_interval = 5  # 检查间隔（秒）
+            all_time = 0
+            while all_time < max_wait_time:
+                # 查询任务状态 ----------------------------------------------
+                task_status = client.nodes(
+                    self.hs_config.launch_path
+                ).tasks(task_id).status.get()
+                status_value = task_status.get('status', '')
+                logger.info(f"备份{status_value}已等待: {all_time}秒")
+                # 任务成功完成 ----------------------------------------------
+                if status_value == 'stopped':
+                    logger.info(f"备份完成，总耗时: {all_time}秒")
+                    break
+                time.sleep(check_interval)
+                all_time += check_interval
+                # 超时检查 --------------------------------------------------
+                if all_time >= max_wait_time:
+                    logger.error(f"备份任务超时，已等待{max_wait_time}秒")
+                    raise TimeoutError(f"备份超时，已等待{max_wait_time}秒")
+            # 记录备份信息 ==================================================
             vm_conf.backups.append(VMBackup(
                 backup_time=datetime.datetime.now(),
                 backup_name=bak_file,
                 backup_hint=vm_tips,
                 old_os_name=vm_conf.os_name
             ))
-
-            # 如果虚拟机之前在运行，重新启动
+            # 重新启动 ======================================================
             if is_running:
                 vm.status.start.post()
                 logger.info(f"虚拟机 {vm_name} 已重新启动")
-
+            # 记录备份结果 ==================================================
             hs_result = ZMessage(
                 success=True, action="VMBackup",
-                message=f"虚拟机备份成功，文件: {bak_file}",
-                results={"backup_file": bak_file}
+                message=f"虚拟机备份成功: {bak_file}，耗时: {all_time}秒",
+                results={"backup_file": bak_file, "elapsed_time": all_time}
             )
+            # 保存虚拟机配置 ================================================
             self.vm_saving[vm_name] = vm_conf
             self.logs_set(hs_result)
             self.data_set()
-
             return hs_result
-
+        # 备份失败 ==========================================================
         except Exception as e:
             logger.error(f"备份虚拟机失败: {str(e)}")
             traceback.print_exc()
@@ -796,202 +808,205 @@ class HostServer(BasicServer):
                 success=False, action="Restores",
                 message=f"恢复失败: {str(e)}")
 
+    # 查找SCSI设备 #############################################################
+    def get_scsi(self, vm_apis, vm_name: str, disk_file: str = None) -> Optional[str]:
+        """
+        从Proxmox配置中查找SCSI设备号
+        
+        Args:
+            vm_apis: Proxmox虚拟机API对象
+            vm_name: 虚拟机名称
+            disk_file: 磁盘文件名（可选，用于匹配）
+        
+        Returns:
+            找到的SCSI设备号（如'scsi1'），未找到返回None
+        """
+        try:
+            config = vm_apis.config.get()
+            logger.info(f"尝试从Proxmox配置中查找虚拟机 {vm_name} 的SCSI设备")
+
+            # 遍历所有scsi设备
+            for key, value in config.items():
+                if key.startswith('scsi') and isinstance(value, str):
+                    logger.debug(f"检查设备 {key}: {value}")
+
+                    # 如果提供了disk_file，通过磁盘文件名匹配
+                    if disk_file and disk_file in value:
+                        logger.info(f"通过磁盘文件名 {disk_file} 找到设备: {key}")
+                        return key
+
+            logger.warning(f"未找到匹配的SCSI设备")
+            return None
+
+        except Exception as e:
+            logger.error(f"查找SCSI设备时出错: {str(e)}")
+            traceback.print_exc()
+            return None
+
+    # 创建QCOW2磁盘文件 ########################################################
+    def hdd_init(self, vm_vmid: int, disk_name: str, disk_size: str) -> ZMessage:
+        """
+        创建QCOW2格式的磁盘文件
+        
+        Args:
+            vm_vmid: 虚拟机VMID
+            disk_name: 磁盘文件名（如'vm-100-disk-1.qcow2'）
+            disk_size: 磁盘大小（如'10G'）
+        
+        Returns:
+            ZMessage对象，包含操作结果
+        """
+        disk_dir = f"/var/lib/vz/images/{vm_vmid}"
+
+        try:
+            if self.web_flag():
+                # 远程模式：通过SSH创建qcow2文件
+                ssh = paramiko.SSHClient()
+                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh.connect(
+                    self.hs_config.server_addr,
+                    username=self.hs_config.server_user,
+                    password=self.hs_config.server_pass)
+
+                # 创建目录
+                ssh.exec_command(f"mkdir -p {disk_dir}")
+
+                # 创建qcow2文件
+                create_cmd = f"qemu-img create -f qcow2 {disk_dir}/{disk_name} {disk_size}"
+                stdin, stdout, stderr = ssh.exec_command(create_cmd)
+                exit_status = stdout.channel.recv_exit_status()
+
+                if exit_status != 0:
+                    error_msg = stderr.read().decode()
+                    ssh.close()
+                    return ZMessage(
+                        success=False, action="CreateQcow2",
+                        message=f"创建qcow2文件失败: {error_msg}")
+
+                ssh.close()
+                logger.info(f"通过SSH创建qcow2文件: {disk_dir}/{disk_name}, 大小: {disk_size}")
+
+            else:
+                # 本地模式：直接创建qcow2文件
+                os.makedirs(disk_dir, exist_ok=True)
+                create_cmd = f"qemu-img create -f qcow2 {disk_dir}/{disk_name} {disk_size}"
+                exit_status = os.system(create_cmd)
+
+                if exit_status != 0:
+                    return ZMessage(
+                        success=False, action="CreateQcow2",
+                        message=f"创建qcow2文件失败")
+
+                logger.info(f"本地创建qcow2文件: {disk_dir}/{disk_name}, 大小: {disk_size}")
+
+            return ZMessage(
+                success=True, action="CreateQcow2",
+                message=f"成功创建qcow2文件: {disk_name}")
+
+        except Exception as e:
+            logger.error(f"创建qcow2文件异常: {str(e)}")
+            traceback.print_exc()
+            return ZMessage(
+                success=False, action="CreateQcow2",
+                message=f"创建qcow2文件异常: {str(e)}")
+
     # VM镜像挂载 ###############################################################
     def HDDMount(self, vm_name: str, vm_imgs: SDConfig, in_flag=True) -> ZMessage:
-        client, result = self.api_conn()
+        # 获取虚拟机信息 =======================================================
+        result = self.get_info(vm_name)
         if not result.success:
             return result
+        vm_conn = result.results[0]
+        vm_vmid = result.results[1]
+        # 挂载硬盘 =============================================================
         try:
-            if vm_name not in self.vm_saving:
-                return ZMessage(
-                    success=False, action="HDDMount",
-                    message="虚拟机不存在")
-
-            vm_conf = self.vm_saving[vm_name]
-            vmid = self.get_vmid(vm_conf)
-            if vmid is None:
-                return ZMessage(
-                    success=False, action="HDDMount",
-                    message=f"虚拟机 {vm_name} 的VMID未找到")
-            vm = client.nodes(self.hs_config.launch_path).qemu(vmid)
-            # 停止虚拟机
-            status = vm.status.current.get()
-            was_running = status['status'] == 'running'
-            if was_running:
+            # 停止虚拟机 =======================================================
+            vm_flag = vm_conn.status.current.get()
+            vm_flag = vm_flag['status'] == 'running'
+            if vm_flag:
                 self.VMPowers(vm_name, VMPowers.H_CLOSE)
-
+            # 获取可用的scsi设备号 =============================================
             if in_flag:
-                # 找到可用的scsi设备号（统一在这里计算）
-                config = vm.config.get()
+                # 找到可用的scsi设备号 =========================================
+                config = vm_conn.config.get()
                 scsi_num = 1
                 while f"scsi{scsi_num}" in config:
                     scsi_num += 1
-
-                # 检查是否是重新挂载已卸载的硬盘
-                existing_disk = None
+                # 检查是否是重新挂载已卸载的硬盘 ===============================
+                disk_name = None
                 if vm_imgs.hdd_name in self.vm_saving[vm_name].hdd_all:
-                    existing_disk = self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name]
-                    if existing_disk.hdd_flag == 0 and existing_disk.disk_file:
-                        # 已卸载的硬盘，重新挂载
-                        disk_name = existing_disk.disk_file
-                        logger.info(f"重新挂载已卸载的硬盘: {vm_imgs.hdd_name}, 磁盘文件: {disk_name}, 使用scsi设备号: {scsi_num}")
-                    else:
-                        # 已挂载的硬盘，不能再挂载
+                    now_disk = self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name]
+                    # 已卸载的硬盘，重新挂载 -----------------------------------
+                    if now_disk.hdd_flag == 0 and now_disk.hdd_file:
+                        disk_name = now_disk.hdd_file
+                        logger.info(f"重新挂载已卸载的硬盘: {disk_name}")
+                    # 已挂载的硬盘，不能再挂载 ---------------------------------
+                    elif now_disk.hdd_flag == 1:
                         return ZMessage(
                             success=False, action="HDDMount",
                             message=f"硬盘 {vm_imgs.hdd_name} 已经挂载")
-                else:
-                    # 新硬盘，需要创建
-                    # 获取磁盘大小（单位：MB），转换为 GB
-                    hdd_size_mb = getattr(vm_imgs, 'hdd_size', 10)  # 默认 10MB（实际逻辑中应该是GB）
-                    # 如果 hdd_size 是 MB 值（如 10240），需要转换为 GB
-                    if hdd_size_mb > 1000:  # 假设大于1000就是MB值
-                        disk_size = f"{hdd_size_mb // 1024}G"
-                    else:
-                        disk_size = f"{hdd_size_mb}G"
-
-                    storage_name = self.hs_config.extern_path
-                    disk_name = f"vm-{vmid}-disk-{scsi_num}.qcow2"
-                    dest_image = f"{storage_name}:{vmid}/{disk_name}"
-
-                    # 创建qcow2镜像文件
-                    try:
-                        if self.web_flag():
-                            # 远程模式：通过SSH创建qcow2文件
-                            ssh = paramiko.SSHClient()
-                            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                            ssh.connect(
-                                self.hs_config.server_addr,
-                                username=self.hs_config.server_user,
-                                password=self.hs_config.server_pass)
-                            # 创建目录
-                            disk_dir = f"/var/lib/vz/images/{vmid}"
-                            ssh.exec_command(f"mkdir -p {disk_dir}")
-                            # 创建qcow2文件
-                            create_cmd = f"qemu-img create -f qcow2 {disk_dir}/{disk_name} {disk_size}"
-                            stdin, stdout, stderr = ssh.exec_command(create_cmd)
-                            exit_status = stdout.channel.recv_exit_status()
-                            if exit_status != 0:
-                                error_msg = stderr.read().decode()
-                                ssh.close()
-                                return ZMessage(
-                                    success=False, action="HDDMount",
-                                    message=f"创建qcow2文件失败: {error_msg}")
-                            ssh.close()
-                            logger.info(f"通过SSH创建qcow2文件: {disk_dir}/{disk_name}, 大小: {disk_size}, 使用scsi设备号: {scsi_num}")
-                        else:
-                            # 本地模式：直接创建qcow2文件
-                            disk_dir = f"/var/lib/vz/images/{vmid}"
-                            os.makedirs(disk_dir, exist_ok=True)
-                            create_cmd = f"qemu-img create -f qcow2 {disk_dir}/{disk_name} {disk_size}"
-                            exit_status = os.system(create_cmd)
-                            if exit_status != 0:
-                                return ZMessage(
-                                    success=False, action="HDDMount",
-                                    message=f"创建qcow2文件失败")
-                            logger.info(f"本地创建qcow2文件: {disk_dir}/{disk_name}, 大小: {disk_size}, 使用scsi设备号: {scsi_num}")
-                    except Exception as e:
-                        traceback.print_exc()
-                        return ZMessage(
-                            success=False, action="HDDMount",
-                            message=f"创建qcow2文件异常: {str(e)}")
-
-                # 目录格式：<storage_name>:<volume_name>
+                # 需要创建新硬盘 ===============================================
+                if disk_name is None:
+                    hdd_size_mb = getattr(vm_imgs, 'hdd_size', 10)
+                    disk_size = f"{hdd_size_mb // 1024}G"
+                    disk_name = f"vm-{vm_vmid}-disk-{scsi_num}.qcow2"
+                    # 创建磁盘文件 =============================================
+                    create_result = self.hdd_init(vm_vmid, disk_name, disk_size)
+                    if not create_result.success:
+                        return create_result
+                    logger.info(f"创建新硬盘: {disk_name}, 大小: {disk_size}")
+                # 确保disk_name已赋值 ==========================================
+                if disk_name is None:
+                    return ZMessage(
+                        success=False, action="HDDMount",
+                        message="无法确定磁盘文件名")
+                # 挂载硬盘 =====================================================
                 storage_name = self.hs_config.extern_path
-                disk_config = f"{storage_name}:{vmid}/{disk_name}"
-                vm.config.put(**{f"scsi{scsi_num}": disk_config})
-
-                # 保存scsi设备号和状态，方便卸载时使用
+                disk_config = f"{storage_name}:{vm_vmid}/{disk_name}"
+                vm_conn.config.put(**{f"scsi{scsi_num}": disk_config})
+                logger.info(f"硬盘挂载到虚拟机 {vm_name}，设备: scsi{scsi_num}")
+                # 保存scsi设备号和状态 =========================================
                 vm_imgs.hdd_flag = 1  # 1表示已挂载
-                vm_imgs.scsi_device = f"scsi{scsi_num}"
-                vm_imgs.disk_file = disk_name
+                vm_imgs.hdd_scsi = f"scsi{scsi_num}"
+                vm_imgs.hdd_file = disk_name
                 self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name] = vm_imgs
-                self.data_set()
-                logger.info(f"硬盘已挂载到虚拟机 {vm_name}，设备: scsi{scsi_num}")
+            # 卸载硬盘 =========================================================
             else:
-                # 卸载硬盘（从虚拟机中移除设备，但保留配置和磁盘文件，可以重新挂载）
+                # 检查硬盘是否在虚拟机配置中 -----------------------------------
                 if vm_imgs.hdd_name not in self.vm_saving[vm_name].hdd_all:
                     return ZMessage(
                         success=False, action="HDDMount",
                         message=f"硬盘 {vm_imgs.hdd_name} 不在虚拟机配置中")
-                # 获取硬盘配置信息
+                # 获取硬盘配置信息 ---------------------------------------------
                 mounted_disk = self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name]
-                scsi_device = getattr(mounted_disk, 'uid_scsi', None)
+                scsi_device = getattr(mounted_disk, 'hdd_scsi', None)
                 disk_file = getattr(mounted_disk, 'hdd_file', None)
+                # 如果没有scsi设备号，尝试从Proxmox配置中查找 ------------------
                 if not scsi_device:
-                    # 如果没有保存scsi设备号，尝试从配置中查找
-                    config = vm.config.get()
-                    scsi_device = None
-                    disk_storage = None
-                    disk_volume = None
-
-                    # 从disk_file获取要卸载的磁盘文件名
-                    target_disk_file = disk_file  # 这是我们要卸载的磁盘文件名
-                    if not target_disk_file:
-                        return ZMessage(
-                            success=False, action="HDDMount",
-                            message="无法确定要卸载的磁盘文件，请重新挂载后再尝试")
-
-                    for scsi_key, scsi_value in config.items():
-                        if scsi_key.startswith('scsi'):
-                            # scsi_value格式: "storage_name:vmid/disk_name" 或 "storage_name:vmid/disk_name,size=10G"
-                            if ':' in scsi_value:
-                                storage_part, volume_part = scsi_value.split(':', 1)
-                                current_disk_volume = volume_part.split(',')[0]  # 去掉可能存在的size等参数
-
-                                # 提取当前遍历到的磁盘文件名
-                                if '/' in current_disk_volume:
-                                    current_disk_file = current_disk_volume.split('/')[-1]
-
-                                    # 重要：验证这个scsi设备是否真的对应我们要卸载的硬盘
-                                    if current_disk_file == target_disk_file:
-                                        scsi_device = scsi_key
-                                        disk_storage = storage_part
-                                        disk_volume = current_disk_volume
-                                        logger.info(f"找到匹配的scsi设备: {scsi_device}, 磁盘文件: {current_disk_file}")
-                                        break
-                                    else:
-                                        logger.warning(f"跳过不匹配的设备: {scsi_key} (期望: {target_disk_file}, 实际: {current_disk_file})")
+                    scsi_device = self.get_scsi(vm_conn, vm_name, disk_file)
+                # 如果还是找不到scsi设备，返回错误 -----------------------------
                 if not scsi_device:
+                    logger.error(f"无法找到硬盘 {vm_imgs.hdd_name} scsi设备号")
                     return ZMessage(
                         success=False, action="HDDMount",
-                        message=f"未找到要卸载的scsi设备 (磁盘文件: {disk_file})")
-
-                # 从Proxmox配置中删除该设备（卸载，不是删除）
-                try:
-                    # 使用 'none' 值来删除配置项
-                    vm.config.put(**{scsi_device: "none"})
-                    logger.info(f"已从Proxmox配置中卸载 {scsi_device} 设备")
-
-                    # 更新本地配置：标记为已卸载，保留配置信息
-                    mounted_disk.hdd_flag = 0  # 0表示已卸载
-                    mounted_disk.scsi_device = None  # 清除设备号
-                    # 保留 disk_file，用于后续重新挂载
-                    self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name] = mounted_disk
-                    logger.info(f"硬盘 {vm_imgs.hdd_name} 已标记为已卸载状态，保留在配置列表中")
-
-                except Exception as delete_error:
-                    logger.error(f"卸载硬盘失败: {str(delete_error)}")
-                    traceback.print_exc()
-                    return ZMessage(
-                        success=False, action="HDDMount",
-                        message=f"卸载硬盘失败: {str(delete_error)}")
-
-                logger.info(f"硬盘已从虚拟机 {vm_name} 卸载，配置已保留")
-
-            # 保存配置到数据库（避免调用VMUpdate导致重启）
+                        message=f"无法找到硬盘 {vm_imgs.hdd_name} scsi设备号")
+                # 执行卸载操作 -------------------------------------------------
+                vm_conn.config.put(**{scsi_device: "none"})
+                vm_conn.config.put(delete=scsi_device)
+                logger.info(f"已从Proxmox配置中卸载 {scsi_device} 设备")
+                # 标记为已卸载 -------------------------------------------------
+                mounted_disk.hdd_flag = 0  # 0表示已卸载
+                mounted_disk.hdd_scsi = ""  # 清除设备号，下次挂载时会重新分配
+                self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name] = mounted_disk
+                logger.info(f"硬盘{vm_imgs.hdd_name}已从虚拟机 {vm_name} 卸载")
+            # 保存配置到数据库 =================================================
             self.data_set()
-            logger.info(f"虚拟机 {vm_name} 配置已保存到数据库")
-
-            # 重启虚拟机（如果之前在运行）
-            if was_running:
-                self.VMPowers(vm_name, VMPowers.S_START)
-
-            action_text = "挂载" if in_flag else "卸载"
+            # 重启虚拟机 =======================================================
+            self.VMPowers(vm_name, VMPowers.S_START) if vm_flag else None
             return ZMessage(
                 success=True, action="HDDMount",
-                message=f"硬盘{action_text}成功")
-
+                message=f"硬盘{"挂载" if in_flag else "卸载"}成功")
+        # 捕获所有异常 =========================================================
         except Exception as e:
             traceback.print_exc()
             return ZMessage(
@@ -999,61 +1014,44 @@ class HostServer(BasicServer):
                 message=f"硬盘挂载操作失败: {str(e)}")
 
     # ISO镜像挂载 ##############################################################
-    def ISOMount(self, vm_name: str, vm_imgs: IMConfig, in_flag=True) -> ZMessage:
-        """挂载/卸载ISO镜像"""
-        client, result = self.api_conn()
+    def ISOMount(self, vm_name: str,
+                 vm_imgs: IMConfig, in_flag=True) -> ZMessage:
+        # 获取虚拟机信息 =======================================================
+        result = self.get_info(vm_name)
         if not result.success:
             return result
-
+        vm_conn = result.results[0]
+        # 执行挂载操作 =========================================================
         try:
-            if vm_name not in self.vm_saving:
-                return ZMessage(
-                    success=False, action="ISOMount",
-                    message="虚拟机不存在")
-
-            vm_conf = self.vm_saving[vm_name]
-            vmid = self.get_vmid(vm_conf)
-            if vmid is None:
-                return ZMessage(
-                    success=False, action="ISOMount",
-                    message=f"虚拟机 {vm_name} 的VMID未找到")
-
-            vm = client.nodes(self.hs_config.launch_path).qemu(vmid)
-            # 停止虚拟机
-            status = vm.status.current.get()
+            # 停止虚拟机 =======================================================
+            status = vm_conn.status.current.get()
             was_running = status['status'] == 'running'
             if was_running:
                 self.VMPowers(vm_name, VMPowers.H_CLOSE)
-
             if in_flag:
-                # 挂载ISO
+                # 挂载ISO ------------------------------------------------------
                 iso_path = f"local:iso/{vm_imgs.iso_file}"
-                vm.config.put(ide2=f"{iso_path},media=cdrom")
-
+                vm_conn.config.put(ide2=f"{iso_path},media=cdrom")
                 self.vm_saving[vm_name].iso_all[vm_imgs.iso_name] = vm_imgs
                 logger.info(f"ISO已挂载到虚拟机 {vm_name}: {vm_imgs.iso_file}")
             else:
-                # 卸载ISO
-                vm.config.put(ide2="none,media=cdrom")
-
+                # 卸载ISO ------------------------------------------------------
+                vm_conn.config.put(ide2="none,media=cdrom")
                 if vm_imgs.iso_name in self.vm_saving[vm_name].iso_all:
                     del self.vm_saving[vm_name].iso_all[vm_imgs.iso_name]
                 logger.info(f"ISO已从虚拟机 {vm_name} 卸载")
-
-            # 保存配置
-            old_conf = deepcopy(self.vm_saving[vm_name])
-            self.VMUpdate(self.vm_saving[vm_name], old_conf)
+            # 保存配置 =========================================================
+            vm_conf = deepcopy(self.vm_saving[vm_name])
+            self.VMUpdate(self.vm_saving[vm_name], vm_conf)
             self.data_set()
-
-            # 重启虚拟机（如果之前在运行）
+            # 重启虚拟机 =======================================================
             if was_running:
                 self.VMPowers(vm_name, VMPowers.S_START)
-
-            action_text = "挂载" if in_flag else "卸载"
+            # 返回结果 =========================================================
             return ZMessage(
                 success=True, action="ISOMount",
-                message=f"ISO镜像{action_text}成功")
-
+                message=f"ISO镜像{"挂载" if in_flag else "卸载"}成功")
+        # 捕获所有异常 =========================================================
         except Exception as e:
             return ZMessage(
                 success=False, action="ISOMount",
@@ -1098,119 +1096,223 @@ class HostServer(BasicServer):
 
     # 加载备份 #################################################################
     def LDBackup(self, vm_back: str = "") -> ZMessage:
-        """加载备份列表"""
         return super().LDBackup(vm_back)
 
     # 移除备份 #################################################################
     def RMBackup(self, vm_name: str, vm_back: str = "") -> ZMessage:
-        """移除备份"""
         return super().RMBackup(vm_name, vm_back)
 
-    # 移除磁盘 #################################################################
-    def RMMounts(self, vm_name: str, vm_imgs: str) -> ZMessage:
-        """删除磁盘（完全移除，包括物理文件和配置记录）"""
+    def get_info(self, vm_name: str) -> ZMessage:
+        # 连接Proxmox API ======================================================
         client, result = self.api_conn()
         if not result.success:
             return result
+        # 检查虚拟机是否存在 ===================================================
+        if vm_name not in self.vm_saving:
+            return ZMessage(
+                success=False, action="ISOMount",
+                message="虚拟机不存在")
+        # 获取虚拟机配置 =======================================================
+        vm_conf = self.vm_saving[vm_name]
+        vm_vmid = self.get_vmid(vm_conf)
+        if vm_vmid is None:
+            return ZMessage(
+                success=False, action="ISOMount",
+                message=f"虚拟机 {vm_name} 的VMID未找到")
+        vm_conn = client.nodes(self.hs_config.launch_path).qemu(vm_vmid)
+        # 返回虚拟机配置 =======================================================
+        return ZMessage(
+            success=True, action="ISOMount",
+            message=f"虚拟机 {vm_name} 的VMID未找到",
+            results=(vm_conn, vm_vmid, vm_conf))
 
+    # 硬盘所有权移交 ###########################################################
+    def HDDTrans(self, vm_name: str, vm_imgs: SDConfig, ex_name: str) -> ZMessage:
+        # 检查情况 =============================================================
+        check_result = self.HDDCheck(vm_name, vm_imgs, ex_name)
+        if not check_result.success:
+            return check_result
+        # 获取虚拟机信息 =======================================================
+        result = self.get_info(vm_name)
+        if not result.success:
+            return ZMessage(
+                success=False, action="HDDTrans",
+                message=f"获取源虚拟机信息失败: {result.message}")
+        src_vm_conn = result.results[0]
+        src_vmid = result.results[1]
+        # 获取目标虚拟机信息 ===================================================
+        result = self.get_info(ex_name)
+        if not result.success:
+            return ZMessage(
+                success=False, action="HDDTrans",
+                message=f"获取目标虚拟机信息失败: {result.message}")
+        dst_vm_conn = result.results[0]
+        dst_vmid = result.results[1]
+        # 执行移交操作 =========================================================
         try:
-            if vm_name not in self.vm_saving:
+            hdd_config = self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name]
+            disk_file = getattr(hdd_config, 'hdd_file', None)
+            if not disk_file:
                 return ZMessage(
-                    success=False, action="RMMounts",
-                    message="虚拟机不存在")
-            if vm_imgs not in self.vm_saving[vm_name].hdd_all:
+                    success=False, action="HDDTrans",
+                    message="磁盘文件信息不存在，无法移交")
+
+            # 获取源虚拟机配置，找到磁盘对应的设备 =============================
+            src_config = src_vm_conn.config.get()
+            # 查找包含该磁盘文件的unused disk
+            source_disk = None
+            for key, value in src_config.items():
+                if key.startswith('unused') and isinstance(value, str):
+                    if disk_file in value:
+                        source_disk = key
+                        logger.info(f"找到源磁盘: {key} = {value}")
+                        break
+            if not source_disk:
                 return ZMessage(
-                    success=False, action="RMMounts",
-                    message=f"硬盘 {vm_imgs} 不在虚拟机配置中")
-
-            vm_conf = self.vm_saving[vm_name]
-            vmid = self.get_vmid(vm_conf)
-            if vmid is None:
+                    success=False, action="HDDTrans",
+                    message=f"未找到磁盘文件 {disk_file} 对应的unused disk")
+            # 找到目标虚拟机可用的scsi编号 =====================================
+            dst_config = dst_vm_conn.config.get()
+            scsi_num = 1
+            while f"scsi{scsi_num}" in dst_config:
+                scsi_num += 1
+            target_disk = f"scsi{scsi_num}"
+            # 获取存储名称 =====================================================
+            storage_name = self.hs_config.extern_path
+            # 使用PVE API的move_disk功能 =======================================
+            # 注意：proxmoxer库可能不直接支持move_disk，需要通过SSH执行qm命令
+            logger.info(f"准备移动磁盘: 从VM {src_vmid}({source_disk}) "
+                        f"到VM {dst_vmid}({target_disk})")
+            # 通过SSH执行qm move-disk命令 ======================================
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(
+                self.hs_config.server_addr,
+                username=self.hs_config.server_user,
+                password=self.hs_config.server_pass)
+            # 执行qm move-disk命令 =============================================
+            move_cmd = (
+                f"qm move-disk {src_vmid} {source_disk} "
+                f"--target-vmid {dst_vmid} --target-disk {target_disk}"
+            )
+            logger.info(f"执行命令: {move_cmd}")
+            stdin, stdout, stderr = ssh.exec_command(move_cmd)
+            exit_status = stdout.channel.recv_exit_status()
+            output = stdout.read().decode()
+            error_output = stderr.read().decode()
+            ssh.close()
+            if exit_status != 0:
+                logger.error(f"移动磁盘失败: {error_output}")
                 return ZMessage(
-                    success=False, action="RMMounts",
-                    message=f"虚拟机 {vm_name} 的VMID未找到")
+                    success=False, action="HDDTrans",
+                    message=f"移动磁盘失败: {error_output}")
+            logger.info(f"磁盘移动成功: {output}")
+            # 获取新的磁盘文件名 ===============================================
+            dst_config_new = dst_vm_conn.config.get()
+            new_disk_value = dst_config_new.get(target_disk, "")
+            import posixpath
+            if ":" in new_disk_value and "/" in new_disk_value:
+                # 先分割出路径部分（去掉storage前缀）
+                path_part = new_disk_value.split(":")[-1]
+                # 再去掉size等参数（用逗号分割）
+                path_part = path_part.split(",")[0]
+                new_disk_name = posixpath.basename(path_part)
+            else:
+                # 如果无法解析，使用默认命名
+                _, disk_ext = posixpath.splitext(disk_file)
+                new_disk_name = f"vm-{dst_vmid}-disk-{scsi_num}{disk_ext}"
+            logger.info(f"新磁盘文件名: {new_disk_name}")
+            # 立即卸载目标虚拟机上的磁盘，使其变为unused状态 ===================
+            logger.info(f"卸载目标虚拟机上的磁盘 {target_disk}")
+            dst_vm_conn.config.put(**{target_disk: "none"})
+            dst_vm_conn.config.put(delete=target_disk)
+            logger.info(f"磁盘 {target_disk} 已在PVE中卸载，现在处于unused状态")
+            # 从源虚拟机移除磁盘配置 ===========================================
+            self.vm_saving[vm_name].hdd_all.pop(vm_imgs.hdd_name)
+            # 添加到目标虚拟机（保持未挂载状态）================================
+            vm_imgs.hdd_flag = 0  # 移交后保持未挂载状态
+            vm_imgs.hdd_scsi = ""  # 清空设备号，等待下次挂载时分配
+            vm_imgs.hdd_file = new_disk_name  # 更新文件名
+            self.vm_saving[ex_name].hdd_all[vm_imgs.hdd_name] = vm_imgs
+            # 保存配置 =========================================================
+            self.data_set()
+            logger.info(
+                f"磁盘 {vm_imgs.hdd_name} 已从虚拟机 {vm_name} "
+                f"(VMID: {src_vmid}) 移交到 {ex_name} (VMID: {dst_vmid})")
+            # 返回结果 =========================================================
+            return ZMessage(
+                success=True, action="HDDTrans",
+                message="磁盘移交成功",
+                results={
+                    "source_vmid": src_vmid,
+                    "target_vmid": dst_vmid,
+                    "source_disk": source_disk,
+                    "target_disk": target_disk,
+                    "new_disk_name": new_disk_name,
+                    "src_vm": vm_name,
+                    "dst_vm": ex_name
+                })
+        # 捕获异常 ==============================================================
+        except Exception as e:
+            logger.error(f"磁盘移交失败: {str(e)}")
+            traceback.print_exc()
+            return ZMessage(
+                success=False, action="HDDTrans",
+                message=f"磁盘移交失败: {str(e)}")
 
-            vm = client.nodes(self.hs_config.launch_path).qemu(vmid)
-
-            # 获取硬盘配置信息
-            mounted_disk = self.vm_saving[vm_name].hdd_all[vm_imgs]
-            scsi_device = getattr(mounted_disk, 'scsi_device', None)
-            disk_file = getattr(mounted_disk, 'disk_file', None)
-
-            # 安全检查：防止删除系统盘或受保护的设备
-            if disk_file and 'vm-100-disk-0' in disk_file:
-                return ZMessage(
-                    success=False, action="RMMounts",
-                    message="不能删除系统盘（vm-100-disk-0）")
-
-            # 停止虚拟机（如果正在运行）
-            status = vm.status.current.get()
+    # 移除磁盘 #################################################################
+    def RMMounts(self, vm_name: str, vm_imgs: str) -> ZMessage:
+        # 获取虚拟机信息 =======================================================
+        result = self.get_info(vm_name)
+        if not result.success:
+            return result
+        vm_conn = result.results[0]
+        vm_vmid = result.results[1]
+        # 获取虚拟机配置 =======================================================
+        try:
+            # 获取硬盘配置信息 =================================================
+            mounted_disk = deepcopy(self.vm_saving[vm_name].hdd_all[vm_imgs])
+            scsi_device = getattr(mounted_disk, 'hdd_scsi', None)
+            disk_file = getattr(mounted_disk, 'hdd_file', None)
+            # 停止虚拟机 =======================================================
+            status = vm_conn.status.current.get()
             was_running = status['status'] == 'running'
             if was_running:
                 self.VMPowers(vm_name, VMPowers.H_CLOSE)
-
-            # 如果硬盘已挂载（hdd_flag=1），需要先从虚拟机配置中移除
-            if mounted_disk.hdd_flag == 1 and scsi_device:
-                # 安全检查：再次确认这不是系统盘
-                if not scsi_device.startswith('scsi'):
-                    logger.error(f"尝试删除非SCSI设备: {scsi_device}")
-                    return ZMessage(
-                        success=False, action="RMMounts",
-                        message=f"只能删除SCSI设备，不支持删除 {scsi_device}")
-
-                # 检查scsi设备是否还在虚拟机配置中
-                config = vm.config.get()
-                if scsi_device in config:
-                    # 从Proxmox配置中删除该设备
-                    vm.config.put(**{scsi_device: "none"})
-                    logger.info(f"已从Proxmox配置中移除 {scsi_device} 设备")
-
-            # 删除qcow2磁盘文件
-            if disk_file:
-                try:
-                    # 构建磁盘文件路径
-                    storage_name = self.hs_config.extern_path or 'local'
-
-                    # 构建正确的磁盘文件路径
-                    if storage_name == 'local':
-                        disk_path = f"/var/lib/vz/images/{vmid}/{disk_file}"
-                    else:
-                        # 其他存储的路径构建方式
-                        disk_path = f"/var/lib/vz/{storage_name}/{vmid}/{disk_file}"
-
-                    if self.web_flag():
-                        # 远程模式：通过SSH删除文件
-                        ssh = paramiko.SSHClient()
-                        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                        ssh.connect(
-                            self.hs_config.server_addr,
-                            username=self.hs_config.server_user,
-                            password=self.hs_config.server_pass)
-                        ssh.exec_command(f"rm -f {disk_path}")
-                        ssh.close()
-                        logger.info(f"通过SSH删除qcow2文件: {disk_path}")
-                    else:
-                        # 本地模式：直接删除文件
-                        os.remove(disk_path)
-                        logger.info(f"本地删除qcow2文件: {disk_path}")
-                except Exception as file_error:
-                    logger.warning(f"删除qcow2文件失败: {str(file_error)}")
-                    # 文件删除失败不影响配置删除，继续执行
-            # 从配置列表中完全删除硬盘
+            # 卸载磁盘（更新本地配置状态）======================================
+            self.HDDMount(vm_name, mounted_disk, False)
+            time.sleep(3)  # 等待配置更新
+            # 移除配置 =========================================================
+            if scsi_device and disk_file:
+                config = vm_conn.config.get()
+                # 查找磁盘 =================================================
+                del_disk = None
+                for key, value in config.items():
+                    if key.startswith('unused') and isinstance(value, str):
+                        if disk_file in value:
+                            del_disk = key
+                            logger.info(f"找到匹配的unused disk: {key}")
+                            break
+                # 删除找到的unused disk ====================================
+                if del_disk:
+                    vm_conn.config.put(delete=del_disk)
+                    logger.info(f"已彻底删除磁盘文件: {del_disk}")
+            else:
+                logger.warning(f"未找到包含{disk_file}unused disk")
+            # 从配置删除 =======================================================
             del self.vm_saving[vm_name].hdd_all[vm_imgs]
             logger.info(f"已从配置列表中删除硬盘 {vm_imgs}")
-            # 保存配置到数据库
+            # 保存数据库 =======================================================
             self.data_set()
             logger.info(f"虚拟机 {vm_name} 配置已保存到数据库")
-
-            # 重启虚拟机（如果之前在运行）
+            # 重启虚拟机 =======================================================
             if was_running:
                 self.VMPowers(vm_name, VMPowers.S_START)
-
+            # 返回结果 =========================================================
             return ZMessage(
                 success=True, action="RMMounts",
                 message=f"硬盘 {vm_imgs} 删除成功")
-
+        # 处理异常 =============================================================
         except Exception as e:
             traceback.print_exc()
             return ZMessage(
@@ -1219,5 +1321,4 @@ class HostServer(BasicServer):
 
     # 查找显卡 #################################################################
     def GPUShows(self) -> dict[str, str]:
-        """查找显卡"""
         return {}

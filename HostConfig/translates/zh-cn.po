@@ -2,6 +2,7 @@
 # Copyright (C) 2024 OpenIDCS Team
 # This file is distributed under the same license as the OpenIDCS package.
 #
+
 msgid ""
 msgstr ""
 "Project-Id-Version: OpenIDCS 1.0\n"
@@ -929,8 +930,8 @@ msgstr "电源操作"
 msgid "选择对虚拟机 \""
 msgstr "选择对虚拟机 \""
 
-msgid "\" 执行的操作"
-msgstr "\" 执行的操作"
+msgid "\"执行的操作"
+msgstr "\"执行的操作"
 
 msgid "启动"
 msgstr "启动"
@@ -1043,7 +1044,6 @@ msgstr "内存配额不足，需要"
 msgid "，可用"
 msgstr "，可用"
 
-
 msgid "GB"
 msgstr "GB"
 
@@ -1052,7 +1052,6 @@ msgstr "硬盘配额为0，不允许创建虚拟机"
 
 msgid "硬盘配额不足，需要"
 msgstr "硬盘配额不足，需要"
-
 
 msgid "GB"
 msgstr "GB"
@@ -1150,7 +1149,6 @@ msgstr "个"
 msgid "，可用"
 msgstr "，可用"
 
-
 msgid "个"
 msgstr "个"
 
@@ -1162,7 +1160,6 @@ msgstr "内网IP配额为0，不允许创建虚拟机"
 
 msgid "内网IP配额不足，需要"
 msgstr "内网IP配额不足，需要"
-
 
 msgid "个"
 msgstr "个"
@@ -1178,7 +1175,6 @@ msgstr "公网IP配额为0，不允许创建虚拟机"
 
 msgid "公网IP配额不足，需要"
 msgstr "公网IP配额不足，需要"
-
 
 msgid "个"
 msgstr "个"
@@ -1546,19 +1542,16 @@ msgstr "需要管理员权限"
 msgid "需要特定权限的装饰器"
 msgstr "需要特定权限的装饰器"
 
-msgid ""
-"需要"
-msgstr ""
 "需要"
 
-msgid ""
-"需要"
-msgstr ""
 "需要"
 
-msgid ""
+"需要"
+
+"需要"
+
 "权限"
-msgstr ""
+
 "权限"
 
 msgid "检查用户是否有访问指定主机的权限"
@@ -1612,19 +1605,16 @@ msgstr "上行带宽"
 msgid "下行带宽"
 msgstr "下行带宽"
 
-msgid ""
-"配额不足，"
-msgstr ""
 "配额不足，"
 
-msgid ""
-"已使用"
-msgstr ""
+"配额不足，"
+
 "已使用"
 
-msgid ""
+"已使用"
+
 "/"
-msgstr ""
+
 "/"
 
 msgid "邮件服务类（使用Resend API）"
@@ -1642,9 +1632,8 @@ msgstr "OpenIDCS - 邮箱验证"
 msgid "欢迎注册 OpenIDCS"
 msgstr "欢迎注册 OpenIDCS"
 
-msgid ""
 "您好 "
-msgstr ""
+
 "您好 "
 
 msgid "请点击下面的链接验证您的邮箱："
@@ -1656,19 +1645,16 @@ msgstr "如果您没有注册账号，请忽略此邮件。"
 msgid "此链接24小时内有效。"
 msgstr "此链接24小时内有效。"
 
-msgid ""
-"验证邮件已发送到 "
-msgstr ""
 "验证邮件已发送到 "
 
-msgid ""
-"发送邮件失败: "
-msgstr ""
+"验证邮件已发送到 "
+
 "发送邮件失败: "
 
-msgid ""
+"发送邮件失败: "
+
 "发送邮件异常: "
-msgstr ""
+
 "发送邮件异常: "
 
 msgid "发送测试邮件"
@@ -1689,27 +1675,23 @@ msgstr "这是一封来自 OpenIDCS 系统的测试邮件。"
 msgid "如果您收到这封邮件，说明邮件服务配置正常。"
 msgstr "如果您收到这封邮件，说明邮件服务配置正常。"
 
-msgid ""
 "发送时间: "
-msgstr ""
+
 "发送时间: "
 
 msgid "OpenIDCS 系统"
 msgstr "OpenIDCS 系统"
 
-msgid ""
-"测试邮件已发送到 "
-msgstr ""
 "测试邮件已发送到 "
 
-msgid ""
-"发送测试邮件失败: "
-msgstr ""
+"测试邮件已发送到 "
+
 "发送测试邮件失败: "
 
-msgid ""
+"发送测试邮件失败: "
+
 "发送测试邮件异常: "
-msgstr ""
+
 "发送测试邮件异常: "
 
 msgid "获取当前时间字符串"
@@ -1733,19 +1715,16 @@ msgstr "请点击下面的链接重置您的密码："
 msgid "如果您没有请求重置密码，请忽略此邮件。"
 msgstr "如果您没有请求重置密码，请忽略此邮件。"
 
-msgid ""
-"密码重置邮件已发送到 "
-msgstr ""
 "密码重置邮件已发送到 "
 
-msgid ""
-"发送密码重置邮件失败: "
-msgstr ""
+"密码重置邮件已发送到 "
+
 "发送密码重置邮件失败: "
 
-msgid ""
+"发送密码重置邮件失败: "
+
 "发送密码重置邮件异常: "
-msgstr ""
+
 "发送密码重置邮件异常: "
 
 msgid "发送邮箱变更验证邮件"
@@ -1769,23 +1748,17 @@ msgstr "验证成功后，您的账号邮箱将更新为此邮箱地址。"
 msgid "如果您没有请求变更邮箱，请忽略此邮件。"
 msgstr "如果您没有请求变更邮箱，请忽略此邮件。"
 
-msgid ""
-"邮箱变更验证邮件已发送到 "
-msgstr ""
 "邮箱变更验证邮件已发送到 "
 
+"邮箱变更验证邮件已发送到 "
 
-msgid ""
-"发送邮箱变更验证邮件失败: "
-msgstr ""
 "发送邮箱变更验证邮件失败: "
 
+"发送邮箱变更验证邮件失败: "
 
-msgid ""
-"发送邮箱变更验证邮件异常: "
-msgstr ""
 "发送邮箱变更验证邮件异常: "
 
+"发送邮箱变更验证邮件异常: "
 
 # HostModule/DataManager.py
 msgid "字段已存在，跳过"
@@ -1854,28 +1827,25 @@ msgstr "更新虚拟机配置时间戳错误"
 msgid "虚拟机"
 msgstr "虚拟机"
 
-msgid " 的状态数据格式异常（字典），已转换为列表"
-msgstr " 的状态数据格式异常（字典），已转换为列表"
+msgid "的状态数据格式异常（字典），已转换为列表"
+msgstr "的状态数据格式异常（字典），已转换为列表"
 
 msgid "虚拟机"
 msgstr "虚拟机"
 
-msgid " 的状态数据格式未知，已重置为空列表"
-msgstr " 的状态数据格式未知，已重置为空列表"
+msgid "的状态数据格式未知，已重置为空列表"
+msgstr "的状态数据格式未知，已重置为空列表"
 
-msgid ""
-"流量累加: 之前="
-msgstr ""
 "流量累加: 之前="
 
-msgid ""
-"MB, 本次="
-msgstr ""
+"流量累加: 之前="
+
 "MB, 本次="
 
-msgid ""
+"MB, 本次="
+
 "MB, 累计="
-msgstr ""
+
 "MB, 累计="
 
 msgid "MB"
@@ -1887,20 +1857,20 @@ msgstr "首次上报流量"
 msgid "更新虚拟机"
 msgstr "更新虚拟机"
 
-msgid " 状态，记录数"
-msgstr " 状态，记录数"
+msgid "状态，记录数"
+msgstr "状态，记录数"
 
 msgid "插入虚拟机"
 msgstr "插入虚拟机"
 
-msgid " 状态，记录数"
-msgstr " 状态，记录数"
+msgid "状态，记录数"
+msgstr "状态，记录数"
 
 msgid "虚拟机"
 msgstr "虚拟机"
 
-msgid " 状态保存成功"
-msgstr " 状态保存成功"
+msgid "状态保存成功"
+msgstr "状态保存成功"
 
 msgid "添加虚拟机状态失败"
 msgstr "添加虚拟机状态失败"
@@ -1926,8 +1896,8 @@ msgstr "保存虚拟机状态错误"
 msgid "虚拟机"
 msgstr "虚拟机"
 
-msgid " 已离线，最后上报时间(UTC)"
-msgstr " 已离线，最后上报时间(UTC)"
+msgid "已离线，最后上报时间(UTC)"
+msgstr "已离线，最后上报时间(UTC)"
 
 msgid "本地时间"
 msgstr "本地时间"
@@ -2041,8 +2011,8 @@ msgstr "当前映射的本地端口缺少NAT映射，请先添加映射"
 msgid "域名 "
 msgstr "域名 "
 
-msgid " 已存在"
-msgstr " 已存在"
+msgid "已存在"
+msgstr "已存在"
 
 msgid "网络检查失败"
 msgstr "网络检查失败"
@@ -2089,11 +2059,11 @@ msgstr "添加端口转发失败"
 msgid "端口转发同步完成: 删除 "
 msgstr "端口转发同步完成: 删除 "
 
-msgid " 个，添加 "
-msgstr " 个，添加 "
+msgid "个，添加 "
+msgstr "个，添加 "
 
-msgid " 个"
-msgstr " 个"
+msgid "个"
+msgstr "个"
 
 msgid "同步端口转发时出错"
 msgstr "同步端口转发时出错"
@@ -2104,20 +2074,17 @@ msgstr "SSH 连接失败"
 msgid "端口 "
 msgstr "端口 "
 
-msgid " 已被占用"
-msgstr " 已被占用"
+msgid "已被占用"
+msgstr "已被占用"
 
 msgid "端口 "
 msgstr "端口 "
 
-msgid " 成功映射到 "
-msgstr " 成功映射到 "
+msgid "成功映射到 "
+msgstr "成功映射到 "
 
 msgid ":"
 msgstr ":"
-
-msgid ""
-msgstr ""
 
 msgid "端口映射失败"
 msgstr "端口映射失败"
@@ -2125,8 +2092,8 @@ msgstr "端口映射失败"
 msgid "端口 "
 msgstr "端口 "
 
-msgid " 映射已删除"
-msgstr " 映射已删除"
+msgid "映射已删除"
+msgstr "映射已删除"
 
 msgid "删除备份"
 msgstr "删除备份"
@@ -2134,14 +2101,14 @@ msgstr "删除备份"
 msgid "共删除 "
 msgstr "共删除 "
 
-msgid " 个备份文件"
-msgstr " 个备份文件"
+msgid "个备份文件"
+msgstr "个备份文件"
 
 msgid "已删除 "
 msgstr "已删除 "
 
-msgid " 个备份文件"
-msgstr " 个备份文件"
+msgid "个备份文件"
+msgstr "个备份文件"
 
 msgid "扫描备份目录失败"
 msgstr "扫描备份目录失败"
@@ -2170,8 +2137,8 @@ msgstr "虚拟机创建成功"
 msgid "虚拟机 "
 msgstr "虚拟机 "
 
-msgid " 配置已更新"
-msgstr " 配置已更新"
+msgid "配置已更新"
+msgstr "配置已更新"
 
 msgid "操作成功完成"
 msgstr "操作成功完成"
@@ -2188,7 +2155,7 @@ msgstr "备份文件名格式不正确"
 msgid "解析备份时间失败"
 msgstr "解析备份时间失败"
 
-msgid ""
+msgid "个备份文件已加载"
 msgstr "个备份文件已加载"
 
 msgid "虚拟盘不存在"
@@ -2245,29 +2212,23 @@ msgstr "磁盘已挂载，无法移交。请先卸载磁盘后再进行移交操
 msgid "磁盘文件已从 "
 msgstr "磁盘文件已从 "
 
-msgid " 移动到 "
-msgstr " 移动到 "
-
-msgid ""
-msgstr ""
+msgid "移动到 "
+msgstr "移动到 "
 
 msgid "源磁盘文件 "
 msgstr "源磁盘文件 "
 
-msgid " 不存在"
-msgstr " 不存在"
+msgid "不存在"
+msgstr "不存在"
 
 msgid "磁盘 "
 msgstr "磁盘 "
 
-msgid " 已从虚拟机 "
-msgstr " 已从虚拟机 "
+msgid "已从虚拟机 "
+msgstr "已从虚拟机 "
 
-msgid " 移交到 "
-msgstr " 移交到 "
-
-msgid ""
-msgstr ""
+msgid "移交到 "
+msgstr "移交到 "
 
 msgid "磁盘移交成功"
 msgstr "磁盘移交成功"
@@ -2281,32 +2242,26 @@ msgstr "用户已经是虚拟机所有者"
 msgid "虚拟机 "
 msgstr "虚拟机 "
 
-msgid " 所有权从 "
-msgstr " 所有权从 "
+msgid "所有权从 "
+msgstr "所有权从 "
 
-msgid " 移交给 "
-msgstr " 移交给 "
+msgid "移交给 "
+msgstr "移交给 "
 
 msgid "，保留权限: "
 msgstr "，保留权限: "
 
-msgid ""
-msgstr ""
-
 msgid "虚拟机所有权已成功移交给 "
 msgstr "虚拟机所有权已成功移交给 "
 
-msgid ""
-msgstr ""
-
-msgid " 的 vc_port 为空"
-msgstr " 的 vc_port 为空"
+msgid "的 vc_port 为空"
+msgstr "的 vc_port 为空"
 
 msgid "VNC端口为空"
 msgstr "VNC端口为空"
 
-msgid " 的 vc_pass 为空"
-msgstr " 的 vc_pass 为空"
+msgid "的 vc_pass 为空"
+msgstr "的 vc_pass 为空"
 
 msgid "VNC密码为空"
 msgstr "VNC密码为空"
@@ -2372,32 +2327,32 @@ msgstr "虚拟机创建失败"
 msgid "虚拟机 "
 msgstr "虚拟机 "
 
-msgid " 不存在"
-msgstr " 不存在"
+msgid "不存在"
+msgstr "不存在"
 
 msgid "虚拟机 "
 msgstr "虚拟机 "
 
-msgid " 网络配置更新失败"
-msgstr " 网络配置更新失败"
+msgid "网络配置更新失败"
+msgstr "网络配置更新失败"
 
 msgid "虚拟机 "
 msgstr "虚拟机 "
 
-msgid " VMX文件写入失败"
-msgstr " VMX文件写入失败"
+msgid "VMX文件写入失败"
+msgstr "VMX文件写入失败"
 
 msgid "虚拟机 "
 msgstr "虚拟机 "
 
-msgid " 启动失败"
-msgstr " 启动失败"
+msgid "启动失败"
+msgstr "启动失败"
 
 msgid "虚拟机 "
 msgstr "虚拟机 "
 
-msgid " 不存在"
-msgstr " 不存在"
+msgid "不存在"
+msgstr "不存在"
 
 # HostServer/LXContainer.py
 msgid "缺少证书路径，请设置启动路径为证书路径"
@@ -3125,8 +3080,6 @@ msgstr "虚拟机删除成功"
 msgid "无法为网卡 "
 msgstr "无法为网卡 "
 
-
-
 msgid "网络配置检查完成"
 msgstr "网络配置检查完成"
 
@@ -3236,14 +3189,14 @@ msgstr "无法连接到ESXi主机"
 msgid "虚拟机 "
 msgstr "虚拟机 "
 
-msgid " 创建成功"
-msgstr " 创建成功"
+msgid "创建成功"
+msgstr "创建成功"
 
 msgid "虚拟机 "
 msgstr "虚拟机 "
 
-msgid " 系统安装完成（硬盘已在创建时分配）"
-msgstr " 系统安装完成（硬盘已在创建时分配）"
+msgid "系统安装完成（硬盘已在创建时分配）"
+msgstr "系统安装完成（硬盘已在创建时分配）"
 
 msgid "ESXi磁盘扩容功能待实现"
 msgstr "ESXi磁盘扩容功能待实现"
@@ -3251,20 +3204,20 @@ msgstr "ESXi磁盘扩容功能待实现"
 msgid "虚拟机 "
 msgstr "虚拟机 "
 
-msgid " 网卡设备更新失败"
-msgstr " 网卡设备更新失败"
+msgid "网卡设备更新失败"
+msgstr "网卡设备更新失败"
 
 msgid "虚拟机 "
 msgstr "虚拟机 "
 
-msgid " 网络绑定更新失败"
-msgstr " 网络绑定更新失败"
+msgid "网络绑定更新失败"
+msgstr "网络绑定更新失败"
 
 msgid "虚拟机 "
 msgstr "虚拟机 "
 
-msgid " 启动失败"
-msgstr " 启动失败"
+msgid "启动失败"
+msgstr "启动失败"
 
 msgid "无法解析快照时间"
 msgstr "无法解析快照时间"
@@ -3361,20 +3314,14 @@ msgstr "镜像加载成功"
 msgid "镜像"
 msgstr "镜像"
 
-
-
 msgid "已存在于本地"
 msgstr "已存在于本地"
 
 msgid "从仓库拉取镜像"
 msgstr "从仓库拉取镜像"
 
-
-
 msgid "镜像"
 msgstr "镜像"
-
-
 
 msgid "拉取成功"
 msgstr "拉取成功"
@@ -3580,14 +3527,8 @@ msgstr "HTTP错误"
 msgid ":"
 msgstr ":"
 
-msgid ""
-msgstr ""
-
 msgid "连接失败: 无法连接到"
 msgstr "连接失败: 无法连接到"
-
-msgid ""
-msgstr ""
 
 msgid "请求超时: 操作耗时过长"
 msgstr "请求超时: 操作耗时过长"
@@ -3598,11 +3539,8 @@ msgstr "请求异常"
 msgid "未知错误: "
 msgstr "未知错误: "
 
-msgid " - "
-msgstr " - "
-
-msgid ""
-msgstr ""
+msgid "- "
+msgstr "- "
 
 msgid "电源操作成功"
 msgstr "电源操作成功"
@@ -3619,17 +3557,11 @@ msgstr "请求超时: 操作耗时过长，请稍后重试"
 msgid "未找到虚拟机: "
 msgstr "未找到虚拟机: "
 
-msgid ""
-msgstr ""
-
 msgid "设置电源状态失败: "
 msgstr "设置电源状态失败: "
 
-msgid " - "
-msgstr " - "
-
-msgid ""
-msgstr ""
+msgid "- "
+msgstr "- "
 
 msgid "开始扩展硬盘: "
 msgstr "开始扩展硬盘: "
@@ -3640,14 +3572,8 @@ msgstr "MB"
 msgid "执行命令: "
 msgstr "执行命令: "
 
-msgid ""
-msgstr ""
-
 msgid "硬盘扩展失败: "
 msgstr "硬盘扩展失败: "
-
-msgid ""
-msgstr ""
 
 msgid "硬盘扩展成功"
 msgstr "硬盘扩展成功"
@@ -3662,8 +3588,8 @@ msgstr "MB"
 msgid "网卡 "
 msgstr "网卡 "
 
-msgid " 信息: "
-msgstr " 信息: "
+msgid "信息: "
+msgstr "信息: "
 
 msgid "网卡发送流量(MByte): "
 msgstr "网卡发送流量(MByte): "
@@ -3702,9 +3628,6 @@ msgstr "已加载 VNC"
 
 msgid "->"
 msgstr "->"
-
-msgid ""
-msgstr ""
 
 msgid "Web 资源路径"
 msgstr "Web 资源路径"
@@ -3763,9 +3686,6 @@ msgstr "已存在，token"
 msgid ":"
 msgstr ":"
 
-msgid ""
-msgstr ""
-
 msgid "已添加 VNC"
 msgstr "已添加 VNC"
 
@@ -3775,26 +3695,17 @@ msgstr ", token"
 msgid ":"
 msgstr ":"
 
-msgid ""
-msgstr ""
-
 msgid "已删除 VNC"
 msgstr "已删除 VNC"
 
 msgid ":"
 msgstr ":"
 
-msgid ""
-msgstr ""
-
 msgid "未找到 VNC"
 msgstr "未找到 VNC"
 
 msgid ":"
 msgstr ":"
-
-msgid ""
-msgstr ""
 
 msgid "警告: 没有可用的VNC连接"
 msgstr "警告: 没有可用的VNC连接"
@@ -4456,9 +4367,536 @@ msgstr "Token已重置"
 msgid "配置已保存"
 msgstr "配置已保存"
 
-
 msgid "配置已重新加载"
 msgstr "配置已重新加载"
 
-msgid "确定要重新加载配置吗？未保存的更改将丢失。"
-msgstr "确定要重新加载配置吗？未保存的更改将丢失。"
+msgid "确认删除"
+msgstr "确认删除"
+
+msgid "此操作将永久删除虚拟机"
+msgstr "此操作将永久删除虚拟机"
+
+msgid "且不可恢复"
+msgstr "且不可恢复"
+
+msgid "请输入虚拟机名称以确认删除："
+msgstr "请输入虚拟机名称以确认删除："
+
+msgid "输入虚拟机名称"
+msgstr "输入虚拟机名称"
+
+msgid "确认删除"
+msgstr "确认删除"
+
+msgid "确定要对虚拟机"
+msgstr "确定要对虚拟机"
+
+msgid "执行"
+msgstr "执行"
+
+msgid "操作吗"
+msgstr "操作吗"
+
+msgid "关机"
+msgstr "关机"
+
+msgid "重启"
+msgstr "重启"
+
+msgid "暂停"
+msgstr "暂停"
+
+msgid "恢复"
+msgstr "恢复"
+
+msgid "强制关机"
+msgstr "强制关机"
+
+msgid "强制重启"
+msgstr "强制重启"
+
+msgid "为虚拟机"
+msgstr "为虚拟机"
+
+msgid "重装系统"
+msgstr "重装系统"
+
+msgid "选择操作系统："
+msgstr "选择操作系统："
+
+msgid "请选择操作系统"
+msgstr "请选择操作系统"
+
+msgid "我已备份数据，确认重装系统将清空系统盘数据"
+msgstr "我已备份数据，确认重装系统将清空系统盘数据"
+
+msgid "NAT端口转发规则"
+msgstr "NAT端口转发规则"
+
+msgid "IP地址管理"
+msgstr "IP地址管理"
+
+msgid "添加IP地址"
+msgstr "添加IP地址"
+
+msgid "网卡名称"
+msgstr "网卡名称"
+
+msgid "MAC地址"
+msgstr "MAC地址"
+
+msgid "IPv4地址"
+msgstr "IPv4地址"
+
+msgid "IPv6地址"
+msgstr "IPv6地址"
+
+msgid "网关"
+msgstr "网关"
+
+msgid "掩码"
+msgstr "掩码"
+
+msgid "DNS"
+msgstr "DNS"
+
+msgid "操作"
+msgstr "操作"
+
+msgid "添加规则"
+msgstr "添加规则"
+
+msgid "反向代理配置"
+msgstr "反向代理配置"
+
+msgid "添加代理"
+msgstr "添加代理"
+
+msgid "数据盘管理"
+msgstr "数据盘管理"
+
+msgid "挂载数据盘"
+msgstr "挂载数据盘"
+
+msgid "未挂载"
+msgstr "未挂载"
+
+msgid "磁盘名称"
+msgstr "磁盘名称"
+
+msgid "容量"
+msgstr "容量"
+
+msgid "ISO镜像管理"
+msgstr "ISO镜像管理"
+
+msgid "备份管理"
+msgstr "备份管理"
+
+msgid "创建备份"
+msgstr "创建备份"
+
+msgid "备份名称"
+msgstr "备份名称"
+
+msgid "备份注释"
+msgstr "备份注释"
+
+msgid "虚拟机分享管理"
+msgstr "虚拟机分享管理"
+
+msgid "添加使用者"
+msgstr "添加使用者"
+
+msgid "(主所有者)"
+msgstr "(主所有者)"
+
+msgid "添加分享人"
+msgstr "添加分享人"
+
+msgid "用户名"
+msgstr "用户名"
+
+msgid "请输入用户名"
+msgstr "请输入用户名"
+
+msgid "添加后该用户将共享此虚拟机的访问权限，但不会占用该用户的资源配额"
+msgstr "添加后该用户将共享此虚拟机的访问权限，但不会占用该用户的资源配额"
+
+msgid "新的共享者必须拥有对应主机的访问权限才能看到该虚拟机"
+msgstr "新的共享者必须拥有对应主机的访问权限才能看到该虚拟机"
+
+msgid "创建备份"
+msgstr "创建备份"
+
+msgid "备份说明"
+msgstr "备份说明"
+
+msgid "例如: 系统更新前备份"
+msgstr "例如: 系统更新前备份"
+
+msgid "请输入备份的说明信息"
+msgstr "请输入备份的说明信息"
+
+msgid "备份可能需要数十分钟，取决于虚拟机硬盘大小，请耐心等待！"
+msgstr "备份可能需要数十分钟，取决于虚拟机硬盘大小，请耐心等待！"
+
+msgid "我已确认停止当前虚拟机进行备份操作（未保存的数据将丢失）"
+msgstr "我已确认停止当前虚拟机进行备份操作（未保存的数据将丢失）"
+
+msgid "挂载ISO镜像"
+msgstr "挂载ISO镜像"
+
+msgid "选择ISO镜像"
+msgstr "选择ISO镜像"
+
+msgid "请选择ISO镜像文件"
+msgstr "请选择ISO镜像文件"
+
+msgid "从服务器可用的ISO镜像中选择"
+msgstr "从服务器可用的ISO镜像中选择"
+
+msgid "挂载名称"
+msgstr "挂载名称"
+
+msgid "例如: system_iso"
+msgstr "例如: system_iso"
+
+msgid "(仅支持英文和数字)"
+msgstr "(仅支持英文和数字)"
+
+msgid "挂载名称只能包含英文字母和数字"
+msgstr "挂载名称只能包含英文字母和数字"
+
+msgid "备注"
+msgstr "备注"
+
+msgid "例如: 系统安装盘"
+msgstr "例如: 系统安装盘"
+
+msgid "可选，用于说明此ISO的用途"
+msgstr "可选，用于说明此ISO的用途"
+
+msgid "我已同意强制关机此虚拟机"
+msgstr "我已同意强制关机此虚拟机"
+
+msgid "挂载数据盘"
+msgstr "挂载数据盘"
+
+msgid "磁盘名称"
+msgstr "磁盘名称"
+
+msgid "例如: data_disk"
+msgstr "例如: data_disk"
+
+msgid "只能包含数字和字母，不能包含特殊符号和中文"
+msgstr "只能包含数字和字母，不能包含特殊符号和中文"
+
+msgid "磁盘大小 (MB)"
+msgstr "磁盘大小 (MB)"
+
+msgid "例如: 1024"
+msgstr "例如: 1024"
+
+msgid "最小1024MB (1GB)"
+msgstr "最小1024MB (1GB)"
+
+msgid "磁盘类型"
+msgstr "磁盘类型"
+
+msgid "普通磁盘"
+msgstr "普通磁盘"
+
+msgid "添加反向代理"
+msgstr "添加反向代理"
+
+msgid "域名"
+msgstr "域名"
+
+msgid "后端IP"
+msgstr "后端IP"
+
+msgid "从虚拟机网卡地址中选择"
+msgstr "从虚拟机网卡地址中选择"
+
+msgid "后端端口"
+msgstr "后端端口"
+
+msgid "启用 HTTPS (SSL/TLS)"
+msgstr "启用 HTTPS (SSL/TLS)"
+
+msgid "描述"
+msgstr "描述"
+
+msgid "网卡类型"
+msgstr "网卡类型"
+
+msgid "内网(NAT)"
+msgstr "内网(NAT)"
+
+msgid "选择网卡类型后可查看配额状态"
+msgstr "选择网卡类型后可查看配额状态"
+
+msgid "IPv4地址"
+msgstr "IPv4地址"
+
+msgid "留空自动分配，例如: 192.168.1.100"
+msgstr "留空自动分配，例如: 192.168.1.100"
+
+msgid "留空将由后端自动分配IP地址"
+msgstr "留空将由后端自动分配IP地址"
+
+msgid "IPv6地址"
+msgstr "IPv6地址"
+
+msgid "例如: 2001:db8::1"
+msgstr "例如: 2001:db8::1"
+
+msgid "网关"
+msgstr "网关"
+
+msgid "例如: 192.168.1.1"
+msgstr "例如: 192.168.1.1"
+
+msgid "子网掩码"
+msgstr "子网掩码"
+
+msgid "添加NAT端口转发规则"
+msgstr "添加NAT端口转发规则"
+
+msgid "外网端口 (WAN)"
+msgstr "外网端口 (WAN)"
+
+msgid "留空自动分配"
+msgstr "留空自动分配"
+
+msgid "留空将自动分配可用端口"
+msgstr "留空将自动分配可用端口"
+
+msgid "内网端口 (LAN)"
+msgstr "内网端口 (LAN)"
+
+msgid "内网地址"
+msgstr "内网地址"
+
+msgid "从虚拟机已分配的IP地址中选择"
+msgstr "从虚拟机已分配的IP地址中选择"
+
+msgid "备注"
+msgstr "备注"
+
+msgid "主机总数"
+msgstr "主机总数"
+
+msgid "退出"
+msgstr "退出"
+
+msgid "虚拟机总数"
+msgstr "虚拟机总数"
+
+msgid "系统状态"
+msgstr "系统状态"
+
+msgid "正常运行"
+msgstr "正常运行"
+
+msgid "最后更新"
+msgstr "最后更新"
+
+msgid "通过"
+msgstr "通过"
+
+msgid "页面可以管理主机和虚拟机。支持使用API+Token进行自动化管理。"
+msgstr "页面可以管理主机和虚拟机。支持使用API+Token进行自动化管理。"
+
+msgid "管理主机"
+msgstr "管理主机"
+
+msgid "扫描虚拟机"
+msgstr "扫描虚拟机"
+
+msgid "返回主机列表"
+msgstr "返回主机列表"
+
+msgid "内存"
+msgstr "内存"
+
+msgid "显存"
+msgstr "显存"
+
+msgid "硬盘"
+msgstr "硬盘"
+
+msgid "Web代理"
+msgstr "Web代理"
+
+msgid "NAT端口"
+msgstr "NAT端口"
+
+msgid "网卡信息"
+msgstr "网卡信息"
+
+msgid "查看详情"
+msgstr "查看详情"
+
+msgid "VNC控制台"
+msgstr "VNC控制台"
+
+msgid "编辑"
+msgstr "编辑"
+
+msgid "删除"
+msgstr "删除"
+
+msgid "电源管理"
+msgstr "电源管理"
+
+msgid "刷新"
+msgstr "刷新"
+
+msgid "共"
+msgstr "共"
+
+msgid "台虚拟机"
+msgstr "台虚拟机"
+
+msgid "虚拟机"
+msgstr "虚拟机"
+
+msgid "操作系统"
+msgstr "操作系统"
+
+msgid "系统密码"
+msgstr "系统密码"
+
+msgid "VNC密码"
+msgstr "VNC密码"
+
+msgid "VNC端口"
+msgstr "VNC端口"
+
+msgid "资源配置"
+msgstr "资源配置"
+
+msgid "虚拟机UUID"
+msgstr "虚拟机UUID"
+
+msgid "CPU核心数量"
+msgstr "CPU核心数量"
+
+msgid "RAM内存(MB)"
+msgstr "RAM内存(MB)"
+
+msgid "HDD硬盘(MB)"
+msgstr "HDD硬盘(MB)"
+
+msgid "GPU显卡(ID)"
+msgstr "GPU显卡(ID)"
+
+msgid "GPU显存(MB)"
+msgstr "GPU显存(MB)"
+
+msgid "上行带宽Mb"
+msgstr "上行带宽Mb"
+
+msgid "下行带宽Mb"
+msgstr "下行带宽Mb"
+
+msgid "流量限制MB"
+msgstr "流量限制MB"
+
+msgid "Web代理数量"
+msgstr "Web代理数量"
+
+msgid "NAT端口数量"
+msgstr "NAT端口数量"
+
+msgid "网卡列表"
+msgstr "网卡列表"
+
+msgid "IP配额状态:"
+msgstr "IP配额状态:"
+
+msgid "IP配额充足"
+msgstr "IP配额充足"
+
+msgid "已使用"
+msgstr "已使用"
+
+msgid "公网"
+msgstr "公网"
+
+msgid "内网"
+msgstr "内网"
+
+msgid "暂停虚拟机"
+msgstr "暂停虚拟机"
+
+msgid "恢复虚拟机"
+msgstr "恢复虚拟机"
+
+msgid "编辑配置"
+msgstr "编辑配置"
+
+msgid "重装系统"
+msgstr "重装系统"
+
+msgid "VNC"
+msgstr "VNC"
+
+msgid "控制台"
+msgstr "控制台"
+
+msgid "修改系统密码"
+msgstr "修改系统密码"
+
+msgid "虚拟机IPv4地址"
+msgstr "虚拟机IPv4地址"
+
+msgid "虚拟机IPv6地址"
+msgstr "虚拟机IPv6地址"
+
+msgid "外网访问IP"
+msgstr "外网访问IP"
+
+msgid "系统密码"
+msgstr "系统密码"
+
+msgid "VNC密码"
+msgstr "VNC密码"
+
+msgid "未知"
+msgstr "未知"
+
+msgid "NAT端口转发"
+msgstr "NAT端口转发"
+
+msgid "IP地址管理"
+msgstr "IP地址管理"
+
+msgid "数据盘"
+msgstr "数据盘"
+
+msgid "ISO挂载"
+msgstr "ISO挂载"
+
+msgid "备份管理"
+msgstr "备份管理"
+
+msgid "至少8位，包含字母、数字、特殊符号中的两种"
+msgstr "至少8位，包含字母、数字、特殊符号中的两种"
+
+msgid "密码长度不得低于8位，且至少包含字母、数字、符号中的两种"
+msgstr "密码长度不得低于8位，且至少包含字母、数字、符号中的两种"
+
+msgid "已确认此虚拟机可能需要强制关闭以修改密码"
+msgstr "已确认此虚拟机可能需要强制关闭以修改密码"
+
+msgid "需要关机才能修改：VMware Workstation Pro"
+msgstr "需要关机才能修改：VMware Workstation Pro"
+
+msgid "需要开机才能修改：Docker/Podman/LXD(LXC)"
+msgstr "需要开机才能修改：Docker/Podman/LXD(LXC)"
+
+msgid "修改前请核对VM状态，否则可能无法修改成功"
+msgstr "修改前请核对VM状态，否则可能无法修改成功"

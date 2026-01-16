@@ -445,7 +445,7 @@ class BasicServer:
         # 遍历所有网络适配器->绑定静态IP ============================================
         all_success = True
         error_message = ""
-        
+
         for nic_name, nic_conf in vm_conf.nic_all.items():
             try:
                 logger.info(
@@ -470,7 +470,7 @@ class BasicServer:
                 all_success = False
                 if not error_message:
                     error_message = str(e)
-        
+
         if all_success:
             return ZMessage(
                 success=True,
@@ -530,31 +530,31 @@ class BasicServer:
         try:
             # 判断是否为远程主机
             is_remote = self.web_flag()
-            
+
             # 如果是远程主机，先建立SSH连接
             if is_remote:
                 success, message = self.port_forward.connect_ssh()
                 if not success:
                     logger.error(f"SSH连接失败，无法同步端口转发: {message}")
                     return
-            
+
             # 获取系统中已有的端口转发
             existing_forwards = self.port_forward.list_ports(is_remote)
             existing_map = {}  # {(lan_addr, lan_port): forward_info}
             for forward in existing_forwards:
                 key = (forward.lan_addr, forward.lan_port)
                 existing_map[key] = forward
-            
+
             # 获取配置中需要的端口转发
             required_forwards = {}  # {(lan_addr, lan_port): (wan_port, vm_name)}
             for vm_name, vm_conf in self.vm_saving.items():
                 if not hasattr(vm_conf, 'nat_all'):
                     continue
-                
+
                 for port_data in vm_conf.nat_all:
                     key = (port_data.lan_addr, port_data.lan_port)
                     required_forwards[key] = (port_data.wan_port, vm_name)
-            
+
             # 删除不需要的转发
             removed_count = 0
             for key, forward in existing_map.items():
@@ -569,12 +569,12 @@ class BasicServer:
                             f"{forward.wan_port} -> "
                             f"{forward.lan_addr}:{forward.lan_port}"
                         )
-            
+
             # 添加缺少的转发
             added_count = 0
             for key, (wan_port, vm_name) in required_forwards.items():
                 lan_addr, lan_port = key
-                
+
                 # 检查是否已存在
                 if key in existing_map:
                     existing_forward = existing_map[key]
@@ -594,12 +594,12 @@ class BasicServer:
                     else:
                         # 端口转发已存在且配置正确，跳过
                         continue
-                
+
                 # 添加新的端口转发
                 success, error = self.port_forward.add_port_forward(
                     lan_addr, lan_port, wan_port, "TCP", is_remote, vm_name
                 )
-                
+
                 if success:
                     added_count += 1
                     logger.info(
@@ -611,12 +611,12 @@ class BasicServer:
                         f"添加端口转发失败: TCP {wan_port} -> "
                         f"{lan_addr}:{lan_port}, 错误: {error}"
                     )
-            
+
             logger.info(
                 f"端口转发同步完成: 删除 {removed_count} 个，"
                 f"添加 {added_count} 个"
             )
-            
+
             # 关闭SSH连接
             if is_remote:
                 self.port_forward.close_ssh()
@@ -638,7 +638,7 @@ class BasicServer:
         # 判断是否为远程主机（排除 SSH 转发模式）
         is_remote = (self.hs_config.server_addr not in ["localhost", "127.0.0.1", ""] and
                      not self.hs_config.server_addr.startswith("ssh://"))
-        
+
         # 如果是远程主机，先建立SSH连接
         if is_remote:
             success, message = self.port_forward.connect_ssh()
@@ -646,7 +646,7 @@ class BasicServer:
                 return ZMessage(
                     success=False, action="PortsMap",
                     message=f"SSH 连接失败: {message}")
-        
+
         # 如果wan_port为0，自动分配一个未使用的端口
         if map_info.wan_port == 0:
             map_info.wan_port = self.port_forward.allocate_port(is_remote)
@@ -659,13 +659,13 @@ class BasicServer:
                 return ZMessage(
                     success=False, action="PortsMap",
                     message=f"端口 {map_info.wan_port} 已被占用")
-        
+
         # 执行端口映射操作
         if flag:
             success, error = self.port_forward.add_port_forward(
                 map_info.lan_addr, map_info.lan_port, map_info.wan_port,
                 "TCP", is_remote, map_info.nat_tips)
-            
+
             if success:
                 hs_message = f"端口 {map_info.wan_port} 成功映射到 {map_info.lan_addr}:{map_info.lan_port}"
                 hs_success = True
@@ -680,16 +680,16 @@ class BasicServer:
                 map_info.wan_port, "TCP", is_remote)
             hs_message = f"端口 {map_info.wan_port} 映射已删除"
             hs_success = True
-        
+
         hs_result = ZMessage(
             success=hs_success, action="PortsMap",
             message=hs_message)
         self.logs_set(hs_result)
-        
+
         # 关闭 SSH 连接
         if is_remote:
             self.port_forward.close_ssh()
-        
+
         return hs_result
 
     # 删除备份文件（TTY容器专用）####################################################
@@ -711,7 +711,7 @@ class BasicServer:
                         logger.info(f"删除备份: {bk_file}")
             except Exception as e:
                 logger.warning(f"扫描备份目录失败: {str(e)}")
-        
+
         # 记录删除的备份文件
         logger.info(f"共删除 {len(del_files)} 个备份文件")
         return ZMessage(success=True,
@@ -724,7 +724,7 @@ class BasicServer:
             return ZMessage(
                 success=True, action="RMMounts",
                 message="指定磁盘已删除")
-        
+
         # 删除容器挂载路径
         if not self.hs_config.extern_path:
             pass  # 没有配置挂载路径，跳过
@@ -737,7 +737,7 @@ class BasicServer:
                     logger.info(f"删除挂载路径: {ct_path}")
             except Exception as e:
                 logger.warning(f"删除挂载失败 {ct_path}: {str(e)}")
-        
+
         # 返回结果
         return ZMessage(success=True, action="RMMounts", message="删除成功")
 
@@ -1037,60 +1037,57 @@ class BasicServer:
             action="ISOMount",
             message=f"ISO镜像{action_text}成功")
 
-    # 移交所有权 ####################################################################
-    # :params vm_name: 虚拟机UUID
-    # :params vm_imgs: 镜像的配置
-    # :params ex_name: 新虚拟机名
-    # ###############################################################################
-    def HDDTrans(self, vm_name: str, vm_imgs: SDConfig, ex_name: str) -> ZMessage:
-        # 检查源虚拟机是否存在
+    # 磁盘移交检查 ##########################################################################
+    def HDDCheck(self, vm_name: str, vm_imgs: SDConfig, ex_name: str) -> ZMessage:
+        # 原始设备是否存在===========================================================
         if vm_name not in self.vm_saving:
             return ZMessage(
-                success=False, action="HDDTrans", message="源虚拟机不存在")
-
-        # 检查目标虚拟机是否存在
+                success=False, action="HDDTrans", message="原始虚拟机不存在")
+        # 目标设备是否存在===========================================================
         if ex_name not in self.vm_saving:
             return ZMessage(
                 success=False, action="HDDTrans", message="目标虚拟机不存在")
-
-        # 检查磁盘是否存在
+        # 检查磁盘是否存在 ==========================================================
         if vm_imgs.hdd_name not in self.vm_saving[vm_name].hdd_all:
             return ZMessage(
-                success=False, action="HDDTrans", message="磁盘不存在")
-
-        # 检查磁盘是否已挂载
-        hdd_config = self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name]
-        hdd_flag = getattr(hdd_config, 'hdd_flag', 0)
-        if hdd_flag == 1:
+                success=False, action="HDDTrans", message="待移交磁盘不存在")
+        # 检查磁盘挂载状态 ==========================================================
+        hdd_conf = self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name]
+        if getattr(hdd_conf, 'hdd_flag', 0) == 1:
             return ZMessage(
-                success=False, action="HDDTrans",
-                message="磁盘已挂载，无法移交。请先卸载磁盘后再进行移交操作")
+                success=False, action="HDDTrans", message="请在先卸载此磁盘")
+        return ZMessage(success=True, action="HDDTrans", message="磁盘可以移交")
 
-        # 执行移交操作
+    # 移交所有权 ####################################################################
+    def HDDTrans(self, vm_name: str, vm_imgs: SDConfig, ex_name: str) -> ZMessage:
+        # 检查情况 ==================================================================
+        check_result = self.HDDCheck(vm_name, vm_imgs, ex_name)
+        if not check_result.success:
+            return check_result
+        # 执行操作 ==================================================================
         old_path = os.path.join(self.hs_config.system_path, vm_name)
         new_path = os.path.join(self.hs_config.system_path, ex_name)
         old_file = os.path.join(old_path, vm_name + "-" + vm_imgs.hdd_name + ".vmdk")
         new_file = os.path.join(new_path, ex_name + "-" + vm_imgs.hdd_name + ".vmdk")
-
         try:
             # 从源虚拟机移除磁盘配置
             self.vm_saving[vm_name].hdd_all.pop(vm_imgs.hdd_name)
-
             # 移动物理文件
             if os.path.exists(old_file):
                 shutil.move(old_file, new_file)
-                logger.info(f"[{self.hs_config.server_name}] 磁盘文件已从 {old_file} 移动到 {new_file}")
+                logger.info(f"[{self.hs_config.server_name}] 磁盘文件"
+                            f"已从 {old_file} 移动到 {new_file}")
             else:
-                logger.warning(f"[{self.hs_config.server_name}] 源磁盘文件 {old_file} 不存在")
-
+                logger.warning(f"[{self.hs_config.server_name}] "
+                               f"源磁盘文件 {old_file} 不存在")
             # 添加到目标虚拟机（保持未挂载状态）
             vm_imgs.hdd_flag = 0
             self.vm_saving[ex_name].hdd_all[vm_imgs.hdd_name] = vm_imgs
-
             # 保存配置
             self.data_set()
-
-            logger.info(f"[{self.hs_config.server_name}] 磁盘 {vm_imgs.hdd_name} 已从虚拟机 {vm_name} 移交到 {ex_name}")
+            logger.info(
+                f"[{self.hs_config.server_name}] 磁盘 {vm_imgs.hdd_name} "
+                f"已从虚拟机 {vm_name} 移交到 {ex_name}")
             return ZMessage(success=True, action="HDDTrans", message="磁盘移交成功")
         except Exception as e:
             logger.error(f"[{self.hs_config.server_name}] 磁盘移交失败: {str(e)}")

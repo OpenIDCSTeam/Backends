@@ -55,7 +55,7 @@ class HostServer(BasicServer):
     # ###############################################################################
     def VMLoader_VNC(self) -> bool:
         # ===== 新的WebMKS方式（使用HttpManager） =====
-        cfg_name = "vmk" + self.hs_config.server_name + ".txt"
+        cfg_name = "vmk_" + self.hs_config.server_name + ".txt"
         self.http_manager = HttpManager(
             cfg_name, "vmk",
             self.hs_config.public_addr[0] \

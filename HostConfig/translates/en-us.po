@@ -1,0 +1,4843 @@
+# English translations for OpenIDCS
+# Copyright (C) 2024 OpenIDCS Team
+# This file is distributed under the same license as the OpenIDCS package.
+#
+
+msgid ""
+msgstr ""
+"Project-Id-Version: OpenIDCS 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-01-15 19:17:42\n"
+"PO-Revision-Date: 2024-01-15 19:17:42\n"
+"Last-Translator: OpenIDCS Team\n"
+"Language-Team: English\n"
+"Language: en_US\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# HostServer.py
+msgid "登录"
+msgstr "Login"
+
+msgid "用户名和密码不能为空"
+msgstr "Username and password cannot be empty"
+
+msgid "用户名或密码错误"
+msgstr "Username or password is incorrect"
+
+msgid "用户已被禁用"
+msgstr "User account has been disabled"
+
+msgid "请先验证邮箱后再登录"
+msgstr "Please verify your email address before logging in"
+
+msgid "登录成功"
+msgstr "Login successful"
+
+msgid "Admin用户已被禁用"
+msgstr "Admin user has been disabled"
+
+msgid "Token错误"
+msgstr "Token error"
+
+msgid "登录失败"
+msgstr "Login failed"
+
+msgid "仪表盘"
+msgstr "Dashboard"
+
+msgid "主机管理"
+msgstr "Host Management"
+
+msgid "日志管理"
+msgstr "Log Management"
+
+msgid "任务管理"
+msgstr "Task Management"
+
+msgid "虚拟机管理"
+msgstr "VM Management"
+
+msgid "系统设置"
+msgstr "System Settings"
+
+msgid "反向代理"
+msgstr "Proxy Management"
+
+
+
+msgid "个人设置"
+msgstr "Personal Settings"
+
+msgid "用户名、邮箱和密码不能为空"
+msgstr "Username, email, and password cannot be empty"
+
+msgid "用户名长度必须在3-20个字符之间"
+msgstr "Username must be between 3-20 characters"
+
+msgid "不能使用admin作为用户名"
+msgstr "Cannot use 'admin' as username"
+
+msgid "密码长度至少6个字符"
+msgstr "Password must be at least 6 characters"
+
+msgid "用户名已存在"
+msgstr "Username already exists"
+
+msgid "邮箱已被注册"
+msgstr "Email address already registered"
+
+msgid "注册失败，请重试"
+msgstr "Registration failed, please try again"
+
+msgid "注册成功！请查收验证邮件"
+msgstr "Registration successful! Please check your verification email"
+
+msgid "注册成功！请登录"
+msgstr "Registration successful! Please login"
+
+msgid "注册失败"
+msgstr "Registration failed"
+
+msgid "无效的验证链接"
+msgstr "Invalid verification link"
+
+msgid "验证链接无效或已过期"
+msgstr "Verification link is invalid or has expired"
+
+msgid "验证失败，请重试"
+msgstr "Verification failed, please try again"
+
+msgid "验证链接格式错误"
+msgstr "Invalid verification link format"
+
+msgid "新邮箱地址无效"
+msgstr "New email address is invalid"
+
+msgid "该邮箱已被其他用户使用"
+msgstr "This email address is already used by another user"
+
+msgid "邮箱更新失败，请重试"
+msgstr "Email update failed, please try again"
+
+msgid "验证邮箱变更失败"
+msgstr "Email change verification failed"
+
+msgid "未登录"
+msgstr "Not logged in"
+
+msgid "请填写完整信息"
+msgstr "Please complete all required fields"
+
+msgid "新密码与确认密码不一致"
+msgstr "New password and confirm password do not match"
+
+msgid "新密码长度不能少于6位"
+msgstr "New password must be at least 6 characters"
+
+msgid "密码修改成功"
+msgstr "Password changed successfully"
+
+msgid "密码修改失败"
+msgstr "Password change failed"
+
+msgid "请输入新邮箱地址"
+msgstr "Please enter new email address"
+
+msgid "请输入有效的邮箱地址"
+msgstr "Please enter a valid email address"
+
+msgid "用户不存在"
+msgstr "User does not exist"
+
+msgid "验证邮件已发送，请查收并点击验证链接完成邮箱修改"
+msgstr "Verification email sent. Please check and click the verification link to complete email change"
+
+msgid "验证邮件发送失败，请重试"
+msgstr "Failed to send verification email, please try again"
+
+msgid "邮件服务未启用"
+msgstr "Email service is not enabled"
+
+msgid "邮箱修改失败，请重试"
+msgstr "Email change failed, please try again"
+
+msgid "邮箱修改失败"
+msgstr "Email change failed"
+
+msgid "请输入邮箱地址"
+msgstr "Please enter email address"
+
+msgid "系统未启用邮件验证功能"
+msgstr "Email verification feature is not enabled in the system"
+
+msgid "该邮箱未注册"
+msgstr "This email is not registered"
+
+msgid "密码重置邮件已发送，请查收"
+msgstr "Password reset email has been sent, please check your inbox"
+
+msgid "发送重置邮件失败"
+msgstr "Failed to send reset email"
+
+msgid "找回密码失败"
+msgstr "Password recovery failed"
+
+msgid "重置密码"
+msgstr "Reset Password"
+
+msgid "密码与确认密码不一致"
+msgstr "Password and confirm password do not match"
+
+msgid "密码长度不能少于6位"
+msgstr "Password must be at least 6 characters"
+
+msgid "重置链接已过期或无效"
+msgstr "Reset link has expired or is invalid"
+
+msgid "密码重置成功"
+msgstr "Password reset successful"
+
+msgid "密码重置失败"
+msgstr "Password reset failed"
+
+msgid "用户管理"
+msgstr "User Management"
+
+msgid "未授权访问"
+msgstr "Unauthorized access"
+
+msgid "成功"
+msgstr "Success"
+
+msgid "没有访问该主机的权限"
+msgstr "No permission to access this host"
+
+msgid "获取Token成功"
+msgstr "Token retrieved successfully"
+
+msgid "获取Token失败"
+msgstr "Failed to retrieve Token"
+
+msgid "Token不能为空"
+msgstr "Token cannot be empty"
+
+msgid "Token设置成功"
+msgstr "Token set successfully"
+
+msgid "设置Token失败"
+msgstr "Failed to set Token"
+
+msgid "Token重置成功"
+msgstr "Token reset successfully"
+
+msgid "重置Token失败"
+msgstr "Failed to reset Token"
+
+msgid "获取统计信息成功"
+msgstr "Statistics retrieved successfully"
+
+msgid "获取统计信息失败"
+msgstr "Failed to retrieve statistics"
+
+msgid "资源配额重新计算完成"
+msgstr "Resource quota recalculation completed"
+
+msgid "重新计算失败"
+msgstr "Recalculation failed"
+
+msgid "获取成功"
+msgstr "Retrieved successfully"
+
+msgid "获取失败"
+msgstr "Retrieval failed"
+
+msgid "无效的请求数据"
+msgstr "Invalid request data"
+
+msgid "创建用户失败，请重试"
+msgstr "Failed to create user, please try again"
+
+msgid "更新用户权限和配额失败"
+msgstr "Failed to update user permissions and quota"
+
+msgid "用户创建成功"
+msgstr "User created successfully"
+
+msgid "创建失败"
+msgstr "Creation failed"
+
+msgid "更新成功"
+msgstr "Update successful"
+
+msgid "更新失败"
+msgstr "Update failed"
+
+msgid "删除成功"
+msgstr "Deletion successful"
+
+msgid "删除失败"
+msgstr "Deletion failed"
+
+msgid "请提供完整的邮件配置信息"
+msgstr "Please provide complete email configuration information"
+
+msgid "邮箱地址格式不正确"
+msgstr "Email address format is incorrect"
+
+msgid "测试邮件发送成功"
+msgstr "Test email sent successfully"
+
+msgid "测试邮件发送失败"
+msgstr "Failed to send test email"
+
+msgid "获取语言列表失败"
+msgstr "Failed to retrieve language list"
+
+msgid "语言不存在"
+msgstr "Language does not exist"
+
+msgid "获取翻译数据失败"
+msgstr "Failed to retrieve translation data"
+
+msgid "正在加载系统配置..."
+msgstr "Loading system configuration..."
+
+msgid "系统配置加载完成"
+msgstr "System configuration loaded"
+
+msgid "加载配置失败"
+msgstr "Failed to load configuration"
+
+msgid "检测到多进程相关错误，将在用户访问时重试加载"
+msgstr "Multi-process related error detected, will retry loading on user access"
+
+msgid "正在加载翻译文件..."
+msgstr "Loading translation files..."
+
+msgid "翻译文件加载完成"
+msgstr "Translation files loaded"
+
+msgid "加载翻译文件失败"
+msgstr "Failed to load translation files"
+
+msgid "已生成访问Token"
+msgstr "Access Token generated"
+
+msgid "已创建admin用户"
+msgstr "Admin user created"
+
+msgid "admin用户已存在，跳过创建"
+msgstr "Admin user already exists, skipping creation"
+
+msgid "初始化admin用户失败"
+msgstr "Failed to initialize admin user"
+
+msgid "定时任务调度器启动成功"
+msgstr "Scheduled task scheduler started successfully"
+
+msgid "启动定时任务调度器失败"
+msgstr "Failed to start scheduled task scheduler"
+
+msgid "OpenIDCS Server 启动"
+msgstr "OpenIDCS Server Starting"
+
+msgid "运行模式"
+msgstr "Run Mode"
+
+msgid "打包模式 (Nuitka)"
+msgstr "Packaged Mode (Nuitka)"
+
+msgid "开发模式"
+msgstr "Development Mode"
+
+msgid "工作目录"
+msgstr "Working Directory"
+
+msgid "项目根目录"
+msgstr "Project Root Directory"
+
+msgid "正在初始化应用..."
+msgstr "Initializing application..."
+
+msgid "OpenIDCS Server 启动中..."
+msgstr "OpenIDCS Server Starting..."
+
+msgid "访问地址"
+msgstr "Access URL"
+
+msgid "访问Token"
+msgstr "Access Token"
+
+msgid "使用生产模式启动 Flask 服务器..."
+msgstr "Starting Flask server in production mode..."
+
+msgid "使用调试模式启动 Flask 服务器..."
+msgstr "Starting Flask server in debug mode..."
+
+msgid "程序被用户中断"
+msgstr "Program interrupted by user"
+
+msgid "程序启动失败"
+msgstr "Program startup failed"
+
+msgid "错误详情"
+msgstr "Error Details"
+
+msgid "按回车键退出..."
+msgstr "Press Enter to exit..."
+
+msgid "执行定时任务出错"
+msgstr "Error executing scheduled task"
+
+msgid "初始执行完成"
+msgstr "Initial execution completed"
+
+msgid "初始执行出错"
+msgstr "Initial execution error"
+
+msgid "启动定时任务调度器..."
+msgstr "Starting scheduled task scheduler..."
+
+msgid "定时任务已启动（后台运行），每60秒执行一次"
+msgstr "Scheduled task started (running in background), executes every 60 seconds"
+
+msgid "简体中文"
+msgstr "Simplified Chinese"
+
+msgid "已加载"
+msgstr "Loaded"
+
+msgid "种语言"
+msgstr "languages"
+
+# HostModule/HostManager.py
+msgid "自动生成新Token"
+msgstr "Auto-generate new Token"
+
+msgid "主机已添加"
+msgstr "Host added"
+
+msgid "不支持的主机类型"
+msgstr "Unsupported host type"
+
+msgid "主机添加成功"
+msgstr "Host added successfully"
+
+msgid "添加主机失败"
+msgstr "Failed to add host"
+
+msgid "删除主机失败"
+msgstr "Failed to delete host"
+
+msgid "主机未找到"
+msgstr "Host not found"
+
+msgid "主机更新成功"
+msgstr "Host updated successfully"
+
+msgid "修改主机失败"
+msgstr "Failed to modify host"
+
+msgid "主机启用状态"
+msgstr "Host enabled status"
+
+msgid "修改主机状态失败"
+msgstr "Failed to modify host status"
+
+msgid "加载数据时出错"
+msgstr "Error loading data"
+
+msgid "保存数据时出错"
+msgstr "Error saving data"
+
+msgid "Host does not support VM scanning"
+msgstr "Host does not support VM scanning"
+
+msgid "代理域名"
+msgstr "Proxy Domain"
+
+msgid "已存在"
+msgstr "Already exists"
+
+msgid "添加代理到HttpManage失败"
+msgstr "Failed to add proxy to HttpManage"
+
+msgid "HttpManage未初始化"
+msgstr "HttpManage not initialized"
+
+msgid "保存代理配置到数据库失败"
+msgstr "Failed to save proxy configuration to database"
+
+msgid "代理"
+msgstr "Proxy"
+
+msgid "添加成功"
+msgstr "Added successfully"
+
+msgid "添加全局代理失败"
+msgstr "Failed to add global proxy"
+
+msgid "添加代理失败"
+msgstr "Failed to add proxy"
+
+msgid "不存在"
+msgstr "Does not exist"
+
+msgid "从HttpManage删除代理失败"
+msgstr "Failed to delete proxy from HttpManage"
+
+msgid "从数据库删除代理配置失败"
+msgstr "Failed to delete proxy configuration from database"
+
+msgid "删除成功"
+msgstr "Deleted successfully"
+
+msgid "删除全局代理失败"
+msgstr "Failed to delete global proxy"
+
+msgid "删除代理失败"
+msgstr "Failed to delete proxy"
+
+msgid "执行定时任务完成"
+msgstr "Scheduled task execution completed"
+
+msgid "用户资源配额重新计算完成"
+msgstr "User resource quota recalculation completed"
+
+msgid "重新计算用户配额失败"
+msgstr "Failed to recalculate user quota"
+
+msgid "开始清理已删除虚拟机的状态数据"
+msgstr "Starting cleanup of deleted VM status data"
+
+msgid "已清理已删除虚拟机状态"
+msgstr "Deleted VM status cleaned up"
+
+msgid "主机"
+msgstr "Host"
+
+msgid "虚拟机"
+msgstr "VM"
+
+msgid "清理完成，共删除"
+msgstr "Cleanup completed, total deleted"
+
+msgid "个已删除虚拟机的状态数据"
+msgstr "deleted VM status data entries"
+
+msgid "没有需要清理的虚拟机状态数据"
+msgstr "No VM status data to clean"
+
+msgid "清理已删除虚拟机状态数据失败"
+msgstr "Failed to clean deleted VM status data"
+
+msgid "触发用户资源配额重新计算"
+msgstr "Trigger user resource quota recalculation"
+
+msgid "执行"
+msgstr "Execute"
+
+msgid "的定时任务"
+msgstr "scheduled task"
+
+# HostModule/HttpManager.py
+msgid "HttpManager初始化完成，管理端口"
+msgstr "HttpManager initialized, management port"
+
+msgid "配置文件"
+msgstr "Configuration File"
+
+msgid "令牌"
+msgstr "Token"
+
+msgid "的SSH代理配置已存在"
+msgstr "SSH proxy configuration already exists for"
+
+msgid "SSH代理已添加"
+msgstr "SSH proxy added"
+
+msgid "统一端口"
+msgstr "Unified Port"
+
+msgid "添加SSH代理配置时发生错误"
+msgstr "Error occurred while adding SSH proxy configuration"
+
+msgid "域名"
+msgstr "Domain"
+
+msgid "的配置已存在"
+msgstr "configuration already exists for"
+
+msgid "为临时代理，不写入数据库"
+msgstr "is a temporary proxy, not writing to database"
+
+msgid "添加代理配置时发生错误"
+msgstr "Error occurred while adding proxy configuration"
+
+msgid "未找到匹配的代理配置"
+msgstr "No matching proxy configuration found"
+
+msgid "当前已有的域名"
+msgstr "Currently existing domains"
+
+msgid "删除代理配置时发生错误"
+msgstr "Error occurred while deleting proxy configuration"
+
+msgid "Caddy进程已启动，PID"
+msgstr "Caddy process started, PID"
+
+msgid "错误: 找不到caddy可执行文件"
+msgstr "Error: caddy executable not found"
+
+msgid "启动Caddy时发生错误"
+msgstr "Error occurred while starting Caddy"
+
+msgid "Caddy进程已停止"
+msgstr "Caddy process stopped"
+
+msgid "停止Caddy时发生错误"
+msgstr "Error occurred while stopping Caddy"
+
+msgid "重载服务命令"
+msgstr "Reload service command"
+
+msgid "Caddy配置已重载（管理端口"
+msgstr "Caddy configuration reloaded (management port"
+
+msgid "重载失败，尝试启动服务"
+msgstr "Reload failed, attempting to start service"
+
+msgid "重载Caddy配置时发生错误"
+msgstr "Error occurred while reloading Caddy configuration"
+
+msgid "已从数据库加载"
+msgstr "Loaded from database"
+
+msgid "个代理配置"
+msgstr "proxy configurations"
+
+msgid "加载代理配置失败"
+msgstr "Failed to load proxy configuration"
+
+msgid "保存代理到数据库失败"
+msgstr "Failed to save proxy to database"
+
+msgid "从数据库删除代理失败"
+msgstr "Failed to delete proxy from database"
+
+# HostModule/NetsManager.py
+msgid "爱快路由器管理类"
+msgstr "iKuai Router Management Class"
+
+msgid "未知错误"
+msgstr "Unknown error"
+
+msgid "登录失败"
+msgstr "Login failed"
+
+msgid "响应不是有效的JSON格式"
+msgstr "Response is not valid JSON format"
+
+msgid "登录失败，状态码"
+msgstr "Login failed, status code"
+
+msgid "登录异常"
+msgstr "Login exception"
+
+msgid "请先登录"
+msgstr "Please login first"
+
+msgid "API调用失败"
+msgstr "API call failed"
+
+msgid "API调用异常"
+msgstr "API call exception"
+
+msgid "✅ 获取静态IP列表成功，共"
+msgstr "✅ Successfully retrieved static IP list, total"
+
+msgid "条"
+msgstr "entries"
+
+msgid "❌ 获取静态IP列表失败"
+msgstr "❌ Failed to retrieve static IP list"
+
+msgid "✅ 获取端口映射列表成功，共"
+msgstr "✅ Successfully retrieved port mapping list, total"
+
+msgid "❌ 获取端口映射列表失败"
+msgstr "❌ Failed to retrieve port mapping list"
+
+msgid "✅ 获取ARP列表成功，共"
+msgstr "✅ Successfully retrieved ARP list, total"
+
+msgid "❌ 获取ARP列表失败"
+msgstr "❌ Failed to retrieve ARP list"
+
+msgid "🔍 准备添加DHCP - 提交参数"
+msgstr "🔍 Preparing to add DHCP - Submitting parameters"
+
+msgid "✅ 静态IP添加成功"
+msgstr "✅ Static IP added successfully"
+
+msgid "❌ 静态IP添加失败"
+msgstr "❌ Failed to add static IP"
+
+msgid "必须提供ip_addr或mac中的一个"
+msgstr "Must provide either ip_addr or mac"
+
+msgid "无法获取DHCP列表"
+msgstr "Unable to retrieve DHCP list"
+
+msgid "找到匹配的DHCP条目"
+msgstr "Found matching DHCP entry"
+
+msgid "未找到匹配的DHCP条目"
+msgstr "No matching DHCP entry found"
+
+msgid "🔍 准备删除DHCP - 提交参数"
+msgstr "🔍 Preparing to delete DHCP - Submitting parameters"
+
+msgid "✅ 静态IP删除成功"
+msgstr "✅ Static IP deleted successfully"
+
+msgid "❌ 静态IP删除失败"
+msgstr "❌ Failed to delete static IP"
+
+msgid "✅ 端口转发添加成功: 外部端口"
+msgstr "✅ Port forwarding added successfully: External port"
+
+msgid "❌ 端口转发添加失败: 外部端口"
+msgstr "❌ Failed to add port forwarding: External port"
+
+msgid "必须提供lan_port或lan_addr中的一个"
+msgstr "Must provide either lan_port or lan_addr"
+
+msgid "无法获取端口映射列表"
+msgstr "Unable to retrieve port mapping list"
+
+msgid "找到匹配的端口映射条目"
+msgstr "Found matching port mapping entry"
+
+msgid "WAN端口"
+msgstr "WAN Port"
+
+msgid "LAN地址"
+msgstr "LAN Address"
+
+msgid "未找到匹配的端口映射条目"
+msgstr "No matching port mapping entry found"
+
+msgid "🔍 准备删除端口映射 - 提交参数"
+msgstr "🔍 Preparing to delete port mapping - Submitting parameters"
+
+msgid "✅ 端口转发删除成功"
+msgstr "✅ Port forwarding deleted successfully"
+
+msgid "❌ 端口转发删除失败"
+msgstr "❌ Failed to delete port forwarding"
+
+msgid "✅ ARP绑定添加成功"
+msgstr "✅ ARP binding added successfully"
+
+msgid "❌ ARP绑定添加失败"
+msgstr "❌ Failed to add ARP binding"
+
+msgid "无法获取ARP列表"
+msgstr "Unable to retrieve ARP list"
+
+msgid "找到匹配的ARP条目"
+msgstr "Found matching ARP entry"
+
+msgid "未找到匹配的ARP条目"
+msgstr "No matching ARP entry found"
+
+msgid "🔍 准备删除ARP - 提交参数"
+msgstr "🔍 Preparing to delete ARP - Submitting parameters"
+
+msgid "✅ ARP绑定删除成功"
+msgstr "✅ ARP binding deleted successfully"
+
+msgid "❌ ARP绑定删除失败"
+msgstr "❌ Failed to delete ARP binding"
+
+msgid "登录成功"
+msgstr "Login successful"
+
+msgid "静态IP添加成功"
+msgstr "Static IP added successfully"
+
+msgid "获取静态IP列表"
+msgstr "Retrieve static IP list"
+
+msgid "静态IP删除成功"
+msgstr "Static IP deleted successfully"
+
+msgid "静态ARP绑定添加成功"
+msgstr "Static ARP binding added successfully"
+
+msgid "获取静态ARP绑定列表"
+msgstr "Retrieve static ARP binding list"
+
+msgid "静态ARP绑定删除成功"
+msgstr "Static ARP binding deleted successfully"
+
+msgid "端口转发添加成功"
+msgstr "Port forwarding added successfully"
+
+msgid "获取端口转发列表"
+msgstr "Retrieve port forwarding list"
+
+msgid "端口转发删除成功"
+msgstr "Port forwarding deleted successfully"
+
+# HostModule/RestManager.py
+msgid "未授权访问"
+msgstr "Unauthorized access"
+
+msgid "主机名称和类型不能为空"
+msgstr "Host name and type cannot be empty"
+
+msgid "配置不能为空"
+msgstr "Configuration cannot be empty"
+
+msgid "主机已删除"
+msgstr "Host deleted"
+
+msgid "主机不存在"
+msgstr "Host does not exist"
+
+msgid "Token已重置"
+msgstr "Token reset"
+
+msgid "Token已设置"
+msgstr "Token set"
+
+msgid "配置已保存"
+msgstr "Configuration saved"
+
+msgid "两次输入的密码不一致"
+msgstr "Passwords entered twice do not match"
+
+msgid "新密码长度不能少于6位"
+msgstr "New password must be at least 6 characters"
+
+msgid "重置中..."
+msgstr "Resetting..."
+
+msgid "仪表盘"
+msgstr "Dashboard"
+
+msgid "系统概览与快速操作"
+msgstr "System Overview and Quick Actions"
+
+msgid "主机概览"
+msgstr "Host Overview"
+
+msgid "查看全部"
+msgstr "View All"
+
+msgid "快速操作"
+msgstr "Quick Actions"
+
+msgid "添加主机"
+msgstr "Add Host"
+
+msgid "添加新的虚拟化主机"
+msgstr "Add new virtualization host"
+
+msgid "系统设置"
+msgstr "System Settings"
+
+msgid "管理Token和系统配置"
+msgstr "Manage Token and system configuration"
+
+msgid "保存配置"
+msgstr "Save Configuration"
+
+msgid "保存所有主机和虚拟机配置"
+msgstr "Save all host and VM configurations"
+
+msgid "提示"
+msgstr "Tip"
+
+msgid "通过主机管理页面可以管理主机和虚拟机。支持使用API+Token进行自动化管理。"
+msgstr "You can manage hosts and VMs through the host management page. Supports automated management via API+Token."
+
+msgid "CPU核心"
+msgstr "CPU Cores"
+
+msgid "GPU显存"
+msgstr "GPU Memory"
+
+msgid "内存"
+msgstr "Memory"
+
+msgid "磁盘"
+msgstr "Disk"
+
+msgid "流量"
+msgstr "Traffic"
+
+msgid "NAT端口"
+msgstr "NAT Ports"
+
+msgid "WEB代理"
+msgstr "Web Proxies"
+
+msgid "上行带宽"
+msgstr "Upload Bandwidth"
+
+msgid "下行带宽"
+msgstr "Download Bandwidth"
+
+msgid "我的虚拟机"
+msgstr "My VMs"
+
+msgid "运行中"
+msgstr "Running"
+
+msgid "创建虚拟机"
+msgstr "Create VM"
+
+msgid "基本信息"
+msgstr "Basic Info"
+
+msgid "密码和端口配置"
+msgstr "Password and Port Configuration"
+
+msgid "硬件配置"
+msgstr "Hardware Configuration"
+
+msgid "网络配置"
+msgstr "Network Configuration"
+
+msgid "网卡配置"
+msgstr "Network Card Configuration"
+
+msgid "IP配额信息"
+msgstr "IP Quota Information"
+
+msgid "添加网卡"
+msgstr "Add Network Card"
+
+msgid "取消"
+msgstr "Cancel"
+
+msgid "电源操作"
+msgstr "Power Operations"
+
+msgid "选择对虚拟机 "
+msgstr "Select operation for VM "
+
+msgid "执行的操作"
+msgstr "Execute Operation"
+
+msgid "启动"
+msgstr "Start"
+
+msgid "关机"
+msgstr "Shutdown"
+
+msgid "重启"
+msgstr "Restart"
+
+msgid "暂停"
+msgstr "Pause"
+
+msgid "恢复"
+msgstr "Resume"
+
+msgid "强制关机"
+msgstr "Force Shutdown"
+
+msgid "强制重启"
+msgstr "Force Restart"
+
+msgid "暂无虚拟机"
+msgstr "No VMs available"
+
+msgid "请联系管理员为您分配权限"
+msgstr "Please contact administrator to assign permissions"
+
+msgid "内网IP配额:"
+msgstr "Internal IP Quota:"
+
+msgid "公网IP配额:"
+msgstr "Public IP Quota:"
+
+msgid "创建虚拟机将消耗相应的资源配额"
+msgstr "Creating a VM will consume corresponding resource quotas"
+
+msgid "保存失败"
+msgstr "Save failed"
+
+msgid "配置已加载"
+msgstr "Configuration loaded"
+
+msgid "加载失败"
+msgstr "Load failed"
+
+msgid "获取日志成功"
+msgstr "Logs retrieved successfully"
+
+msgid "获取日志失败"
+msgstr "Failed to retrieve logs"
+
+msgid "主机名称不能为空"
+msgstr "Host name cannot be empty"
+
+msgid "获取任务成功"
+msgstr "Tasks retrieved successfully"
+
+msgid "获取任务失败"
+msgstr "Failed to retrieve tasks"
+
+msgid "虚拟机不存在"
+msgstr "VM does not exist"
+
+msgid "没有访问该虚拟机的权限"
+msgstr "No permission to access this VM"
+
+msgid "只有主用户可以删除虚拟机"
+msgstr "Only primary user can delete VM"
+
+msgid "CPU核心数不能少于1核"
+msgstr "CPU cores cannot be less than 1"
+
+msgid "内存不能少于1GB"
+msgstr "Memory cannot be less than 1GB"
+
+msgid "硬盘大小不能少于GB"
+msgstr "Disk size cannot be less than GB"
+
+msgid "NAT端口数量不能少于1"
+msgstr "Number of NAT ports cannot be less than 1"
+
+msgid "Web代理数量不能少于0"
+msgstr "Number of web proxies cannot be less than 0"
+
+msgid "流量不能少于0"
+msgstr "Traffic cannot be less than 0"
+
+msgid "上行带宽不能少于0"
+msgstr "Upload bandwidth cannot be less than 0"
+
+msgid "下行带宽不能少于0"
+msgstr "Download bandwidth cannot be less than 0"
+
+msgid "CPU配额为0，不允许创建虚拟机"
+msgstr "CPU quota is 0, VM creation not allowed"
+
+msgid "CPU配额不足，需要核"
+msgstr "Insufficient CPU quota, need"
+
+msgid "，可用"
+msgstr ", available"
+
+msgid "内存配额不足，需要"
+msgstr "Insufficient memory quota, need"
+
+msgid "GB"
+msgstr "GB"
+
+msgid "硬盘配额为0，不允许创建虚拟机"
+msgstr "Disk quota is 0, VM creation not allowed"
+
+msgid "硬盘配额不足，需要"
+msgstr "Insufficient disk quota, need"
+
+msgid "GPU配额为0，不允许创建虚拟机"
+msgstr "GPU quota is 0, VM creation not allowed"
+
+msgid "GPU显存配额不足，需要"
+msgstr "Insufficient GPU memory quota, need"
+
+msgid "流量配额为0，不允许创建虚拟机"
+msgstr "Traffic quota is 0, VM creation not allowed"
+
+msgid "流量配额不足，需要"
+msgstr "Insufficient traffic quota, need"
+
+msgid "上行带宽配额为0，不允许创建虚拟机"
+msgstr "Upload bandwidth quota is 0, VM creation not allowed"
+
+msgid "上行带宽配额不足，需要"
+msgstr "Insufficient upload bandwidth quota, need"
+
+msgid "Mbps"
+msgstr "Mbps"
+
+msgid "下行带宽配额为0，不允许创建虚拟机"
+msgstr "Download bandwidth quota is 0, VM creation not allowed"
+
+msgid "下行带宽配额不足，需要"
+msgstr "Insufficient download bandwidth quota, need"
+
+msgid "NAT端口配额为0，不允许创建虚拟机"
+msgstr "NAT port quota is 0, VM creation not allowed"
+
+msgid "NAT端口配额不足，需要"
+msgstr "Insufficient NAT port quota, need"
+
+
+msgid "Web代理配额为0，不允许创建虚拟机"
+msgstr "Web proxy quota is 0, VM creation not allowed"
+
+msgid "Web代理配额不足，需要"
+msgstr "Insufficient web proxy quota, need"
+
+msgid "无可用IP配额，不允许创建虚拟机"
+msgstr "No available IP quota, VM creation not allowed"
+
+msgid "内网IP配额为0，不允许创建虚拟机"
+msgstr "Internal IP quota is 0, VM creation not allowed"
+
+msgid "内网IP配额不足，需要"
+msgstr "Insufficient internal IP quota, need"
+
+msgid "公网IP配额为0，不允许创建虚拟机"
+msgstr "Public IP quota is 0, VM creation not allowed"
+
+msgid "公网IP配额不足，需要"
+msgstr "Insufficient public IP quota, need"
+
+msgid "虚拟机更新成功"
+msgstr "VM updated successfully"
+
+msgid "更新失败"
+msgstr "Update failed"
+
+msgid "虚拟机已删除"
+msgstr "VM deleted"
+
+msgid "操作失败"
+msgstr "Operation failed"
+
+msgid "用户名不能为空"
+msgstr "Username cannot be empty"
+
+msgid "用户已经是所有者"
+msgstr "User is already an owner"
+
+msgid "用户不是所有者"
+msgstr "User is not an owner"
+
+msgid "不能删除主所有者（第一个所有者）"
+msgstr "Cannot delete primary owner (first owner)"
+
+msgid "至少需要保留一个所有者"
+msgstr "At least one owner must be retained"
+
+msgid "新所有者用户名不能为空"
+msgstr "New owner username cannot be empty"
+
+msgid "必须确认移交所有权"
+msgstr "Must confirm ownership transfer"
+
+msgid "只有主所有者可以移交虚拟机所有权"
+msgstr "Only primary owner can transfer VM ownership"
+
+msgid "移交失败：新所有者没有访问主机的权限"
+msgstr "Transfer failed: New owner does not have host access permission"
+
+msgid "移交失败：新所有者资源配额不足"
+msgstr "Transfer failed: New owner has insufficient resource quota"
+
+msgid "虚拟机所有权已成功移交给"
+msgstr "VM ownership successfully transferred to"
+
+msgid "新密码不能为空"
+msgstr "New password cannot be empty"
+
+msgid "密码修改成功"
+msgstr "Password changed successfully"
+
+msgid "密码修改失败"
+msgstr "Password change failed"
+
+msgid "不支持的操作"
+msgstr "Unsupported operation"
+
+msgid "电源操作成功"
+msgstr "Power operation successful"
+
+msgid "获取成功"
+msgstr "Retrieved successfully"
+
+msgid "无法获取VNC控制台地址"
+msgstr "Unable to get VNC console address"
+
+msgid "获取VNC控制台失败"
+msgstr "Failed to get VNC console"
+
+msgid "NAT规则添加成功"
+msgstr "NAT rule added successfully"
+
+msgid "NAT规则不存在"
+msgstr "NAT rule does not exist"
+
+msgid "NAT规则索引无效"
+msgstr "Invalid NAT rule index"
+
+msgid "NAT规则已删除"
+msgstr "NAT rule deleted"
+
+msgid "网卡列表为空"
+msgstr "Network card list is empty"
+
+msgid "网卡不存在"
+msgstr "Network card does not exist"
+
+msgid "网卡添加成功"
+msgstr "Network card added successfully"
+
+msgid "添加网卡失败"
+msgstr "Failed to add network card"
+
+msgid "网卡已删除"
+msgstr "Network card deleted"
+
+msgid "删除网卡失败"
+msgstr "Failed to delete network card"
+
+msgid "网卡配置已更新"
+msgstr "Network card configuration updated"
+
+msgid "修改网卡失败"
+msgstr "Failed to modify network card"
+
+msgid "代理配置添加成功"
+msgstr "Proxy configuration added successfully"
+
+msgid "代理配置不存在"
+msgstr "Proxy configuration does not exist"
+
+msgid "代理配置索引无效"
+msgstr "Invalid proxy configuration index"
+
+msgid "代理配置已删除"
+msgstr "Proxy configuration deleted"
+
+msgid "域名不能为空"
+msgstr "Domain name cannot be empty"
+
+msgid "域名已存在"
+msgstr "Domain name already exists"
+
+msgid "代理配置更新成功"
+msgstr "Proxy configuration updated successfully"
+
+msgid "磁盘名称不能为空"
+msgstr "Disk name cannot be empty"
+
+msgid "磁盘名称只能包含数字、字母和下划线，不能包含特殊符号和中文"
+msgstr "Disk name can only contain numbers, letters, and underscores, no special symbols or Chinese characters"
+
+msgid "磁盘已挂载，无需重复挂载"
+msgstr "Disk is already mounted, no need to mount again"
+
+msgid "磁盘大小至少为1024MB"
+msgstr "Disk size must be at least 1024MB"
+
+msgid "数据盘挂载成功"
+msgstr "Data disk mounted successfully"
+
+msgid "数据盘不存在"
+msgstr "Data disk does not exist"
+
+msgid "数据盘已卸载"
+msgstr "Data disk unmounted"
+
+msgid "目标虚拟机不能为空"
+msgstr "Target VM cannot be empty"
+
+msgid "目标虚拟机不存在"
+msgstr "Target VM does not exist"
+
+msgid "数据盘所有权移交成功"
+msgstr "Data disk ownership transferred successfully"
+
+msgid "数据盘已删除"
+msgstr "Data disk deleted"
+
+msgid "挂载名称不能为空"
+msgstr "Mount name cannot be empty"
+
+msgid "ISO文件不能为空"
+msgstr "ISO file cannot be empty"
+
+msgid "ISO挂载成功"
+msgstr "ISO mounted successfully"
+
+msgid "ISO配置不存在"
+msgstr "ISO configuration does not exist"
+
+msgid "ISO不存在"
+msgstr "ISO does not exist"
+
+msgid "ISO已卸载"
+msgstr "ISO unmounted"
+
+msgid "备份说明不能为空"
+msgstr "Backup description cannot be empty"
+
+msgid "备份创建成功"
+msgstr "Backup created successfully"
+
+msgid "备份名称不能为空"
+msgstr "Backup name cannot be empty"
+
+msgid "备份还原成功"
+msgstr "Backup restored successfully"
+
+msgid "备份已删除"
+msgstr "Backup deleted"
+
+msgid "备份扫描成功"
+msgstr "Backup scan successful"
+
+msgid "扫描失败"
+msgstr "Scan failed"
+
+msgid "获取全局代理配置失败"
+msgstr "Failed to retrieve global proxy configuration"
+
+msgid "域名地址不能为空"
+msgstr "Domain address cannot be empty"
+
+msgid "内网地址不能为空"
+msgstr "Internal address cannot be empty"
+
+msgid "内网端口不能为空"
+msgstr "Internal port cannot be empty"
+
+msgid "添加全局代理配置失败"
+msgstr "Failed to add global proxy configuration"
+
+msgid "删除全局代理配置失败"
+msgstr "Failed to delete global proxy configuration"
+
+msgid "MAC地址参数缺失"
+msgstr "MAC address parameter missing"
+
+msgid "状态数据为空"
+msgstr "Status data is empty"
+
+msgid "虚拟机状态已更新"
+msgstr "VM status updated"
+
+msgid "状态数据处理失败"
+msgstr "Failed to process status data"
+
+msgid "未找到MAC地址的虚拟机"
+msgstr "No VM found with MAC address"
+
+msgid "端口映射创建失败"
+msgstr "Failed to create port mapping"
+
+msgid "端口映射删除失败"
+msgstr "Failed to delete port mapping"
+
+msgid "挂载失败"
+msgstr "Mount failed"
+
+msgid "卸载失败"
+msgstr "Unmount failed"
+
+msgid "移交失败"
+msgstr "Transfer failed"
+
+msgid "删除失败"
+msgstr "Deletion failed"
+
+msgid "添加代理失败"
+msgstr "Failed to add proxy"
+
+msgid "删除代理失败"
+msgstr "Failed to delete proxy"
+
+msgid "自动分配IP失败"
+msgstr "Auto IP assignment failed"
+
+msgid "绑定静态IP失败"
+msgstr "Static IP binding failed"
+
+# HostModule/SSHDManager.py
+msgid "paramiko 库未安装"
+msgstr "paramiko library not installed"
+
+msgid "SSH 连接成功"
+msgstr "SSH connection successful"
+
+msgid "SSH 连接失败"
+msgstr "SSH connection failed"
+
+msgid "SSH 未连接"
+msgstr "SSH not connected"
+
+msgid "命令执行失败"
+msgstr "Command execution failed"
+
+msgid "无法在范围内找到可用端口"
+msgstr "Cannot find available port in range"
+
+msgid "端口转发已启动"
+msgstr "Port forwarding started"
+
+msgid "启动端口转发失败"
+msgstr "Failed to start port forwarding"
+
+# HostModule/Translation.py
+msgid "翻译目录不存在"
+msgstr "Translation directory does not exist"
+
+msgid "已加载"
+msgstr "Loaded"
+
+msgid "种语言"
+msgstr "languages"
+
+msgid "加载语言文件失败"
+msgstr "Failed to load language files"
+
+msgid "已加载语言"
+msgstr "Loaded language"
+
+msgid "条翻译"
+msgstr "translation entries"
+
+msgid "读取语言文件"
+msgstr "Reading language file"
+
+msgid "失败"
+msgstr "failed"
+
+msgid "已保存语言文件"
+msgstr "Saved language file"
+
+msgid "保存语言文件失败"
+msgstr "Failed to save language file"
+
+# HostModule/UserManager.py
+msgid "用户认证和权限管理模块"
+msgstr "User authentication and permission management module"
+
+msgid "提供密码加密、用户认证、权限检查等功能"
+msgstr "Provides password encryption, user authentication, permission checking, etc."
+
+msgid "用户认证管理类"
+msgstr "User authentication management class"
+
+msgid "密码加密"
+msgstr "Password encryption"
+
+msgid "验证密码"
+msgstr "Verify password"
+
+msgid "生成随机token"
+msgstr "Generate random token"
+
+msgid "从session获取当前用户信息"
+msgstr "Get current user information from session"
+
+msgid "设置用户session"
+msgstr "Set user session"
+
+msgid "清除session"
+msgstr "Clear session"
+
+msgid "需要登录的装饰器（用户登录或Token登录）"
+msgstr "Decorator requiring login (user login or Token login)"
+
+msgid "需要管理员权限的装饰器"
+msgstr "Decorator requiring admin permission"
+
+msgid "需要管理员权限"
+msgstr "Admin permission required"
+
+msgid "需要特定权限的装饰器"
+msgstr "Decorator requiring specific permission"
+
+msgid ""
+msgstr ""
+
+msgid "需要"
+msgstr "Requires"
+
+msgid "权限"
+msgstr "permission"
+
+msgid "检查用户是否有访问指定主机的权限"
+msgstr "Check if user has permission to access specified host"
+
+msgid "检查用户是否有虚拟机操作权限"
+msgstr "Check if user has VM operation permission"
+
+msgid "没有创建虚拟机的权限"
+msgstr "No permission to create VM"
+
+msgid "没有删除虚拟机的权限"
+msgstr "No permission to delete VM"
+
+msgid "没有修改虚拟机的权限"
+msgstr "No permission to modify VM"
+
+msgid "检查用户资源配额"
+msgstr "Check user resource quota"
+
+msgid "CPU核心"
+msgstr "CPU Cores"
+
+msgid "内存"
+msgstr "Memory"
+
+msgid "磁盘"
+msgstr "Disk"
+
+msgid "GPU显存"
+msgstr "GPU Memory"
+
+msgid "NAT端口"
+msgstr "NAT Ports"
+
+msgid "WEB代理"
+msgstr "Web Proxies"
+
+msgid "内网IP"
+msgstr "Internal IP"
+
+msgid "公网IP"
+msgstr "Public IP"
+
+msgid "流量"
+msgstr "Traffic"
+
+msgid "上行带宽"
+msgstr "Upload Bandwidth"
+
+msgid "下行带宽"
+msgstr "Download Bandwidth"
+
+msgid "配额不足，"
+msgstr "Quota insufficient,"
+
+msgid "已使用"
+msgstr "Used"
+
+msgid "/"
+msgstr "/"
+
+msgid "邮件服务类（使用Resend API）"
+msgstr "Email service class (using Resend API)"
+
+msgid "发送验证邮件"
+msgstr "Send verification email"
+
+msgid "邮件服务未配置"
+msgstr "Email service not configured"
+
+msgid "OpenIDCS - 邮箱验证"
+msgstr "OpenIDCS - Email Verification"
+
+msgid "欢迎注册 OpenIDCS"
+msgstr "Welcome to OpenIDCS"
+
+msgid "您好 "
+msgstr "Hello "
+
+msgid "请点击下面的链接验证您的邮箱："
+msgstr "Please click the link below to verify your email:"
+
+msgid "如果您没有注册账号，请忽略此邮件。"
+msgstr "If you did not register an account, please ignore this email."
+
+msgid "此链接24小时内有效。"
+msgstr "This link is valid for 24 hours."
+
+msgid "验证邮件已发送到 "
+msgstr "Verification email sent to "
+
+msgid "发送邮件失败: "
+msgstr "Failed to send email: "
+
+msgid "发送邮件异常: "
+msgstr "Email sending exception: "
+
+msgid "发送测试邮件"
+msgstr "Send test email"
+
+msgid "OpenIDCS - 测试邮件"
+msgstr "OpenIDCS - Test Email"
+
+msgid "测试邮件"
+msgstr "Test Email"
+
+msgid "您好，"
+msgstr "Hello,"
+
+msgid "这是一封来自 OpenIDCS 系统的测试邮件。"
+msgstr "This is a test email from the OpenIDCS system."
+
+msgid "如果您收到这封邮件，说明邮件服务配置正常。"
+msgstr "If you received this email, it means the email service is configured correctly."
+
+msgid "发送时间: "
+msgstr "Sent time: "
+
+msgid "OpenIDCS 系统"
+msgstr "OpenIDCS System"
+
+msgid "测试邮件已发送到 "
+msgstr "Test email sent to "
+
+msgid "发送测试邮件失败: "
+msgstr "Failed to send test email: "
+
+msgid "发送测试邮件异常: "
+msgstr "Test email sending exception: "
+
+msgid "获取当前时间字符串"
+msgstr "Get current time string"
+
+msgid "发送密码重置邮件"
+msgstr "Send password reset email"
+
+msgid "OpenIDCS - 密码重置"
+msgstr "OpenIDCS - Password Reset"
+
+msgid "密码重置请求"
+msgstr "Password Reset Request"
+
+msgid "我们收到了您的密码重置请求。"
+msgstr "We received your password reset request."
+
+msgid "请点击下面的链接重置您的密码："
+msgstr "Please click the link below to reset your password:"
+
+msgid "如果您没有请求重置密码，请忽略此邮件。"
+msgstr "If you did not request a password reset, please ignore this email."
+
+msgid "密码重置邮件已发送到 "
+msgstr "Password reset email sent to "
+
+msgid "发送密码重置邮件失败: "
+msgstr "Failed to send password reset email: "
+
+msgid "发送密码重置邮件异常: "
+msgstr "Password reset email sending exception: "
+
+msgid "发送邮箱变更验证邮件"
+msgstr "Send email change verification email"
+
+msgid "OpenIDCS - 邮箱变更验证"
+msgstr "OpenIDCS - Email Change Verification"
+
+msgid "邮箱变更验证"
+msgstr "Email Change Verification"
+
+msgid "我们收到了您的邮箱变更请求。"
+msgstr "We received your email change request."
+
+msgid "请点击下面的链接验证您的新邮箱地址："
+msgstr "Please click the link below to verify your new email address:"
+
+msgid "验证成功后，您的账号邮箱将更新为此邮箱地址。"
+msgstr "After successful verification, your account email will be updated to this email address."
+
+msgid "如果您没有请求变更邮箱，请忽略此邮件。"
+msgstr "If you did not request to change your email, please ignore this email."
+
+msgid "邮箱变更验证邮件已发送到 "
+msgstr "Email change verification email sent to "
+
+msgid "发送邮箱变更验证邮件失败: "
+msgstr "Failed to send email change verification email: "
+
+msgid "发送邮箱变更验证邮件异常: "
+msgstr "Email change verification email sending exception: "
+
+# HostModule/DataManager.py
+msgid "字段已存在，跳过"
+msgstr "Field already exists, skipping"
+
+msgid "数据库初始化完成"
+msgstr "Database initialization completed"
+
+msgid "数据库初始化错误"
+msgstr "Database initialization error"
+
+msgid "警告: SQL文件不存在"
+msgstr "Warning: SQL file does not exist"
+
+msgid "当前工作目录"
+msgstr "Current working directory"
+
+msgid "项目根目录"
+msgstr "Project root directory"
+
+msgid "已创建默认管理员用户: admin/admin123"
+msgstr "Default admin user created: admin/admin123"
+
+msgid "创建默认管理员用户失败"
+msgstr "Failed to create default admin user"
+
+msgid "已存在管理员用户，跳过默认用户创建"
+msgstr "Admin user already exists, skipping default user creation"
+
+msgid "创建默认管理员用户时出错"
+msgstr "Error occurred while creating default admin user"
+
+msgid "已创建默认全局配置"
+msgstr "Default global configuration created"
+
+msgid "更新全局配置错误"
+msgstr "Global configuration update error"
+
+msgid "保存主机配置错误"
+msgstr "Save host configuration error"
+
+msgid "删除主机配置错误"
+msgstr "Delete host configuration error"
+
+msgid "添加主机状态失败"
+msgstr "Failed to add host status"
+
+msgid "保存主机状态错误"
+msgstr "Save host status error"
+
+msgid "发现需要删除的虚拟机"
+msgstr "Found VMs that need to be deleted"
+
+msgid "已删除"
+msgstr "Deleted"
+
+msgid "个不存在的虚拟机配置"
+msgstr "non-existent VM configurations"
+
+msgid "保存虚拟机存储配置错误"
+msgstr "Save VM storage configuration error"
+
+msgid "更新虚拟机配置时间戳错误"
+msgstr "Update VM configuration timestamp error"
+
+msgid "虚拟机"
+msgstr "VM"
+
+msgid "的状态数据格式异常（字典），已转换为列表"
+msgstr "status data format exception (dict), converted to list"
+
+msgid "虚拟机"
+msgstr "VM"
+
+msgid "的状态数据格式未知，已重置为空列表"
+msgstr "status data format unknown, reset to empty list"
+
+msgid "流量累加: 之前="
+msgstr "Traffic accumulation: Previous="
+
+msgid "MB, 本次="
+msgstr "MB, This time="
+
+msgid "MB, 累计="
+msgstr "MB, Total="
+
+msgid "MB"
+msgstr "MB"
+
+msgid "首次上报流量"
+msgstr "First traffic report"
+
+msgid "更新虚拟机"
+msgstr "Update VM"
+
+msgid "状态，记录数"
+msgstr "status, record count"
+
+msgid "插入虚拟机"
+msgstr "Insert VM"
+
+msgid "状态，记录数"
+msgstr "status, record count"
+
+msgid "虚拟机"
+msgstr "VM"
+
+msgid "状态保存成功"
+msgstr "status saved successfully"
+
+msgid "添加虚拟机状态失败"
+msgstr "Failed to add VM status"
+
+msgid "开始保存虚拟机状态，主机"
+msgstr "Starting to save VM status, host"
+
+msgid "虚拟机数量"
+msgstr "VM count"
+
+msgid "已清除旧状态，删除行数"
+msgstr "Cleared old status, deleted rows"
+
+msgid "虚拟机状态保存成功，共插入"
+msgstr "VM status saved successfully, total inserted"
+
+msgid "条记录"
+msgstr "records"
+
+msgid "保存虚拟机状态错误"
+msgstr "Save VM status error"
+
+msgid "虚拟机"
+msgstr "VM"
+
+msgid "已离线，最后上报时间(UTC)"
+msgstr "is offline, last report time (UTC)"
+
+msgid "本地时间"
+msgstr "Local time"
+
+msgid "距今"
+msgstr "ago"
+
+msgid "秒"
+msgstr "seconds"
+
+msgid "解析时间戳失败"
+msgstr "Failed to parse timestamp"
+
+msgid "删除虚拟机状态数据: 主机"
+msgstr "Delete VM status data: host"
+
+msgid "删除行数"
+msgstr "Deleted rows"
+
+msgid "删除虚拟机状态数据失败"
+msgstr "Failed to delete VM status data"
+
+msgid "保存虚拟机任务错误"
+msgstr "Save VM task error"
+
+msgid "保存全局代理配置错误"
+msgstr "Save global proxy configuration error"
+
+msgid "添加全局代理配置错误"
+msgstr "Add global proxy configuration error"
+
+msgid "删除全局代理配置错误"
+msgstr "Delete global proxy configuration error"
+
+msgid "添加日志失败"
+msgstr "Failed to add log"
+
+msgid "清理日志失败"
+msgstr "Failed to clean logs"
+
+msgid "保存日志记录错误"
+msgstr "Save log record error"
+
+msgid "保存主机完整数据错误"
+msgstr "Save host complete data error"
+
+msgid "创建用户失败（用户名或邮箱已存在）"
+msgstr "Failed to create user (username or email already exists)"
+
+msgid "创建用户错误"
+msgstr "Create user error"
+
+msgid "更新用户错误"
+msgstr "Update user error"
+
+msgid "删除用户错误"
+msgstr "Delete user error"
+
+msgid "更新用户登录时间错误"
+msgstr "Update user login time error"
+
+msgid "删除重置token错误"
+msgstr "Delete reset token error"
+
+msgid "更新系统设置错误"
+msgstr "Update system settings error"
+
+# HostServer/BasicServer.py
+msgid "日志系统已初始化"
+msgstr "Log system initialized"
+
+msgid "日志系统初始化失败"
+msgstr "Log system initialization failed"
+
+msgid "添加日志失败"
+msgstr "Failed to add log"
+
+msgid "不支持的操作系统"
+msgstr "Unsupported operating system"
+
+msgid "主机状态已保存"
+msgstr "Host status saved"
+
+msgid "保存数据失败"
+msgstr "Failed to save data"
+
+msgid "主机日志已保存"
+msgstr "Host log saved"
+
+msgid "虚拟机配置已保存"
+msgstr "VM configuration saved"
+
+msgid "从数据库加载数据失败"
+msgstr "Failed to load data from database"
+
+msgid "无法获取SSH端口"
+msgstr "Unable to get SSH port"
+
+msgid "端口已被占用"
+msgstr "Port already in use"
+
+msgid "虚拟机不存在"
+msgstr "VM does not exist"
+
+msgid "当主机为远程IP时，必须先添加NAT映射才能代理"
+msgstr "When host is remote IP, must add NAT mapping before proxying"
+
+msgid "当前映射的本地端口缺少NAT映射，请先添加映射"
+msgstr "Current mapped local port lacks NAT mapping, please add mapping first"
+
+msgid "域名 "
+msgstr "Domain "
+
+msgid "已存在"
+msgstr "already exists"
+
+msgid "网络检查失败"
+msgstr "Network check failed"
+
+msgid "网络静态绑定失败"
+msgstr "Network static binding failed"
+
+msgid "VNC服务启动失败"
+msgstr "VNC service startup failed"
+
+msgid "绑定静态IP"
+msgstr "Bind static IP"
+
+msgid "静态IP绑定成功"
+msgstr "Static IP binding successful"
+
+msgid "静态IP绑定失败"
+msgstr "Static IP binding failed"
+
+msgid "静态IP绑定异常"
+msgstr "Static IP binding exception"
+
+msgid "未找到IP地址"
+msgstr "IP address not found"
+
+msgid "请补全实现"
+msgstr "Please complete implementation"
+
+msgid "SSH连接失败，无法同步端口转发"
+msgstr "SSH connection failed, cannot sync port forwarding"
+
+msgid "删除多余的端口转发"
+msgstr "Delete redundant port forwarding"
+
+msgid "端口映射变更，删除旧转发"
+msgstr "Port mapping changed, delete old forwarding"
+
+msgid "添加端口转发"
+msgstr "Add port forwarding"
+
+msgid "添加端口转发失败"
+msgstr "Failed to add port forwarding"
+
+msgid "端口转发同步完成: 删除 "
+msgstr "Port forwarding sync completed: Deleted "
+
+msgid "个，添加 "
+msgstr ", Added "
+
+
+
+msgid "同步端口转发时出错"
+msgstr "Error while syncing port forwarding"
+
+msgid "SSH 连接失败"
+msgstr "SSH connection failed"
+
+msgid "端口 "
+msgstr "Port "
+
+msgid "已被占用"
+msgstr "already in use"
+
+msgid "端口 "
+msgstr "Port "
+
+msgid "成功映射到 "
+msgstr "successfully mapped to "
+
+msgid ":"
+msgstr ":"
+
+
+
+
+msgid "端口映射失败"
+msgstr "Port mapping failed"
+
+msgid "端口 "
+msgstr "Port "
+
+msgid "映射已删除"
+msgstr "mapping deleted"
+
+msgid "删除备份"
+msgstr "Delete backup"
+
+msgid "共删除 "
+msgstr "Total deleted "
+
+msgid "个备份文件"
+msgstr "backup files"
+
+msgid "已删除 "
+msgstr "Deleted "
+
+msgid "个备份文件"
+msgstr "backup files"
+
+msgid "扫描备份目录失败"
+msgstr "Failed to scan backup directory"
+
+msgid "指定磁盘已删除"
+msgstr "Specified disk deleted"
+
+msgid "删除挂载路径"
+msgstr "Delete mount path"
+
+msgid "删除挂载失败"
+msgstr "Failed to delete mount"
+
+msgid "删除成功"
+msgstr "Deleted successfully"
+
+msgid "宿主机加载成功"
+msgstr "Host machine loaded successfully"
+
+msgid "VM Rest服务器已停止"
+msgstr "VM Rest server stopped"
+
+msgid "虚拟机创建成功"
+msgstr "VM created successfully"
+
+msgid "虚拟机 "
+msgstr "VM "
+
+msgid "配置已更新"
+msgstr "configuration updated"
+
+msgid "操作成功完成"
+msgstr "Operation completed successfully"
+
+msgid "备份文件不存在"
+msgstr "Backup file does not exist"
+
+msgid "备份文件已删除"
+msgstr "Backup file deleted"
+
+msgid "备份文件名格式不正确"
+msgstr "Backup file name format is incorrect"
+
+msgid "解析备份时间失败"
+msgstr "Failed to parse backup time"
+
+msgid "加载备份文件失败"
+msgstr "backup files loaded"
+
+msgid "虚拟盘不存在"
+msgstr "Virtual disk does not exist"
+
+msgid "磁盘删除成功"
+msgstr "Disk deleted successfully"
+
+msgid "磁盘"
+msgstr "Disk"
+
+msgid "成功"
+msgstr "successful"
+
+msgid "挂载"
+msgstr "Mount"
+
+msgid "卸载"
+msgstr "Unmount"
+
+msgid "ISO镜像文件不存在"
+msgstr "ISO image file does not exist"
+
+msgid "挂载名称已存在"
+msgstr "Mount name already exists"
+
+msgid "ISO挂载成功"
+msgstr "ISO mounted successfully"
+
+msgid "ISO镜像不存在"
+msgstr "ISO image does not exist"
+
+msgid "ISO卸载成功"
+msgstr "ISO unmounted successfully"
+
+msgid "ISO镜像"
+msgstr "ISO image"
+
+msgid "成功"
+msgstr "successful"
+
+msgid "源虚拟机不存在"
+msgstr "Source VM does not exist"
+
+msgid "目标虚拟机不存在"
+msgstr "Target VM does not exist"
+
+msgid "磁盘不存在"
+msgstr "Disk does not exist"
+
+msgid "磁盘已挂载，无法移交。请先卸载磁盘后再进行移交操作"
+msgstr "Disk is mounted, cannot transfer. Please unmount disk before transfer"
+
+msgid "磁盘文件已从 "
+msgstr "Disk file moved from "
+
+msgid "移动到 "
+msgstr "to "
+
+
+
+
+msgid "源磁盘文件 "
+msgstr "Source disk file "
+
+msgid "不存在"
+msgstr "does not exist"
+
+msgid "磁盘 "
+msgstr "Disk "
+
+msgid "已从虚拟机 "
+msgstr "transferred from VM "
+
+msgid "移交到 "
+msgstr "to "
+
+
+
+
+msgid "磁盘移交成功"
+msgstr "Disk transfer successful"
+
+msgid "磁盘移交失败"
+msgstr "Disk transfer failed"
+
+msgid "用户已经是虚拟机所有者"
+msgstr "User is already VM owner"
+
+msgid "虚拟机 "
+msgstr "VM "
+
+msgid "所有权从 "
+msgstr "ownership transferred from "
+
+msgid "移交给 "
+msgstr "to "
+
+msgid "，保留权限: "
+msgstr ", keep permissions: "
+
+
+
+
+msgid "虚拟机所有权已成功移交给 "
+msgstr "VM ownership successfully transferred to "
+
+
+
+
+msgid "的 vc_port 为空"
+msgstr "vc_port is empty"
+
+msgid "VNC端口为空"
+msgstr "VNC port is empty"
+
+msgid "的 vc_pass 为空"
+msgstr "vc_pass is empty"
+
+msgid "VNC密码为空"
+msgstr "VNC password is empty"
+
+msgid "虚拟机控制台访问失败"
+msgstr "VM console access failed"
+
+msgid "7z可执行文件不存在"
+msgstr "7z executable does not exist"
+
+msgid "7z压缩失败"
+msgstr "7z compression failed"
+
+msgid "7z解压失败"
+msgstr "7z decompression failed"
+
+msgid "准备"
+msgstr "Preparing"
+
+msgid "ISO"
+msgstr "ISO"
+
+msgid "ISO文件不存在"
+msgstr "ISO file does not exist"
+
+# HostServer/Workstation.py
+msgid "未找到vmrest.exe文件"
+msgstr "vmrest.exe file not found"
+
+msgid "VM Rest Server未运行"
+msgstr "VM Rest Server not running"
+
+msgid "获取虚拟机列表失败"
+msgstr "Failed to get VM list"
+
+msgid "发现并添加虚拟机"
+msgstr "Discovered and added VM"
+
+msgid "保存扫描的虚拟机到数据库失败"
+msgstr "Failed to save scanned VMs to database"
+
+msgid "扫描完成。共扫描到"
+msgstr "Scan completed. Total scanned"
+
+msgid "台虚拟机，新增"
+msgstr "VMs, added"
+
+msgid "台虚拟机配置。"
+msgstr "VM configurations."
+
+msgid "扫描虚拟机时出错"
+msgstr "Error while scanning VMs"
+
+msgid "安装系统失败"
+msgstr "System installation failed"
+
+msgid "注册虚拟机失败"
+msgstr "VM registration failed"
+
+msgid "虚拟机创建失败"
+msgstr "VM creation failed"
+
+msgid "虚拟机 "
+msgstr "VM "
+
+msgid "不存在"
+msgstr "does not exist"
+
+msgid "虚拟机 "
+msgstr "VM "
+
+msgid "网络配置更新失败"
+msgstr "network configuration update failed"
+
+msgid "虚拟机 "
+msgstr "VM "
+
+msgid "VMX文件写入失败"
+msgstr "VMX file write failed"
+
+msgid "虚拟机 "
+msgstr "VM "
+
+msgid "启动失败"
+msgstr "startup failed"
+
+msgid "虚拟机 "
+msgstr "VM "
+
+msgid "不存在"
+msgstr "does not exist"
+
+# HostServer/LXContainer.py
+msgid "缺少证书路径，请设置启动路径为证书路径"
+msgstr "Certificate path missing, please set startup path to certificate path"
+
+msgid "证书文件未找到，请检查"
+msgstr "Certificate file not found, please check"
+
+msgid "Crontabs: LXD连接失败，使用本地状态"
+msgstr "Crontabs: LXD connection failed, using local status"
+
+msgid "远程主机状态已保存"
+msgstr "Remote host status saved"
+
+msgid "获取远程主机状态失败"
+msgstr "Failed to get remote host status"
+
+msgid "Crontabs 执行失败"
+msgstr "Crontabs execution failed"
+
+msgid "无法连接到LXD获取状态"
+msgstr "Unable to connect to LXD to get status"
+
+msgid "获取LXD主机状态失败"
+msgstr "Failed to get LXD host status"
+
+msgid "发现并添加容器"
+msgstr "Discovered and added container"
+
+msgid "规范化为"
+msgstr "Normalized to"
+
+msgid "扫描完成。共扫描到"
+msgstr "Scan completed. Total scanned"
+
+msgid "个容器，新增"
+msgstr "containers, added"
+
+msgid "个容器配置。"
+msgstr "container configurations."
+
+msgid "扫描容器时出错"
+msgstr "Error while scanning containers"
+
+msgid "禁止为同一容器分配多个相同类型的网卡。"
+msgstr "Cannot assign multiple network cards of the same type to the same container."
+
+msgid "网卡"
+msgstr "Network card"
+
+msgid "都是"
+msgstr "are both"
+
+msgid "类型"
+msgstr "type"
+
+msgid "的IP地址"
+msgstr "IP addresses"
+
+msgid "已被其他虚拟机使用"
+msgstr "already used by other VMs"
+
+msgid "的网络类型"
+msgstr "network type"
+
+msgid "未在ipaddr_maps中配置"
+msgstr "not configured in ipaddr_maps"
+
+msgid "的ipaddr_maps配置不完整（缺少from或nums）"
+msgstr "ipaddr_maps configuration incomplete (missing from or nums)"
+
+msgid "为网卡"
+msgstr "Assign IP for network card"
+
+msgid "自动分配IP"
+msgstr "Auto-assign IP"
+
+msgid "范围"
+msgstr "range"
+
+msgid "处理IP分配时出错"
+msgstr "Error while processing IP assignment"
+
+msgid "无法为网卡"
+msgstr "Unable to assign IP address for network card"
+
+msgid "分配IP地址，所有IP已被占用或无可用IP"
+msgstr "All IPs are occupied or no available IPs"
+
+msgid "网络配置检查完成"
+msgstr "Network configuration check completed"
+
+msgid "网络检查时出错"
+msgstr "Error while checking network"
+
+msgid "网络检查失败"
+msgstr "Network check failed"
+
+msgid "容器"
+msgstr "Container"
+
+msgid "主机网络"
+msgstr "Host network"
+
+msgid "未配置"
+msgstr "Not configured"
+
+msgid "连接容器网络"
+msgstr "Connect container network"
+
+msgid "网络配置成功"
+msgstr "Network configuration successful"
+
+msgid "删除容器网络设备"
+msgstr "Delete container network device"
+
+msgid "网络配置失败"
+msgstr "Network configuration failed"
+
+msgid "容器名已规范化"
+msgstr "Container name normalized"
+
+msgid "容器创建失败"
+msgstr "Container creation failed"
+
+msgid "模板文件未找到"
+msgstr "Template file not found"
+
+msgid "搜索路径"
+msgstr "Search path"
+
+msgid "可用模板"
+msgstr "Available templates"
+
+msgid "该目录下没有可用的 .tar.gz 模板文件"
+msgstr "No available .tar.gz template files in this directory"
+
+msgid "LXD镜像未找到"
+msgstr "LXD image not found"
+
+msgid "可用镜像别名"
+msgstr "Available image aliases"
+
+msgid "没有可用的LXD镜像，请使用 'lxc image list' 查看"
+msgstr "No available LXD images, please use 'lxc image list' to check"
+
+msgid "容器启动失败"
+msgstr "Container startup failed"
+
+msgid "容器更新失败"
+msgstr "Container update failed"
+
+msgid "删除容器失败"
+msgstr "Container deletion failed"
+
+msgid "无法冻结容器"
+msgstr "Unable to freeze container"
+
+msgid "当前状态"
+msgstr "Current status"
+
+msgid "无法解冻容器"
+msgstr "Unable to unfreeze container"
+
+msgid "电源操作失败"
+msgstr "Power operation failed"
+
+msgid "设置密码失败"
+msgstr "Failed to set password"
+
+msgid "虚拟机备份目录未设置，请联系管理员"
+msgstr "VM backup directory not set, please contact administrator"
+
+msgid "开始备份容器"
+msgstr "Starting container backup"
+
+msgid "删除旧的临时镜像"
+msgstr "Delete old temporary image"
+
+msgid "临时镜像已删除"
+msgstr "Temporary image deleted"
+
+msgid "容器备份完成，文件大小"
+msgstr "Container backup completed, file size"
+
+msgid "容器备份成功，文件"
+msgstr "Container backup successful, file"
+
+msgid "容器"
+msgstr "Container"
+
+msgid "已重新启动"
+msgstr "restarted"
+
+msgid "重新启动失败"
+msgstr "Restart failed"
+
+msgid "备份容器失败"
+msgstr "Container backup failed"
+
+msgid "备份失败"
+msgstr "Backup failed"
+
+msgid "备份文件不存在"
+msgstr "Backup file does not exist"
+
+msgid "已删除旧容器"
+msgstr "Old container deleted"
+
+msgid "开始恢复容器"
+msgstr "Starting container restore"
+
+msgid "备份文件"
+msgstr "Backup file"
+
+msgid "删除旧的还原临时镜像"
+msgstr "Delete old restore temporary image"
+
+msgid "镜像导入成功"
+msgstr "Image import successful"
+
+msgid "容器恢复成功"
+msgstr "Container restore successful"
+
+msgid "还原临时镜像已删除"
+msgstr "Restore temporary image deleted"
+
+msgid "删除还原临时镜像失败"
+msgstr "Failed to delete restore temporary image"
+
+msgid "恢复容器失败"
+msgstr "Container restore failed"
+
+msgid "恢复失败"
+msgstr "Restore failed"
+
+msgid "磁盘挂载操作失败"
+msgstr "Disk mount operation failed"
+
+msgid "当未设置主机密码时，必须添加一个端口映射到22端口"
+msgstr "When host password is not set, must add a port mapping to port 22"
+
+msgid "未找到当前虚拟机22端口对应端口映射信息，无法继续"
+msgstr "Cannot find port mapping information for current VM port 22, cannot continue"
+
+msgid "主机外网IP不存在"
+msgstr "Host external IP does not exist"
+
+msgid "启动tty会话失败"
+msgstr "Failed to start tty session"
+
+msgid "添加SSH代理失败"
+msgstr "Failed to add SSH proxy"
+
+msgid "SSH代理配置失败"
+msgstr "SSH proxy configuration failed"
+
+# HostServer/OCInterface.py
+msgid "无法连接到Docker获取状态"
+msgstr "Unable to connect to Docker to get status"
+
+msgid "获取Docker主机状态失败"
+msgstr "Failed to get Docker host status"
+
+msgid "Docker连接失败，跳过容器状态采集"
+msgstr "Docker connection failed, skipping container status collection"
+
+msgid "不存在，跳过"
+msgstr "does not exist, skipping"
+
+msgid "未运行，跳过"
+msgstr "not running, skipping"
+
+msgid "状态已保存"
+msgstr "Status saved"
+
+msgid "状态保存失败"
+msgstr "Failed to save status"
+
+msgid "处理容器"
+msgstr "Processing container"
+
+msgid "时出错"
+msgstr "error"
+
+msgid "容器状态采集失败"
+msgstr "Container status collection failed"
+
+msgid "解析容器"
+msgstr "Parse container"
+
+msgid "统计信息失败"
+msgstr "statistics failed"
+
+msgid "禁止为同一容器分配多个相同类型的网卡。网卡"
+msgstr "Cannot assign multiple network cards of the same type to the same container. Network card"
+
+msgid "无法获取Docker网络"
+msgstr "Unable to get Docker network"
+
+msgid "Docker网络"
+msgstr "Docker network"
+
+msgid "没有IPAM配置"
+msgstr "No IPAM configuration"
+
+msgid "无法为网卡"
+msgstr "Unable to assign IP address for network card"
+
+msgid "分配IP地址，Docker网络"
+msgstr ", Docker network"
+
+msgid "中的所有IP已被占用或无可用IP"
+msgstr "all IPs are occupied or no available IPs"
+
+msgid "扫描完成。共扫描到"
+msgstr "Scan completed. Total scanned"
+
+msgid "个容器，新增"
+msgstr "containers, added"
+
+msgid "个容器配置。"
+msgstr "container configurations."
+
+msgid "扫描容器时出错"
+msgstr "Error while scanning containers"
+
+msgid "容器创建失败"
+msgstr "Container creation failed"
+
+msgid "无法加载镜像"
+msgstr "Unable to load image"
+
+msgid "容器更新失败"
+msgstr "Container update failed"
+
+msgid "网络配置更新失败"
+msgstr "Network configuration update failed"
+
+msgid "配置更新成功"
+msgstr "Configuration update successful"
+
+msgid "删除容器失败"
+msgstr "Container deletion failed"
+
+msgid "删除镜像"
+msgstr "Delete image"
+
+msgid "共删除"
+msgstr "Total deleted"
+
+msgid "个镜像标签"
+msgstr "image tags"
+
+msgid "无法停止容器"
+msgstr "Unable to stop container"
+
+msgid "当前状态"
+msgstr "Current status"
+
+msgid "强制停止也失败"
+msgstr "Force stop also failed"
+
+msgid "无法暂停容器"
+msgstr "Unable to pause container"
+
+msgid "无法恢复容器"
+msgstr "Unable to resume container"
+
+msgid "可能是权限不足，请检查Docker守护进程权限"
+msgstr "May be insufficient permissions, please check Docker daemon permissions"
+
+msgid "操作超时，容器可能无响应"
+msgstr "Operation timeout, container may be unresponsive"
+
+msgid "容器状态冲突，可能有其他操作正在进行"
+msgstr "Container status conflict, other operations may be in progress"
+
+msgid "Docker API无法找到容器"
+msgstr "Docker API cannot find container"
+
+msgid "未运行，请先启动容器"
+msgstr "not running, please start container first"
+
+msgid "设置密码失败"
+msgstr "Failed to set password"
+
+msgid "的root密码已更新"
+msgstr "root password updated"
+
+msgid "密码设置成功"
+msgstr "Password set successfully"
+
+msgid "虚拟机备份目录未设置，请联系管理员"
+msgstr "VM backup directory not set, please contact administrator"
+
+msgid "已停止"
+msgstr "Stopped"
+
+msgid "在远程服务器执行备份命令"
+msgstr "Execute backup command on remote server"
+
+msgid "远程备份完成"
+msgstr "Remote backup completed"
+
+msgid "开始备份容器"
+msgstr "Starting container backup"
+
+msgid "备份完成，文件大小"
+msgstr "Backup completed, file size"
+
+msgid "容器备份成功，文件"
+msgstr "Container backup successful, file"
+
+msgid "已重新启动"
+msgstr "restarted"
+
+msgid "检查备份文件是否存在"
+msgstr "Check if backup file exists"
+
+msgid "从远程主机恢复备份"
+msgstr "Restore backup from remote host"
+
+msgid "远程导入镜像失败"
+msgstr "Remote image import failed"
+
+msgid "无法导入镜像"
+msgstr "Unable to import image"
+
+msgid "从备份文件导入镜像"
+msgstr "Import image from backup file"
+
+msgid "未知备份文件格式"
+msgstr "Unknown backup file format"
+
+msgid "恢复成功"
+msgstr "Restore successful"
+
+msgid "Docker容器不支持动态磁盘挂载"
+msgstr "Docker containers do not support dynamic disk mounting"
+
+msgid "Docker containers do not support ISO mounting"
+msgstr "Docker containers do not support ISO mounting"
+
+msgid "当未设置主机密码时，必须添加一个端口映射到22端口"
+msgstr "When host password is not set, must add a port mapping to port 22"
+
+msgid "未找到当前虚拟机22端口对应端口映射信息，无法继续"
+msgstr "Cannot find port mapping information for current VM port 22, cannot continue"
+
+# HostServer/ProxmoxQemu.py
+msgid "连接PVE"
+msgstr "Connect to PVE"
+
+msgid "分配VMID失败"
+msgstr "Failed to assign VMID"
+
+msgid "无法连接到Proxmox获取VMID"
+msgstr "Unable to connect to Proxmox to get VMID"
+
+msgid "从API获取到虚拟机"
+msgstr "Retrieved VM from API"
+
+msgid "的VMID"
+msgstr "VMID"
+
+msgid "未找到虚拟机"
+msgstr "VM not found"
+
+msgid "获取VMID时出错"
+msgstr "Error while getting VMID"
+
+msgid "Proxmox连接失败，使用本地状态"
+msgstr "Proxmox connection failed, using local status"
+
+msgid "Proxmox主机状态已更新"
+msgstr "Proxmox host status updated"
+
+msgid "Crontabs执行失败"
+msgstr "Crontabs execution failed"
+
+msgid "无法连接到Proxmox获取状态"
+msgstr "Unable to connect to Proxmox to get status"
+
+msgid "获取Proxmox主机状态失败"
+msgstr "Failed to get Proxmox host status"
+
+msgid "发现并添加虚拟机"
+msgstr "Discovered and added VM"
+
+msgid "Failed to save scanned VMs to database"
+msgstr "Failed to save scanned VMs to database"
+
+msgid "扫描完成。共扫描到"
+msgstr "Scan completed. Total scanned"
+
+msgid "个虚拟机，新增"
+msgstr "VMs, added"
+
+msgid "个虚拟机配置。"
+msgstr "VM configurations."
+
+msgid "扫描虚拟机时出错"
+msgstr "Error while scanning VMs"
+
+msgid "创建成功"
+msgstr "Created successfully"
+
+msgid "iKuai路由器绑定失败"
+msgstr "iKuai router binding failed"
+
+msgid "虚拟机创建失败"
+msgstr "VM creation failed"
+
+msgid "的VMID未找到"
+msgstr "VMID not found"
+
+msgid "未指定系统镜像"
+msgstr "System image not specified"
+
+msgid "未配置镜像路径"
+msgstr "Image path not configured"
+
+msgid "通过SSH复制镜像"
+msgstr "Copy image via SSH"
+
+msgid "复制镜像失败"
+msgstr "Failed to copy image"
+
+msgid "本地复制镜像"
+msgstr "Copy image locally"
+
+msgid "系统安装完成"
+msgstr "System installation completed"
+
+msgid "安装成功"
+msgstr "Installation successful"
+
+msgid "配置已更新"
+msgstr "Configuration updated"
+
+msgid "虚拟机启动失败"
+msgstr "VM startup failed"
+
+msgid "虚拟机更新失败"
+msgstr "VM update failed"
+
+msgid "VMID未找到"
+msgstr "VMID not found"
+
+msgid "删除虚拟机失败"
+msgstr "VM deletion failed"
+
+msgid "已启动"
+msgstr "Started"
+
+msgid "已经在运行"
+msgstr "Already running"
+
+msgid "已经停止"
+msgstr "Already stopped"
+
+msgid "已重启"
+msgstr "Restarted"
+
+msgid "已暂停"
+msgstr "Paused"
+
+msgid "未运行，无法暂停"
+msgstr "Not running, cannot pause"
+
+msgid "未暂停，无法恢复"
+msgstr "Not paused, cannot resume"
+
+msgid "通过agent设置密码失败"
+msgstr "Failed to set password via agent"
+
+msgid "设置密码失败，请确保虚拟机已安装qemu-guest-agent"
+msgstr "Failed to set password, please ensure VM has qemu-guest-agent installed"
+
+msgid "备份任务已创建"
+msgstr "Backup task created"
+
+msgid "虚拟机备份成功，文件"
+msgstr "VM backup successful, file"
+
+msgid "备份虚拟机失败"
+msgstr "VM backup failed"
+
+msgid "备份"
+msgstr "Backup"
+
+msgid "开始恢复虚拟机"
+msgstr "Starting VM restore"
+
+msgid "恢复虚拟机失败"
+msgstr "VM restore failed"
+
+msgid "硬盘已挂载到虚拟机"
+msgstr "Hard drive mounted to VM"
+
+msgid "硬盘已从虚拟机"
+msgstr "Hard drive removed from VM"
+
+msgid "硬盘"
+msgstr "Hard drive"
+
+msgid "成功"
+msgstr "successful"
+
+msgid "硬盘挂载操作失败"
+msgstr "Hard drive mount operation failed"
+
+msgid "ISO已挂载到虚拟机"
+msgstr "ISO mounted to VM"
+
+msgid "ISO已从虚拟机"
+msgstr "ISO removed from VM"
+
+msgid "ISO镜像"
+msgstr "ISO image"
+
+msgid "成功"
+msgstr "successful"
+
+msgid "ISO镜像挂载操作失败"
+msgstr "ISO image mount operation failed"
+
+# HostServer/VPCTemplate.py
+msgid "未实现"
+msgstr "Not implemented"
+
+# HostServer/Win64HyperV.py
+msgid "Hyper-V虚拟机管理模块"
+msgstr "Hyper-V VM management module"
+
+msgid "支持Windows Hyper-V虚拟机的创建、管理、电源控制等功能"
+msgstr "Supports Windows Hyper-V VM creation, management, power control, etc."
+
+msgid "Hyper-V宿主机服务类"
+msgstr "Hyper-V host service class"
+
+msgid "远程主机状态已保存"
+msgstr "Remote host status saved"
+
+msgid "获取远程主机状态失败"
+msgstr "Failed to get remote host status"
+
+msgid "无法连接到Hyper-V获取状态"
+msgstr "Unable to connect to Hyper-V to get status"
+
+msgid "获取Hyper-V主机状态失败"
+msgstr "Failed to get Hyper-V host status"
+
+msgid "成功连接到Hyper-V主机"
+msgstr "Successfully connected to Hyper-V host"
+
+msgid "无法连接到Hyper-V主机"
+msgstr "Unable to connect to Hyper-V host"
+
+msgid "停止VNC服务失败"
+msgstr "Failed to stop VNC service"
+
+msgid "发现并添加虚拟机"
+msgstr "Discovered and added VM"
+
+msgid "保存扫描的虚拟机到数据库失败"
+msgstr "Failed to save scanned VMs to database"
+
+msgid "扫描完成。共扫描到"
+msgstr "Scan completed. Total scanned"
+
+msgid "台虚拟机，新增"
+msgstr "VMs, added"
+
+msgid "台虚拟机配置。"
+msgstr "VM configurations."
+
+msgid "扫描虚拟机时出错"
+msgstr "Error while scanning VMs"
+
+msgid "虚拟机创建失败"
+msgstr "VM creation failed"
+
+msgid "镜像文件不存在"
+msgstr "Image file does not exist"
+
+msgid "ISO镜像"
+msgstr "ISO image"
+
+msgid "已挂载到虚拟机"
+msgstr "mounted to VM"
+
+msgid "磁盘镜像已复制到"
+msgstr "Disk image copied to"
+
+msgid "系统安装完成"
+msgstr "System installation completed"
+
+msgid "安装失败"
+msgstr "Installation failed"
+
+msgid "安装虚拟机失败"
+msgstr "VM installation failed"
+
+msgid "虚拟机配置更新失败"
+msgstr "VM configuration update failed"
+
+msgid "Hyper-V磁盘扩容功能待实现"
+msgstr "Hyper-V disk expansion feature to be implemented"
+
+msgid "虚拟机网络配置更新失败"
+msgstr "VM network configuration update failed"
+
+msgid "虚拟机启动失败"
+msgstr "VM startup failed"
+
+msgid "删除虚拟机失败"
+msgstr "VM deletion failed"
+
+msgid "虚拟机删除成功"
+msgstr "VM deletion successful"
+
+# MainObject/Config/IPConfig.py
+msgid "无法为网卡 "
+msgstr "Unable to assign IPv4 address for network card "
+
+msgid "网络配置检查完成"
+msgstr "Network configuration check completed"
+
+msgid "不支持的电源操作"
+msgstr "Unsupported power operation"
+
+msgid "电源操作失败"
+msgstr "Power operation failed"
+
+msgid "虚拟机备份成功"
+msgstr "VM backup successful"
+
+msgid "备份失败"
+msgstr "Backup failed"
+
+msgid "虚拟机恢复成功"
+msgstr "VM restore successful"
+
+msgid "恢复失败"
+msgstr "Restore failed"
+
+msgid "磁盘"
+msgstr "Disk"
+
+msgid "成功"
+msgstr "successful"
+
+msgid "磁盘操作失败"
+msgstr "Disk operation failed"
+
+msgid "备份名称格式不正确"
+msgstr "Backup name format is incorrect"
+
+msgid "备份快照已删除"
+msgstr "Backup snapshot deleted"
+
+msgid "删除备份失败"
+msgstr "Failed to delete backup"
+
+msgid "虚拟盘不存在"
+msgstr "Virtual disk does not exist"
+
+msgid "磁盘删除成功"
+msgstr "Disk deletion successful"
+
+msgid "删除磁盘失败"
+msgstr "Failed to delete disk"
+
+msgid "ISO镜像"
+msgstr "ISO image"
+
+msgid "成功"
+msgstr "successful"
+
+msgid "ISO操作失败"
+msgstr "ISO operation failed"
+
+msgid "ISO卸载警告"
+msgstr "ISO unmount warning"
+
+msgid "ISO卸载成功"
+msgstr "ISO unmount successful"
+
+msgid "个备份快照已加载"
+msgstr "backup snapshots loaded"
+
+msgid "加载备份失败"
+msgstr "Failed to load backup"
+
+msgid "准备挂载ISO"
+msgstr "Preparing to mount ISO"
+
+msgid "准备卸载ISO"
+msgstr "Preparing to unmount ISO"
+
+msgid "ISO文件不存在"
+msgstr "ISO file does not exist"
+
+msgid "ISO挂载成功"
+msgstr "ISO mount successful"
+
+# HostServer/vSphereESXi.py
+msgid "WebMKS远程控制台已初始化"
+msgstr "WebMKS remote console initialized"
+
+msgid "ESXi远程主机状态已更新"
+msgstr "ESXi remote host status updated"
+
+msgid "获取ESXi远程主机状态失败"
+msgstr "Failed to get ESXi remote host status"
+
+msgid "无法连接到ESXi获取状态"
+msgstr "Unable to connect to ESXi to get status"
+
+msgid "获取ESXi主机状态失败"
+msgstr "Failed to get ESXi host status"
+
+msgid "获取ESXi远程主机状态成功"
+msgstr "Successfully retrieved ESXi remote host status"
+
+msgid "成功连接到ESXi主机"
+msgstr "Successfully connected to ESXi host"
+
+msgid "无法连接到ESXi主机"
+msgstr "Unable to connect to ESXi host"
+
+msgid "虚拟机 "
+msgstr "VM "
+
+msgid "创建成功"
+msgstr "created successfully"
+
+msgid "虚拟机 "
+msgstr "VM "
+
+msgid "系统安装完成（硬盘已在创建时分配）"
+msgstr "system installation completed (disk allocated at creation)"
+
+msgid "ESXi磁盘扩容功能待实现"
+msgstr "ESXi disk expansion feature to be implemented"
+
+msgid "虚拟机 "
+msgstr "VM "
+
+msgid "网卡设备更新失败"
+msgstr "network device update failed"
+
+msgid "虚拟机 "
+msgstr "VM "
+
+msgid "网络绑定更新失败"
+msgstr "network binding update failed"
+
+msgid "虚拟机 "
+msgstr "VM "
+
+msgid "启动失败"
+msgstr "startup failed"
+
+msgid "无法解析快照时间"
+msgstr "Unable to parse snapshot time"
+
+msgid "获取WebMKS远程访问失败"
+msgstr "Failed to get WebMKS remote access"
+
+msgid "获取WebMKS票据失败"
+msgstr "Failed to get WebMKS ticket"
+
+msgid "添加WebMKS代理失败"
+msgstr "Failed to add WebMKS proxy"
+
+msgid "WebMKS代理配置失败"
+msgstr "WebMKS proxy configuration failed"
+
+# HostServer/OCInterfaceAPI/IPTablesAPI.py
+msgid "获取主机端口失败"
+msgstr "Failed to get host port"
+
+msgid "添加 PREROUTING 规则失败"
+msgstr "Failed to add PREROUTING rule"
+
+msgid "添加 OUTPUT 规则失败"
+msgstr "Failed to add OUTPUT rule"
+
+msgid "添加 FORWARD 规则失败"
+msgstr "Failed to add FORWARD rule"
+
+msgid "端口映射已添加: 主机"
+msgstr "Port mapping added: host"
+
+msgid "端口映射已删除: 主机"
+msgstr "Port mapping deleted: host"
+
+msgid "SSH连接成功"
+msgstr "SSH connection successful"
+
+# HostServer/OCInterfaceAPI/OCIConnects.py
+msgid "docker SDK不可用，Docker功能将被禁用"
+msgstr "docker SDK not available, Docker features will be disabled"
+
+msgid "docker SDK未安装"
+msgstr "docker SDK not installed"
+
+msgid "连接到本地Docker服务器"
+msgstr "Connect to local Docker server"
+
+msgid "成功连接到Docker服务器"
+msgstr "Successfully connected to Docker server"
+
+msgid "连接到Docker服务器失败"
+msgstr "Failed to connect to Docker server"
+
+msgid "连接到Docker失败"
+msgstr "Failed to connect to Docker"
+
+msgid "paramiko不可用，远程SSH执行将被禁用"
+msgstr "paramiko not available, remote SSH execution will be disabled"
+
+msgid "SSH 转发需要 paramiko 库，但未安装"
+msgstr "SSH forwarding requires paramiko library, but not installed"
+
+msgid "使用 SSH 转发连接 Docker"
+msgstr "Use SSH forwarding to connect to Docker"
+
+msgid "SSH 连接失败"
+msgstr "SSH connection failed"
+
+msgid "端口转发失败"
+msgstr "Port forwarding failed"
+
+msgid "SSH 端口转发已建立"
+msgstr "SSH port forwarding established"
+
+msgid "TLS certificates not found in"
+msgstr "TLS certificates not found in"
+
+msgid "Docker连接已断开"
+msgstr "Docker connection disconnected"
+
+msgid "镜像文件未找到"
+msgstr "Image file not found"
+
+msgid "从"
+msgstr "From"
+
+msgid "加载镜像"
+msgstr "Load image"
+
+msgid "镜像加载成功"
+msgstr "Image loaded successfully"
+
+msgid "镜像"
+msgstr "Image"
+
+msgid "已存在于本地"
+msgstr "already exists locally"
+
+msgid "从仓库拉取镜像"
+msgstr "Pull image from repository"
+
+msgid "镜像"
+msgstr "Image"
+
+msgid "拉取成功"
+msgstr "pulled successfully"
+
+msgid "加载镜像失败"
+msgstr "Failed to load image"
+
+msgid "列出容器失败"
+msgstr "Failed to list containers"
+
+msgid "获取容器"
+msgstr "Get container"
+
+msgid "失败"
+msgstr "failed"
+
+msgid "容器"
+msgstr "Container"
+
+msgid "已存在"
+msgstr "already exists"
+
+msgid "容器"
+msgstr "Container"
+
+msgid "创建成功"
+msgstr "created successfully"
+
+msgid "创建容器失败"
+msgstr "Failed to create container"
+
+msgid "容器"
+msgstr "Container"
+
+msgid "不存在"
+msgstr "does not exist"
+
+msgid "容器"
+msgstr "Container"
+
+msgid "删除成功"
+msgstr "deleted successfully"
+
+msgid "删除容器失败"
+msgstr "Failed to delete container"
+
+msgid "容器"
+msgstr "Container"
+
+msgid "已启动"
+msgstr "started"
+
+msgid "容器"
+msgstr "Container"
+
+msgid "已经在运行"
+msgstr "already running"
+
+msgid "容器"
+msgstr "Container"
+
+msgid "已停止"
+msgstr "stopped"
+
+msgid "容器"
+msgstr "Container"
+
+msgid "已经停止"
+msgstr "already stopped"
+
+msgid "容器"
+msgstr "Container"
+
+msgid "已重启"
+msgstr "restarted"
+
+msgid "容器"
+msgstr "Container"
+
+msgid "操作失败"
+msgstr "operation failed"
+
+msgid "容器"
+msgstr "Container"
+
+msgid "未运行"
+msgstr "not running"
+
+msgid "执行命令失败"
+msgstr "Command execution failed"
+
+msgid "容器密码已设置"
+msgstr "Container password set"
+
+msgid "容器重新创建成功"
+msgstr "Container recreated successfully"
+
+msgid "容器重新创建失败"
+msgstr "Failed to recreate container"
+
+msgid "获取容器IP失败"
+msgstr "Failed to get container IP"
+
+# HostServer/OCInterfaceAPI/PortForward.py
+msgid "SSH连接未建立"
+msgstr "SSH connection not established"
+
+msgid "命令执行超时"
+msgstr "Command execution timeout"
+
+msgid "获取socat进程列表失败"
+msgstr "Failed to get socat process list"
+
+msgid "无法解析PID"
+msgstr "Unable to parse PID"
+
+msgid "发现端口转发"
+msgstr "Found port forwarding"
+
+msgid "解析socat进程行失败"
+msgstr "Failed to parse socat process line"
+
+msgid "不支持的协议类型"
+msgstr "Unsupported protocol type"
+
+msgid "启动socat失败"
+msgstr "Failed to start socat"
+
+msgid "端口转发创建后未找到对应进程"
+msgstr "No corresponding process found after creating port forwarding"
+
+msgid "端口转发已添加"
+msgstr "Port forwarding added"
+
+msgid "正在查找端口"
+msgstr "Looking for port"
+
+msgid "的转发进程"
+msgstr "forwarding process"
+
+msgid "当前共有"
+msgstr "Currently total"
+
+msgid "个端口转发"
+msgstr "port forwards"
+
+msgid "找到匹配的转发"
+msgstr "Found matching forward"
+
+msgid "未找到端口"
+msgstr "Port not found"
+
+msgid "正在终止进程 PID"
+msgstr "Terminating process PID"
+
+msgid "kill命令执行成功"
+msgstr "kill command executed successfully"
+
+msgid "进程"
+msgstr "Process"
+
+msgid "仍在运行，尝试强制终止"
+msgstr "still running, attempting force termination"
+
+msgid "已强制终止进程"
+msgstr "Process forcefully terminated"
+
+msgid "强制终止进程失败"
+msgstr "Failed to forcefully terminate process"
+
+msgid "已成功停止端口转发进程"
+msgstr "Successfully stopped port forwarding process"
+
+msgid "停止进程失败"
+msgstr "Failed to stop process"
+
+# HostServer/OCInterfaceAPI/SSHTerminal.py
+msgid "不支持的平台"
+msgstr "Unsupported platform"
+
+msgid "找到ttyd"
+msgstr "Found ttyd"
+
+msgid "ttyd未找到"
+msgstr "ttyd not found"
+
+msgid "ttyd可执行文件未找到"
+msgstr "ttyd executable not found"
+
+msgid "已停止端口上ttyd会话"
+msgstr "Stopped ttyd session on port"
+
+# HostServer/WorkstationAPI/VMWRestAPI.py
+msgid "不支持的HTTP方法"
+msgstr "Unsupported HTTP method"
+
+msgid "请求成功"
+msgstr "Request successful"
+
+msgid "HTTP错误"
+msgstr "HTTP error"
+
+msgid ":"
+msgstr ":"
+
+
+
+
+msgid "连接失败: 无法连接到"
+msgstr "Connection failed: Unable to connect to"
+
+
+
+
+msgid "请求超时: 操作耗时过长"
+msgstr "Request timeout: Operation took too long"
+
+msgid "请求异常"
+msgstr "Request exception"
+
+msgid "未知错误: "
+msgstr "Unknown error: "
+
+msgid "- "
+msgstr "- "
+
+
+
+
+msgid "电源操作成功"
+msgstr "Power operation successful"
+
+msgid "连接失败: 无法连接到 "
+msgstr "Connection failed: Unable to connect to "
+
+msgid "，请检查VMware REST API服务是否启动"
+msgstr ", please check if VMware REST API service is started"
+
+msgid "请求超时: 操作耗时过长，请稍后重试"
+msgstr "Request timeout: Operation took too long, please try again later"
+
+msgid "未找到虚拟机: "
+msgstr "VM not found: "
+
+
+
+
+msgid "设置电源状态失败: "
+msgstr "Failed to set power state: "
+
+msgid "- "
+msgstr "- "
+
+
+
+
+msgid "开始扩展硬盘: "
+msgstr "Starting disk expansion: "
+
+msgid "MB"
+msgstr "MB"
+
+msgid "执行命令: "
+msgstr "Execute command: "
+
+
+
+
+msgid "硬盘扩展失败: "
+msgstr "Disk expansion failed: "
+
+
+
+
+msgid "硬盘扩展成功"
+msgstr "Disk expansion successful"
+
+msgid "硬盘扩展完成: "
+msgstr "Disk expansion completed: "
+
+msgid "MB"
+msgstr "MB"
+
+# MainObject/Server/VMStatus.py
+msgid "网卡 "
+msgstr "Network card "
+
+msgid "信息: "
+msgstr "info: "
+
+msgid "网卡发送流量(MByte): "
+msgstr "Network card sent traffic (MByte): "
+
+msgid "网卡接收流量(MByte): "
+msgstr "Network card received traffic (MByte): "
+
+msgid "当前双向流量(MByte): "
+msgstr "Current bidirectional traffic (MByte): "
+
+msgid "当前上行带宽(MByte): "
+msgstr "Current upload bandwidth (MByte): "
+
+msgid "当前下行带宽(MByte): "
+msgstr "Current download bandwidth (MByte): "
+
+# MainObject/Server/HSEngine.py
+msgid "1、不支持直通分配GPU设备，但可分配虚拟显存"
+msgstr "1. Does not support direct GPU device passthrough, but can allocate virtual GPU memory"
+
+msgid "2、暂不支持获取虚拟机GPU使用率和显存使用率"
+msgstr "2. Temporarily does not support retrieving VM GPU usage and memory usage"
+
+msgid "1、不支持分配GPU设备，不支持设置显存的大小"
+msgstr "1. Does not support GPU device allocation, does not support setting GPU memory size"
+
+msgid "2、不支持挂载ISO镜像、不支持挂载额外的硬盘"
+msgstr "2. Does not support ISO image mounting, does not support additional hard drive mounting"
+
+msgid "1、无法单独限制上下行带宽，取二者最低值分配"
+msgstr "1. Cannot limit upload/download bandwidth separately, uses the minimum of both"
+
+# VNCConsole/VNCSManager.py
+msgid "已加载 VNC"
+msgstr "Loaded VNC"
+
+msgid "->"
+msgstr "->"
+
+
+
+
+msgid "Web 资源路径"
+msgstr "Web resource path"
+
+msgid "Websockify 可执行文件"
+msgstr "Websockify executable file"
+
+msgid "配置文件路径"
+msgstr "Configuration file path"
+
+msgid "是否为打包环境"
+msgstr "Whether it is a packaged environment"
+
+msgid "Web 资源路径不存在"
+msgstr "Web resource path does not exist"
+
+msgid "尝试查找可能的路径:"
+msgstr "Attempting to find possible paths:"
+
+msgid "存在"
+msgstr "exists"
+
+msgid "不存在"
+msgstr "does not exist"
+
+msgid "找到 Web 资源路径"
+msgstr "Found Web resource path"
+
+msgid "无法找到 Web 资源路径，websockify 可能无法正常工作"
+msgstr "Unable to find Web resource path, websockify may not work properly"
+
+msgid "启动 websockify"
+msgstr "Start websockify"
+
+msgid "执行命令"
+msgstr "Execute command"
+
+msgid "websockify 已启动，支持"
+msgstr "websockify started, supports"
+
+msgid "个连接"
+msgstr "connections"
+
+msgid "启动失败"
+msgstr "Startup failed"
+
+msgid "websockify 已停止"
+msgstr "websockify stopped"
+
+msgid "VNC 目标"
+msgstr "VNC target"
+
+msgid "已存在，token"
+msgstr "already exists, token"
+
+msgid ":"
+msgstr ":"
+
+
+
+
+msgid "已添加 VNC"
+msgstr "Added VNC"
+
+msgid ", token"
+msgstr ", token"
+
+msgid ":"
+msgstr ":"
+
+
+
+
+msgid "已删除 VNC"
+msgstr "Deleted VNC"
+
+msgid ":"
+msgstr ":"
+
+
+
+
+msgid "未找到 VNC"
+msgstr "VNC not found"
+
+msgid ":"
+msgstr ":"
+
+
+
+
+msgid "警告: 没有可用的VNC连接"
+msgstr "Warning: No available VNC connections"
+
+msgid "当前没有VNC连接"
+msgstr "No VNC connections currently"
+
+msgid "当前VNC连接列表:"
+msgstr "Current VNC connection list:"
+
+msgid "websockify 服务已在运行中"
+msgstr "websockify service is already running"
+
+msgid "websockify 服务已在新进程中启动 (PID: "
+msgstr "websockify service started in new process (PID: "
+
+msgid ")"
+msgstr ")"
+
+msgid "没有运行中的 websockify 服务"
+msgstr "No running websockify service"
+
+msgid "正在关闭 websockify 服务进程 (PID: "
+msgstr "Closing websockify service process (PID: "
+
+msgid ")..."
+msgstr ")..."
+
+msgid "进程未响应，强制关闭..."
+msgstr "Process not responding, forcing closure..."
+
+msgid "websockify 服务进程已关闭"
+msgstr "websockify service process closed"
+
+msgid "websockify 服务进程已停止"
+msgstr "websockify service process stopped"
+
+# AllBuilder/build_nuitkaui.py
+msgid "包含的包:"
+msgstr "Included packages:"
+
+msgid "核心包"
+msgstr "Core packages"
+
+msgid "个"
+msgstr "items"
+
+
+msgid "可选包"
+msgstr "Optional packages"
+
+msgid "已安装"
+msgstr "Installed"
+
+msgid "跳过的包（未安装）"
+msgstr "Skipped packages (not installed)"
+
+msgid "未安装"
+msgstr "Not installed"
+
+msgid "Nuitka已安装"
+msgstr "Nuitka installed"
+
+msgid "Nuitka未安装"
+msgstr "Nuitka not installed"
+
+msgid "检查Nuitka时出错"
+msgstr "Error while checking Nuitka"
+
+msgid "正在安装Nuitka..."
+msgstr "Installing Nuitka..."
+
+msgid "Nuitka安装成功"
+msgstr "Nuitka installed successfully"
+
+msgid "Nuitka安装失败"
+msgstr "Nuitka installation failed"
+
+msgid "清理构建目录"
+msgstr "Clean build directory"
+
+msgid "Nuitka打包工具"
+msgstr "Nuitka packaging tool"
+
+msgid "项目根目录"
+msgstr "Project root directory"
+
+msgid "错误"
+msgstr "Error"
+
+msgid "找不到主脚本"
+msgstr "Main script not found"
+
+msgid "是否安装Nuitka"
+msgstr "Install Nuitka"
+
+msgid "取消打包"
+msgstr "Cancel packaging"
+
+msgid "开始打包..."
+msgstr "Starting packaging..."
+
+msgid "执行命令:"
+msgstr "Execute command:"
+
+msgid "打包成功"
+msgstr "Packaging successful"
+
+msgid "输出目录"
+msgstr "Output directory"
+
+msgid "打包失败"
+msgstr "Packaging failed"
+
+msgid "退出码"
+msgstr "Exit code"
+
+msgid "请查看上方的详细错误信息"
+msgstr "Please see detailed error information above"
+
+msgid "打包已取消"
+msgstr "Packaging cancelled"
+
+# AllBuilder/build_vncproxy.py
+msgid "找不到 websockify 脚本"
+msgstr "websockify script not found"
+
+msgid "找不到 spec 文件"
+msgstr "spec file not found"
+
+msgid "请确保 websockify.spec 文件存在于项目根目录"
+msgstr "Please ensure websockify.spec file exists in project root directory"
+
+msgid "构建缓存目录"
+msgstr "Build cache directory"
+
+msgid "脚本"
+msgstr "Script"
+
+msgid "模块目录"
+msgstr "Module directory"
+
+msgid "文件"
+msgstr "File"
+
+msgid "删除旧的 exe 文件"
+msgstr "Delete old exe file"
+
+msgid "旧文件已删除"
+msgstr "Old file deleted"
+
+msgid "可执行文件位置"
+msgstr "Executable file location"
+
+msgid "文件大小"
+msgstr "File size"
+
+msgid "已复制到"
+msgstr "Copied to"
+
+msgid "找不到输出文件"
+msgstr "Output file not found"
+
+msgid "发生错误"
+msgstr "Error occurred"
+
+msgid "打包工具"
+msgstr "Packaging tool"
+
+msgid "未安装 PyInstaller"
+msgstr "PyInstaller not installed"
+
+msgid "请先安装"
+msgstr "Please install first"
+
+# MainObject/Config/IPConfig.py
+msgid "无法为网卡 %(nic_name)s 分配IPv4地址，类型: %(nic_type)s，所有IP已被占用或无可用IP段配置"
+msgstr "Unable to assign IPv4 address for network card %(nic_name)s, type: %(nic_type)s, all IPs are occupied or no available IP segment configuration"
+
+msgid "网络配置检查完成"
+msgstr "Network configuration check completed"
+
+# 前端 - 登录页面
+msgid "虚拟化管理平台"
+msgstr "Virtualization Management Platform"
+
+msgid "用户登录"
+msgstr "User Login"
+
+msgid "Token登录"
+msgstr "Token Login"
+
+msgid "访问Token"
+msgstr "Access Token"
+
+msgid "请输入访问Token"
+msgstr "Please enter access Token"
+
+msgid "登 录"
+msgstr "Login"
+
+msgid "还没有账号？立即注册"
+msgstr "Don't have an account? Register now"
+
+msgid "忘记密码？"
+msgstr "Forgot password?"
+
+msgid "找回密码"
+msgstr "Recover Password"
+
+msgid "通过邮件重置您的密码"
+msgstr "Reset your password via email"
+
+msgid "请输入注册时使用的邮箱"
+msgstr "Please enter the email used during registration"
+
+msgid "我们将向此邮箱发送密码重置链接"
+msgstr "We will send a password reset link to this email"
+
+msgid "取消"
+msgstr "Cancel"
+
+msgid "发送重置邮件"
+msgstr "Send Reset Email"
+
+msgid "发送中..."
+msgstr "Sending..."
+
+msgid "重置邮件已发送，请查收"
+msgstr "Reset email sent, please check"
+
+msgid "发送失败，请重试"
+msgstr "Failed to send, please try again"
+
+msgid "启动服务时会在控制台显示访问Token"
+msgstr "Access Token will be displayed in the console when starting the service"
+
+msgid "登录失败，请重试"
+msgstr "Login failed, please try again"
+
+# 前端 - 注册页面
+msgid "用户注册"
+msgstr "User Registration"
+
+msgid "3-20位字母、数字或下划线"
+msgstr "3-20 letters, numbers, or underscores"
+
+msgid "请输入邮箱地址"
+msgstr "Please enter email address"
+
+msgid "至少6位字符"
+msgstr "At least 6 characters"
+
+msgid "请再次输入密码"
+msgstr "Please enter password again"
+
+msgid "注 册"
+msgstr "Register"
+
+msgid "已有账号？立即登录"
+msgstr "Already have an account? Login now"
+
+msgid "两次输入的密码不一致"
+msgstr "Passwords entered twice do not match"
+
+msgid "注册成功！"
+msgstr "Registration successful!"
+
+msgid "注册失败，请重试"
+msgstr "Registration failed, please try again"
+
+# 前端 - 重置密码页面
+msgid "请输入您的新密码"
+msgstr "Please enter your new password"
+
+msgid "新密码 *"
+msgstr "New Password *"
+
+msgid "确认新密码 *"
+msgstr "Confirm New Password *"
+
+msgid "请输入新密码（至少6位）"
+msgstr "Please enter new password (at least 6 characters)"
+
+msgid "请再次输入新密码"
+msgstr "Please enter new password again"
+
+msgid "密码强度"
+msgstr "Password Strength"
+
+msgid "返回登录"
+msgstr "Back to Login"
+
+msgid "如果您遇到问题，请联系管理员"
+msgstr "If you encounter issues, please contact administrator"
+
+msgid "重置链接无效"
+msgstr "Reset link is invalid"
+
+msgid "重置中..."
+msgstr "Resetting..."
+
+# 前端 - 通用
+msgid "弱"
+msgstr "Weak"
+
+msgid "中等"
+msgstr "Medium"
+
+msgid "强"
+msgstr "Strong"
+
+# 前端 - 个人设置页面
+msgid "个人设置"
+msgstr "Personal Settings"
+
+msgid "管理您的个人信息和账户设置"
+msgstr "Manage your personal information and account settings"
+
+msgid "个人信息"
+msgstr "Personal Information"
+
+msgid "用户名"
+msgstr "Username"
+
+msgid "邮箱地址"
+msgstr "Email Address"
+
+msgid "注册时间"
+msgstr "Registration Time"
+
+msgid "修改邮箱"
+msgstr "Change Email"
+
+msgid "当前邮箱"
+msgstr "Current Email"
+
+msgid "新邮箱地址 *"
+msgstr "New Email Address *"
+
+msgid "请输入新邮箱地址"
+msgstr "Please enter new email address"
+
+msgid "修改密码"
+msgstr "Change Password"
+
+msgid "新密码 *"
+msgstr "New Password *"
+
+msgid "请输入新密码（至少6位）"
+msgstr "Please enter new password (at least 6 characters)"
+
+msgid "确认新密码 *"
+msgstr "Confirm New Password *"
+
+msgid "请再次输入新密码"
+msgstr "Please enter new password again"
+
+msgid "权限信息"
+msgstr "Permission Information"
+
+msgid "虚拟机权限"
+msgstr "VM Permissions"
+
+msgid "创建虚拟机"
+msgstr "Create VM"
+
+msgid "编辑虚拟机"
+msgstr "Edit VM"
+
+msgid "删除虚拟机"
+msgstr "Delete VM"
+
+msgid "账户状态"
+msgstr "Account Status"
+
+msgid "管理员"
+msgstr "Admin"
+
+msgid "已启用"
+msgstr "Enabled"
+
+msgid "已验证"
+msgstr "Verified"
+
+msgid "已开启"
+msgstr "On"
+
+msgid "已关闭"
+msgstr "Off"
+
+msgid "是"
+msgstr "Yes"
+
+msgid "否"
+msgstr "No"
+
+msgid "未验证"
+msgstr "Unverified"
+
+msgid "已禁用"
+msgstr "Disabled"
+
+msgid "分配的主机"
+msgstr "Assigned Hosts"
+
+msgid "加载中..."
+msgstr "Loading..."
+
+msgid "未分配主机"
+msgstr "No assigned hosts"
+
+msgid "资源配额"
+msgstr "Resource Quota"
+
+msgid "CPU核心"
+msgstr "CPU Cores"
+
+msgid "内存"
+msgstr "Memory"
+
+msgid "磁盘"
+msgstr "Disk"
+
+msgid "GPU显存"
+msgstr "GPU Memory"
+
+msgid "流量"
+msgstr "Traffic"
+
+msgid "上行带宽"
+msgstr "Upload Bandwidth"
+
+msgid "下行带宽"
+msgstr "Download Bandwidth"
+
+msgid "NAT配额"
+msgstr "NAT Quota"
+
+msgid "WEB配额"
+msgstr "Web Quota"
+
+msgid "修改中..."
+msgstr "Modifying..."
+
+msgid "验证邮件已发送，请查收并点击验证链接完成邮箱修改"
+msgstr "Verification email sent, please check and click the verification link to complete email change"
+
+msgid "邮箱修改失败，请重试"
+msgstr "Email change failed, please try again"
+
+msgid "新密码与确认密码不一致"
+msgstr "New password and confirm password do not match"
+
+msgid "新密码长度不能少于6位"
+msgstr "New password must be at least 6 characters"
+
+msgid "密码修改失败，请重试"
+msgstr "Password change failed, please try again"
+
+msgid "加载用户信息失败"
+msgstr "Failed to load user information"
+
+# 前端 - 系统设置页面
+msgid "系统设置"
+msgstr "System Settings"
+
+msgid "管理访问Token和系统配置"
+msgstr "Manage access Token and system configuration"
+
+msgid "访问Token管理"
+msgstr "Access Token Management"
+
+msgid "当前Token"
+msgstr "Current Token"
+
+msgid "留空则自动生成随机Token"
+msgstr "Leave blank to auto-generate random Token"
+
+msgid "设置"
+msgstr "Set"
+
+msgid "重置Token"
+msgstr "Reset Token"
+
+msgid "安全提示"
+msgstr "Security Tip"
+
+msgid "重置Token后，所有使用旧Token的API调用都将失效。请确保更新所有相关配置。"
+msgstr "After resetting the Token, all API calls using the old Token will become invalid. Please ensure all related configurations are updated."
+
+msgid "API接口说明"
+msgstr "API Interface Documentation"
+
+msgid "认证方式"
+msgstr "Authentication Method"
+
+msgid "在请求头中添加："
+msgstr "Add to request header:"
+
+msgid "主要接口"
+msgstr "Main Interfaces"
+
+msgid "获取主机列表"
+msgstr "Get Host List"
+
+msgid "添加主机"
+msgstr "Add Host"
+
+msgid "获取虚拟机列表"
+msgstr "Get VM List"
+
+msgid "创建虚拟机"
+msgstr "Create VM"
+
+msgid "电源操作"
+msgstr "Power Operations"
+
+msgid "数据管理"
+msgstr "Data Management"
+
+msgid "保存配置"
+msgstr "Save Configuration"
+
+msgid "将当前配置保存到文件"
+msgstr "Save current configuration to file"
+
+msgid "重新加载配置"
+msgstr "Reload Configuration"
+
+msgid "从文件重新加载配置"
+msgstr "Reload configuration from file"
+
+msgid "系统信息"
+msgstr "System Information"
+
+msgid "系统名称"
+msgstr "System Name"
+
+msgid "版本"
+msgstr "Version"
+
+msgid "主机数量"
+msgstr "Host Count"
+
+msgid "虚拟机数量"
+msgstr "VM Count"
+
+msgid "用户注册设置"
+msgstr "User Registration Settings"
+
+msgid "开放注册"
+msgstr "Open Registration"
+
+msgid "允许新用户注册账号"
+msgstr "Allow new users to register accounts"
+
+msgid "邮箱验证"
+msgstr "Email Verification"
+
+msgid "注册时需要验证邮箱"
+msgstr "Email verification required during registration"
+
+msgid "新用户默认资源配额"
+msgstr "New User Default Resource Quota"
+
+msgid "CPU"
+msgstr "CPU"
+
+msgid "内存(GB)"
+msgstr "Memory (GB)"
+
+msgid "磁盘(GB)"
+msgstr "Disk (GB)"
+
+msgid "NAT端口"
+msgstr "NAT Ports"
+
+msgid "Web代理"
+msgstr "Web Proxies"
+
+msgid "上行带宽(Mbps)"
+msgstr "Upload Bandwidth (Mbps)"
+
+msgid "下行带宽(Mbps)"
+msgstr "Download Bandwidth (Mbps)"
+
+msgid "每月流量(GB)"
+msgstr "Monthly Traffic (GB)"
+
+msgid "新用户默认权限"
+msgstr "New User Default Permissions"
+
+msgid "允许创建虚拟机"
+msgstr "Allow VM Creation"
+
+msgid "允许修改虚拟机"
+msgstr "Allow VM Modification"
+
+msgid "允许删除虚拟机"
+msgstr "Allow VM Deletion"
+
+msgid "保存设置"
+msgstr "Save Settings"
+
+msgid "邮件服务配置"
+msgstr "Email Service Configuration"
+
+msgid "Resend 邮件服务"
+msgstr "Resend Email Service"
+
+msgid "访问 resend.com 获取API Key"
+msgstr "Visit resend.com to get API Key"
+
+msgid "发件邮箱"
+msgstr "Sender Email"
+
+msgid "发送域名"
+msgstr "Sending Domain"
+
+msgid "API Key"
+msgstr "API Key"
+
+msgid "测试邮件发送"
+msgstr "Test Email Sending"
+
+msgid "测试邮箱"
+msgstr "Test Email"
+
+msgid "发送测试邮件"
+msgstr "Send Test Email"
+
+msgid "注册设置已保存"
+msgstr "Registration settings saved"
+
+msgid "邮件配置已保存"
+msgstr "Email configuration saved"
+
+msgid "请输入测试邮箱地址"
+msgstr "Please enter test email address"
+
+msgid "请先配置发件邮箱和API Key"
+msgstr "Please configure sender email and API Key first"
+
+msgid "测试邮件发送成功，请查收"
+msgstr "Test email sent successfully, please check"
+
+msgid "Token已复制到剪贴板"
+msgstr "Token copied to clipboard"
+
+msgid "Token设置成功"
+msgstr "Token set successfully"
+
+msgid "确定要重置Token吗？所有使用旧Token的API调用都将失效。"
+msgstr "Are you sure you want to reset the Token? All API calls using the old Token will become invalid."
+
+msgid "Token已重置"
+msgstr "Token reset"
+
+msgid "配置已保存"
+msgstr "Configuration saved"
+
+msgid "配置已重新加载"
+msgstr "Configuration reloaded"
+
+msgid "确定要重新加载配置吗？未保存的更改将丢失。"
+msgstr "Are you sure you want to reload the configuration? Unsaved changes will be lost."
+
+msgid "确认删除"
+msgstr "Confirm Delete"
+
+msgid "此操作将永久删除虚拟机"
+msgstr "This operation will permanently delete the virtual machine"
+
+msgid "且不可恢复"
+msgstr "and cannot be recovered"
+
+msgid "请输入虚拟机名称以确认删除："
+msgstr "Please enter the virtual machine name to confirm deletion:"
+
+msgid "输入虚拟机名称"
+msgstr "Enter virtual machine name"
+
+msgid "确定要对虚拟机"
+msgstr "Are you sure you want to"
+
+msgid "执行"
+msgstr "execute"
+
+msgid "操作吗"
+msgstr "operation on the virtual machine"
+
+msgid "关机"
+msgstr "Shutdown"
+
+msgid "重启"
+msgstr "Restart"
+
+msgid "暂停"
+msgstr "Pause"
+
+msgid "恢复"
+msgstr "Resume"
+
+msgid "强制关机"
+msgstr "Force Shutdown"
+
+msgid "强制重启"
+msgstr "Force Restart"
+
+msgid "为虚拟机"
+msgstr "Reinstall system for"
+
+msgid "重装系统"
+msgstr "Reinstall System"
+
+msgid "选择操作系统："
+msgstr "Select operating system:"
+
+msgid "请选择操作系统"
+msgstr "Please select operating system"
+
+msgid "我已备份数据，确认重装系统将清空系统盘数据"
+msgstr "I have backed up my data, confirm that reinstalling the system will wipe the system disk"
+
+msgid "NAT端口转发规则"
+msgstr "NAT Port Forwarding Rules"
+
+msgid "IP地址管理"
+msgstr "IP Address Management"
+
+msgid "添加IP地址"
+msgstr "Add IP Address"
+
+msgid "网卡名称"
+msgstr "Network Interface Name"
+
+msgid "MAC地址"
+msgstr "MAC Address"
+
+msgid "IPv4地址"
+msgstr "IPv4 Address"
+
+msgid "IPv6地址"
+msgstr "IPv6 Address"
+
+msgid "网关"
+msgstr "Gateway"
+
+msgid "掩码"
+msgstr "Subnet Mask"
+
+msgid "DNS"
+msgstr "DNS"
+
+msgid "操作"
+msgstr "Actions"
+
+msgid "添加规则"
+msgstr "Add Rule"
+
+msgid "反向代理配置"
+msgstr "Reverse Proxy Configuration"
+
+msgid "添加代理"
+msgstr "Add Proxy"
+
+msgid "数据盘管理"
+msgstr "Data Disk Management"
+
+msgid "挂载数据盘"
+msgstr "Mount Data Disk"
+
+msgid "未挂载"
+msgstr "Not Mounted"
+
+msgid "磁盘名称"
+msgstr "Disk Name"
+
+msgid "容量"
+msgstr "Capacity"
+
+msgid "ISO镜像管理"
+msgstr "ISO Image Management"
+
+msgid "备份管理"
+msgstr "Backup Management"
+
+msgid "创建备份"
+msgstr "Create Backup"
+
+msgid "备份名称"
+msgstr "Backup Name"
+
+msgid "备份注释"
+msgstr "Backup Notes"
+
+msgid "虚拟机分享管理"
+msgstr "Virtual Machine Sharing Management"
+
+msgid "添加使用者"
+msgstr "Add User"
+
+msgid "(主所有者)"
+msgstr "(Primary Owner)"
+
+msgid "添加分享人"
+msgstr "Add Shared User"
+
+msgid "用户名"
+msgstr "Username"
+
+msgid "请输入用户名"
+msgstr "Please enter username"
+
+msgid "添加后该用户将共享此虚拟机的访问权限，但不会占用该用户的资源配额"
+msgstr "After adding, this user will have shared access to this virtual machine, but will not consume their resource quota"
+
+msgid "新的共享者必须拥有对应主机的访问权限才能看到该虚拟机"
+msgstr "New shared users must have access to the corresponding host to see this virtual machine"
+
+msgid "备份说明"
+msgstr "Backup Description"
+
+msgid "例如: 系统更新前备份"
+msgstr "Example: Backup before system update"
+
+msgid "请输入备份的说明信息"
+msgstr "Please enter backup description"
+
+msgid "备份可能需要数十分钟，取决于虚拟机硬盘大小，请耐心等待！"
+msgstr "Backup may take several minutes, depending on the virtual machine disk size. Please be patient!"
+
+msgid "我已确认停止当前虚拟机进行备份操作（未保存的数据将丢失）"
+msgstr "I have confirmed to stop the current virtual machine for backup operation (unsaved data will be lost)"
+
+msgid "挂载ISO镜像"
+msgstr "Mount ISO Image"
+
+msgid "选择ISO镜像"
+msgstr "Select ISO Image"
+
+msgid "请选择ISO镜像文件"
+msgstr "Please select an ISO image file"
+
+msgid "从服务器可用的ISO镜像中选择"
+msgstr "Select from available ISO images on the server"
+
+msgid "挂载名称"
+msgstr "Mount Name"
+
+msgid "例如: system_iso"
+msgstr "Example: system_iso"
+
+msgid "(仅支持英文和数字)"
+msgstr "(Only English and numbers supported)"
+
+msgid "挂载名称只能包含英文字母和数字"
+msgstr "Mount name can only contain English letters and numbers"
+
+msgid "备注"
+msgstr "Notes"
+
+msgid "例如: 系统安装盘"
+msgstr "Example: System installation disk"
+
+msgid "可选，用于说明此ISO的用途"
+msgstr "Optional, used to describe the purpose of this ISO"
+
+msgid "我已同意强制关机此虚拟机"
+msgstr "I have agreed to forcefully shut down this virtual machine"
+
+msgid "磁盘名称"
+msgstr "Disk Name"
+
+msgid "例如: data_disk"
+msgstr "Example: data_disk"
+
+msgid "只能包含数字和字母，不能包含特殊符号和中文"
+msgstr "Can only contain numbers and letters, no special characters or Chinese"
+
+msgid "磁盘大小 (MB)"
+msgstr "Disk Size (MB)"
+
+msgid "例如: 1024"
+msgstr "Example: 1024"
+
+msgid "最小1024MB (1GB)"
+msgstr "Minimum 1024MB (1GB)"
+
+msgid "磁盘类型"
+msgstr "Disk Type"
+
+msgid "普通磁盘"
+msgstr "Standard Disk"
+
+msgid "添加反向代理"
+msgstr "Add Reverse Proxy"
+
+msgid "域名"
+msgstr "Domain"
+
+msgid "后端IP"
+msgstr "Backend IP"
+
+msgid "从虚拟机网卡地址中选择"
+msgstr "Select from virtual machine network interface addresses"
+
+msgid "后端端口"
+msgstr "Backend Port"
+
+msgid "启用 HTTPS (SSL/TLS)"
+msgstr "Enable HTTPS (SSL/TLS)"
+
+msgid "描述"
+msgstr "Description"
+
+msgid "网卡类型"
+msgstr "Network Interface Type"
+
+msgid "内网(NAT)"
+msgstr "Internal (NAT)"
+
+msgid "选择网卡类型后可查看配额状态"
+msgstr "After selecting network interface type, you can view quota status"
+
+msgid "IPv4地址"
+msgstr "IPv4 Address"
+
+msgid "留空自动分配，例如: 192.168.1.100"
+msgstr "Leave blank for auto-assignment, e.g., 192.168.1.100"
+
+msgid "留空将由后端自动分配IP地址"
+msgstr "Leave blank and the backend will automatically assign an IP address"
+
+msgid "IPv6地址"
+msgstr "IPv6 Address"
+
+msgid "例如: 2001:db8::1"
+msgstr "Example: 2001:db8::1"
+
+msgid "网关"
+msgstr "Gateway"
+
+msgid "例如: 192.168.1.1"
+msgstr "Example: 192.168.1.1"
+
+msgid "子网掩码"
+msgstr "Subnet Mask"
+
+msgid "添加NAT端口转发规则"
+msgstr "Add NAT Port Forwarding Rule"
+
+msgid "外网端口 (WAN)"
+msgstr "External Port (WAN)"
+
+msgid "留空自动分配"
+msgstr "Leave blank for auto-assignment"
+
+msgid "留空将自动分配可用端口"
+msgstr "Leave blank to automatically assign an available port"
+
+msgid "内网端口 (LAN)"
+msgstr "Internal Port (LAN)"
+
+msgid "内网地址"
+msgstr "Internal Address"
+
+msgid "从虚拟机已分配的IP地址中选择"
+msgstr "Select from IP addresses assigned to the virtual machine"
+
+msgid "备注"
+msgstr "Notes"
+
+msgid "主机总数"
+msgstr "Total Hosts"
+
+msgid "退出"
+msgstr "Logout"
+
+msgid "虚拟机总数"
+msgstr "Total VMs"
+
+msgid "系统状态"
+msgstr "System Status"
+
+msgid "正常运行"
+msgstr "Running"
+
+msgid "最后更新"
+msgstr "Last Updated"
+
+msgid "通过"
+msgstr "Pass"
+
+msgid "页面可以管理主机和虚拟机。支持使用API+Token进行自动化管理。"
+msgstr "This page allows you to manage hosts and virtual machines. Supports automated management using API + Token."
+
+msgid "管理主机"
+msgstr "Manage Hosts"
+
+msgid "扫描虚拟机"
+msgstr "Scan VMs"
+
+msgid "返回主机列表"
+msgstr "Back to Host List"
+
+msgid "内存"
+msgstr "Memory"
+
+msgid "显存"
+msgstr "Video Memory"
+
+msgid "硬盘"
+msgstr "Disk"
+
+msgid "Web代理"
+msgstr "Web Proxies"
+
+msgid "NAT端口"
+msgstr "NAT Ports"
+
+msgid "网卡信息"
+msgstr "Network Information"
+
+msgid "查看详情"
+msgstr "View Details"
+
+msgid "VNC控制台"
+msgstr "VNC Console"
+
+msgid "编辑"
+msgstr "Edit"
+
+msgid "删除"
+msgstr "Delete"
+
+msgid "电源管理"
+msgstr "Power Management"
+
+msgid "刷新"
+msgstr "Refresh"
+
+msgid "共"
+msgstr "Total"
+
+msgid "台虚拟机"
+msgstr "virtual machines"
+
+msgid "虚拟机"
+msgstr "Virtual Machine"
+
+msgid "操作系统"
+msgstr "Operating System"
+
+msgid "系统密码"
+msgstr "System Password"
+
+msgid "VNC密码"
+msgstr "VNC Password"
+
+msgid "VNC端口"
+msgstr "VNC Port"
+
+msgid "资源配置"
+msgstr "Resource Configuration"
+
+msgid "虚拟机UUID"
+msgstr "Virtual Machine UUID"
+
+msgid "CPU核心数量"
+msgstr "CPU Cores"
+
+msgid "RAM内存(MB)"
+msgstr "RAM Memory (MB)"
+
+msgid "HDD硬盘(MB)"
+msgstr "HDD Disk (MB)"
+
+msgid "GPU显卡(ID)"
+msgstr "GPU (ID)"
+
+msgid "GPU显存(MB)"
+msgstr "GPU Memory (MB)"
+
+msgid "上行带宽Mb"
+msgstr "Upload Bandwidth (Mbps)"
+
+msgid "下行带宽Mb"
+msgstr "Download Bandwidth (Mbps)"
+
+msgid "流量限制MB"
+msgstr "Traffic Limit (MB)"
+
+msgid "Web代理数量"
+msgstr "Web Proxy Count"
+
+msgid "NAT端口数量"
+msgstr "NAT Port Count"
+
+msgid "网卡列表"
+msgstr "Network Interface List"
+
+msgid "IP配额状态:"
+msgstr "IP Quota Status:"
+
+msgid "IP配额充足"
+msgstr "IP Quota Sufficient"
+
+msgid "已使用"
+msgstr "Used"
+
+msgid "公网"
+msgstr "Public"
+
+msgid "内网"
+msgstr "Private"
+
+msgid "暂停虚拟机"
+msgstr "Pause VM"
+
+msgid "恢复虚拟机"
+msgstr "Resume VM"
+
+msgid "编辑配置"
+msgstr "Edit Configuration"
+
+msgid "重装系统"
+msgstr "Reinstall System"
+
+msgid "VNC"
+msgstr "VNC"
+
+msgid "控制台"
+msgstr "Console"
+
+msgid "修改系统密码"
+msgstr "Change System Password"
+
+msgid "虚拟机IPv4地址"
+msgstr "VM IPv4 Address"
+
+msgid "虚拟机IPv6地址"
+msgstr "VM IPv6 Address"
+
+msgid "外网访问IP"
+msgstr "External Access IP"
+
+msgid "系统密码"
+msgstr "System Password"
+
+msgid "VNC密码"
+msgstr "VNC Password"
+
+msgid "未知"
+msgstr "Unknown"
+
+msgid "NAT端口转发"
+msgstr "NAT Port Forwarding"
+
+msgid "IP地址管理"
+msgstr "IP Address Management"
+
+msgid "数据盘"
+msgstr "Data Disk"
+
+msgid "ISO挂载"
+msgstr "ISO Mount"
+
+msgid "备份管理"
+msgstr "Backup Management"
+
+msgid "至少8位，包含字母、数字、特殊符号中的两种"
+msgstr "At least 8 characters, containing at least two of: letters, numbers, special characters"
+
+msgid "密码长度不得低于8位，且至少包含字母、数字、符号中的两种"
+msgstr "Password must be at least 8 characters and contain at least two of: letters, numbers, symbols"
+
+msgid "已确认此虚拟机可能需要强制关闭以修改密码"
+msgstr "Confirmed that this virtual machine may need to be forcefully shut down to change the password"
+
+msgid "需要关机才能修改：VMware Workstation Pro"
+msgstr "Must be powered off to modify: VMware Workstation Pro"
+
+msgid "需要开机才能修改：Docker/Podman/LXD(LXC)"
+msgstr "Must be powered on to modify: Docker/Podman/LXD(LXC)"
+
+msgid "修改前请核对VM状态，否则可能无法修改成功"
+msgstr "Please verify VM status before modification, otherwise it may fail"

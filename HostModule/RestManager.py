@@ -2575,7 +2575,7 @@ class RestManager:
         all_proxys = []
         
         # 遍历所有主机
-        for hs_name, server in self.hs_manage.hs_saving.items():
+        for hs_name, server in self.hs_manage.engine.items():
             # 遍历该主机的所有虚拟机
             for vm_uuid, vm_config in server.vm_saving.items():
                 if hasattr(vm_config, 'web_all') and vm_config.web_all:

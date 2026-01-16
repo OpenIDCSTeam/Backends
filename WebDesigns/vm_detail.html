@@ -970,7 +970,7 @@
         <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p class="text-sm text-blue-700 flex items-start gap-2">
                 <span class="iconify mt-0.5" data-icon="mdi:information" data-width="16"></span>
-                <span>目标机器不会自动挂载接收的硬盘</span>
+                <span>目标机器不会自动挂载转移硬盘</span>
             </p>
         </div>
 
@@ -1249,7 +1249,15 @@
                        placeholder="例如: 系统更新前备份">
                 <p class="text-xs text-gray-500 mt-1">请输入备份的说明信息</p>
             </div>
-
+            <!-- 重要提示 -->
+            <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p class="text-sm text-blue-700 flex items-start gap-2">
+                    <span class="iconify mt-0.5" data-icon="mdi:information" data-width="16"></span>
+                    <span>
+                        备份可能需要数十分钟，取决于虚拟机硬盘大小，请耐心等待！
+                    </span>
+                </p>
+            </div>
             <!-- 确认勾选 -->
             <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                 <label class="flex items-start gap-2 cursor-pointer">
@@ -1257,7 +1265,7 @@
                            class="mt-1 w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                            onchange="toggleBackupConfirmButton()">
                     <span class="text-sm text-gray-700">
-                        我已确认停止当前虚拟机进行备份操作
+                        我已确认停止当前虚拟机进行备份操作（未保存的数据将丢失）
                     </span>
                 </label>
             </div>
@@ -1294,7 +1302,8 @@
                 <input type="text" id="ownerUsername" required
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                        placeholder="请输入用户名">
-                <p class="text-xs text-gray-500 mt-1">添加后该用户将共享此虚拟机的访问权限，但不会占用该用户的资源配额</p>
+                <p class="text-xs text-gray-500 mt-1">
+                    添加后该用户将共享此虚拟机的访问权限，但不会占用该用户的资源配额</p>
             </div>
 
             <div class="flex items-start space-x-2">
