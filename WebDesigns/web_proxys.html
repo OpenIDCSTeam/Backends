@@ -134,7 +134,7 @@
         <div class="card-body">
             <div id="loading-state" class="text-center py-12">
                 <span class="loading loading-spinner loading-lg text-primary"></span>
-                <p class="text-gray-500 mt-4">加载中...</p>
+                <p class="text-gray-500 mt-4" data-i18n="加载中...">加载中...</p>
             </div>
             <div id="empty-state" class="text-center py-12 hidden">
                 <span class="iconify text-gray-300" data-icon="mdi:web-off" data-width="80"></span>
@@ -296,7 +296,7 @@ async function loadVMsForHost() {
         return;
     }
     
-    vmSelect.innerHTML = '<option value="">加载中...</option>';
+    vmSelect.innerHTML = '<option value="">' + (window.i18n?.t('加载中...') || '加载中...') + '</option>';
     
     const result = await apiRequest(`/api/vms/list/${hostName}`);
     if (result && result.code === 200) {

@@ -74,30 +74,30 @@
     <!-- 导航栏 -->
     <nav class="bg-white shadow-lg sticky top-0 z-50 flex-shrink-0">
         <div class="container mx-auto px-4">
-            <div class="flex justify-between items-center py-4">
-                <div class="flex items-center space-x-4">
+            <div class="flex justify-between items-center py-4 gap-2">
+                <div class="flex items-center gap-2 flex-shrink-0">
                     <a href="/admin" class="flex items-center space-x-2 smooth-transition hover:scale-105">
                         <span class="iconify text-blue-600" data-icon="mdi:server-network" data-width="32" data-height="32"></span>
                         <h1 class="text-2xl font-bold text-blue-600">OpenIDCS</h1>
                     </a>
-                    <div class="hidden md:flex space-x-1 ml-8">
-                        <a href="/admin" class="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-medium smooth-transition">
-                            <div class="flex items-center gap-2">
-                                <span class="iconify" data-icon="mdi:view-dashboard" data-width="20"></span>
-                                仪表盘
+                    <div class="hidden lg:flex flex-wrap gap-1 ml-4">
+                        <a href="/admin" class="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium smooth-transition whitespace-nowrap">
+                            <div class="flex items-center gap-1.5">
+                                <span class="iconify" data-icon="mdi:view-dashboard" data-width="18"></span>
+                                <span data-i18n="仪表盘">仪表盘</span>
                             </div>
                         </a>
                         {% if session.get('is_admin') or session.get('is_token_login') %}
-                        <a href="/hosts" class="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-medium smooth-transition">
-                            <div class="flex items-center gap-2">
-                                <span class="iconify" data-icon="mdi:server" data-width="20"></span>
-                                主机管理
+                        <a href="/hosts" class="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium smooth-transition whitespace-nowrap">
+                            <div class="flex items-center gap-1.5">
+                                <span class="iconify" data-icon="mdi:server" data-width="18"></span>
+                                <span data-i18n="主机管理">主机管理</span>
                             </div>
                         </a>
-                        <a href="/debug" class="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-medium smooth-transition">
-                            <div class="flex items-center gap-2">
-                                <span class="iconify" data-icon="mdi:file-document-multiple" data-width="20"></span>
-                                日志管理
+                        <a href="/debug" class="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium smooth-transition whitespace-nowrap">
+                            <div class="flex items-center gap-1.5">
+                                <span class="iconify" data-icon="mdi:file-document-multiple" data-width="18"></span>
+                                <span data-i18n="日志管理">日志管理</span>
                             </div>
                         </a>
 <!--                        <a href="/tasks" class="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-medium smooth-transition">-->
@@ -106,46 +106,46 @@
 <!--                                任务管理-->
 <!--                            </div>-->
 <!--                        </a>-->
-                        <a href="/users" class="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-medium smooth-transition">
-                            <div class="flex items-center gap-2">
-                                <span class="iconify" data-icon="mdi:account-group" data-width="20"></span>
-                                用户管理
+                        <a href="/users" class="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium smooth-transition whitespace-nowrap">
+                            <div class="flex items-center gap-1.5">
+                                <span class="iconify" data-icon="mdi:account-group" data-width="18"></span>
+                                <span data-i18n="用户管理">用户管理</span>
                             </div>
                         </a>
-                        <a href="/web_proxys" class="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-medium smooth-transition">
-                            <div class="flex items-center gap-2">
-                                <span class="iconify" data-icon="mdi:web" data-width="20"></span>
-                                反向代理
+                        <a href="/web_proxys" class="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium smooth-transition whitespace-nowrap">
+                            <div class="flex items-center gap-1.5">
+                                <span class="iconify" data-icon="mdi:web" data-width="18"></span>
+                                <span data-i18n="反向代理">反向代理</span>
                             </div>
                         </a>
-                        <a href="/settings" class="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-medium smooth-transition">
-                            <div class="flex items-center gap-2">
-                                <span class="iconify" data-icon="mdi:cog" data-width="20"></span>
-                                系统设置
+                        <a href="/settings" class="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium smooth-transition whitespace-nowrap">
+                            <div class="flex items-center gap-1.5">
+                                <span class="iconify" data-icon="mdi:cog" data-width="18"></span>
+                                <span data-i18n="系统设置">系统设置</span>
                             </div>
                         </a>
                         {% else %}
                         {% endif %}
                     </div>
                 </div>
-                <div class="flex items-center space-x-4">
+                <div class="flex items-center gap-2 flex-shrink-0">
                     <!-- 语言选择器 -->
                     <div class="relative" id="languageSelector">
-                        <button id="languageButton" class="flex items-center space-x-2 text-gray-700 bg-gray-50 px-3 py-2 rounded-lg smooth-transition hover:bg-gray-100">
-                            <span class="iconify text-gray-500" data-icon="mdi:translate" data-width="20"></span>
-                            <span class="text-sm font-medium" id="currentLanguageName">简体中文</span>
-                            <span class="iconify text-gray-500" data-icon="mdi:chevron-down" data-width="16"></span>
+                        <button id="languageButton" class="flex items-center gap-1.5 text-gray-700 bg-gray-50 px-2.5 py-2 rounded-lg smooth-transition hover:bg-gray-100 whitespace-nowrap">
+                            <span class="iconify text-gray-500" data-icon="mdi:translate" data-width="18"></span>
+                            <span class="text-sm font-medium hidden sm:inline no-translate" id="currentLanguageName" translate="no">简体中文</span>
+                            <span class="iconify text-gray-500" data-icon="mdi:chevron-down" data-width="14"></span>
                         </button>
                         <div id="languageDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
                             <!-- 语言列表将通过JavaScript动态加载 -->
                         </div>
                     </div>
                     
-                    <a href="/profile" class="flex items-center space-x-2 text-gray-700 bg-gray-50 px-3 py-2 rounded-lg smooth-transition hover:bg-gray-100">
-                        <span class="iconify text-gray-500" data-icon="mdi:account-circle" data-width="20"></span>
-                        <span class="text-sm font-medium">{{ username }}</span>
+                    <a href="/profile" class="flex items-center gap-1.5 text-gray-700 bg-gray-50 px-2.5 py-2 rounded-lg smooth-transition hover:bg-gray-100 whitespace-nowrap">
+                        <span class="iconify text-gray-500" data-icon="mdi:account-circle" data-width="18"></span>
+                        <span class="text-sm font-medium hidden sm:inline">{{ username }}</span>
                     </a>
-                    <a href="/logout" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium btn-hover shadow-sm flex items-center gap-2">
+                    <a href="/logout" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium btn-hover shadow-sm flex items-center gap-1.5 whitespace-nowrap">
                         <span class="iconify" data-icon="mdi:logout" data-width="16"></span>
                         <span data-i18n="退出">退出</span>
                     </a>

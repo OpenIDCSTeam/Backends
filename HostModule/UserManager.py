@@ -278,14 +278,30 @@ class EmailService:
             logger.error(f"发送邮件异常: {e}")
             return False
     
-    def send_test_email(self, to_email: str) -> bool:
+    def send_test_email(self, to_email: str, subject: str = "OpenIDCS - 测试邮件", body: str = None) -> bool:
         """
         发送测试邮件
         :param to_email: 收件人邮箱
+        :param subject: 邮件标题
+        :param body: 邮件正文（纯文本）
         :return: 是否成功
         """
         try:
             import requests
+            
+            # 如果没有提供正文，使用默认模板
+            if body is None:
+                html_content = f"""
+                <h2>测试邮件</h2>
+                <p>您好，</p>
+                <p>这是一封来自 OpenIDCS 系统的测试邮件。</p>
+                <p>如果您收到这封邮件，说明邮件服务配置正常。</p>
+                <p>测试时间: {self._get_current_time()}</p>
+                <p>OpenIDCS 系统</p>
+                """
+            else:
+                # 将纯文本转换为HTML格式（保留换行）
+                html_content = body.replace('\n', '<br>')
             
             response = requests.post(
                 "https://api.resend.com/emails",
@@ -296,15 +312,8 @@ class EmailService:
                 json={
                     "from": self.from_email,
                     "to": [to_email],
-                    "subject": "OpenIDCS - 测试邮件",
-                    "html": f"""
-                    <h2>测试邮件</h2>
-                    <p>您好，</p>
-                    <p>这是一封来自 OpenIDCS 系统的测试邮件。</p>
-                    <p>如果您收到这封邮件，说明邮件服务配置正常。</p>
-                    <p>发送时间: {self._get_current_time()}</p>
-                    <p>OpenIDCS 系统</p>
-                    """
+                    "subject": subject,
+                    "html": html_content
                 }
             )
             

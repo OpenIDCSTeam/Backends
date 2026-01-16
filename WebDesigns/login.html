@@ -6,6 +6,8 @@
     <title>{{ title }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
+    <!-- 国际化系统 -->
+    <script src="/static/i18n.js"></script>
     <style>
         .input-transition {
             transition: all 0.25s ease;
@@ -20,6 +22,20 @@
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen flex items-center justify-center">
+    <!-- 语言选择器 -->
+    <div class="fixed top-4 right-4 z-50">
+        <div class="relative" id="languageSelector">
+            <button id="languageButton" class="flex items-center gap-1.5 text-gray-700 bg-white px-3 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+                <span class="iconify text-gray-500" data-icon="mdi:translate" data-width="18"></span>
+                <span class="text-sm font-medium no-translate" id="currentLanguageName" translate="no">简体中文</span>
+                <span class="iconify text-gray-500" data-icon="mdi:chevron-down" data-width="14"></span>
+            </button>
+            <div id="languageDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                <!-- 语言列表将通过JavaScript动态加载 -->
+            </div>
+        </div>
+    </div>
+    
     <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
         <div class="text-center mb-8">
             <div class="flex justify-center mb-4">

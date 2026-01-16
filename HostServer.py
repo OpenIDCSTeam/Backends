@@ -1514,11 +1514,16 @@ def test_email():
     try:
         data = request.get_json()
         test_email = data.get('test_email')
+        subject = data.get('subject', 'OpenIDCS - 测试邮件')
+        body = data.get('body', '这是一封测试邮件')
         resend_email = data.get('resend_email')
         resend_apikey = data.get('resend_apikey')
         
         if not test_email or not resend_email or not resend_apikey:
             return jsonify({'code': 400, 'msg': '请提供完整的邮件配置信息'})
+        
+        if not subject or not body:
+            return jsonify({'code': 400, 'msg': '请提供邮件标题和正文'})
         
         # 验证邮箱格式
         import re
@@ -1532,7 +1537,7 @@ def test_email():
             from_email=resend_email
         )
         
-        success = email_service.send_test_email(test_email)
+        success = email_service.send_test_email(test_email, subject, body)
         if success:
             return jsonify({'code': 200, 'msg': '测试邮件发送成功'})
         else:
@@ -1587,13 +1592,35 @@ def api_get_available_languages():
         languages = translation.get_available_languages()
         
         # 返回语言列表及其显示名称
+        # 语言代码到本地化名称的映射
+        language_names = {
+            'zh-cn': {'name': '简体中文', 'native': '简体中文'},
+            'zh-tw': {'name': '繁體中文', 'native': '繁體中文'},
+            'en-us': {'name': 'English', 'native': 'English'},
+            'ja-jp': {'name': '日本語', 'native': '日本語'},
+            'ko-kr': {'name': '한국어', 'native': '한국어'},
+            'ar-ar': {'name': 'العربية', 'native': 'العربية'},
+            'de-de': {'name': 'Deutsch', 'native': 'Deutsch'},
+            'es-es': {'name': 'Español', 'native': 'Español'},
+            'fr-fr': {'name': 'Français', 'native': 'Français'},
+            'it-it': {'name': 'Italiano', 'native': 'Italiano'},
+            'pt-br': {'name': 'Português', 'native': 'Português'},
+            'ru-ru': {'name': 'Русский', 'native': 'Русский'},
+            'hi-in': {'name': 'हिन्दी', 'native': 'हिन्दी'},
+            'bn-bd': {'name': 'বাংলা', 'native': 'বাংলা'},
+            'ur-pk': {'name': 'اردو', 'native': 'اردو'},
+        }
+        
         language_info = []
         for lang in languages:
-            if lang == 'zh-cn':
-                language_info.append({'code': lang, 'name': '简体中文', 'native': '简体中文'})
-            elif lang == 'en-us':
-                language_info.append({'code': lang, 'name': 'English', 'native': 'English'})
+            if lang in language_names:
+                language_info.append({
+                    'code': lang, 
+                    'name': language_names[lang]['name'], 
+                    'native': language_names[lang]['native']
+                })
             else:
+                # 对于未定义的语言，使用语言代码作为显示名称
                 language_info.append({'code': lang, 'name': lang, 'native': lang})
         
         return api_response_wrapper(200, '获取成功', language_info)

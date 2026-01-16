@@ -4841,3 +4841,417 @@ msgstr "Must be powered on to modify: Docker/Podman/LXD(LXC)"
 
 msgid "修改前请核对VM状态，否则可能无法修改成功"
 msgstr "Please verify VM status before modification, otherwise it may fail"
+
+msgid "地址"
+msgstr "Address"
+
+msgid "外网IP"
+msgstr "External IP"
+
+msgid "爱快OS"
+msgstr "iKuai OS"
+
+msgid "端口范围"
+msgstr "Port Range"
+
+msgid "系统映射"
+msgstr "System Mapping"
+
+msgid "个"
+msgstr ""
+
+msgid "台"
+msgstr ""
+
+msgid "系统盘"
+msgstr "System Disk"
+
+msgid "网络"
+msgstr "Network"
+
+msgid "温度/功耗"
+msgstr "Temperature/Power"
+
+msgid "管理所有虚拟化主机"
+msgstr "Manage all virtualization hosts"
+
+msgid "查看系统运行日志和事件记录"
+msgstr "View system runtime logs and event records"
+
+msgid "主机筛选"
+msgstr "Host Filter"
+
+msgid "日志记录"
+msgstr "Log Recording"
+
+msgid "警告"
+msgstr "Warning"
+
+msgid "留空则自动生成随机Token"
+msgstr "Leave blank to auto-generate random Token"
+
+msgid "信息"
+msgstr "Information"
+
+msgid "自动刷新"
+msgstr "Auto Refresh"
+
+msgid "清空显示"
+msgstr "Clear Display"
+
+msgid "调试"
+msgstr "Debug"
+
+msgid "邮箱"
+msgstr "Email"
+
+msgid "角色"
+msgstr "Role"
+
+msgid "状态"
+msgstr "Status"
+
+msgid "基础配额"
+msgstr "Basic Quota"
+
+msgid "GPU Memory"
+msgstr "GPU Memory"
+
+msgid "带宽/流量"
+msgstr "Bandwidth/Traffic"
+
+msgid "网络服务"
+msgstr "Network Services"
+
+msgid "IP配额"
+msgstr "IP Quota"
+
+msgid "管理系统用户、权限和"
+msgstr "Manage system users, permissions and"
+
+msgid "总代理数"
+msgstr "Total Proxy Count"
+
+msgid "HTTP代理"
+msgstr "HTTP Proxy"
+
+msgid "HTTPS代理"
+msgstr "HTTPS Proxy"
+
+msgid "后端地址"
+msgstr "Backend Address"
+
+msgid "协议"
+msgstr "Protocol"
+
+msgid "主机数"
+msgstr "Host Count"
+
+msgid "管理所有 的"
+msgstr "Manage all"
+
+msgid "普通用户"
+msgstr "Regular User"
+
+msgid "启用"
+msgstr "Enable"
+
+msgid "上行"
+msgstr "Upload"
+
+msgid "下行"
+msgstr "Download"
+
+msgid "流量"
+msgstr "Traffic"
+
+msgid "个主机"
+msgstr "hosts"
+
+msgid "服务器名称 *"
+msgstr "Server Name *"
+
+msgid "服务器类型 *"
+msgstr "Server Type *"
+
+msgid "请选择类型"
+msgstr "Please select type"
+
+msgid "服务器地址"
+msgstr "Server Address"
+
+msgid "服务器用户"
+msgstr "Server User"
+
+msgid "服务器密码"
+msgstr "Server Password"
+
+msgid "Virtual Machine前缀"
+msgstr "Virtual Machine Prefix"
+
+msgid "过滤器名称"
+msgstr "Filter Name"
+
+msgid "存储路径配置"
+msgstr "Storage Path Configuration"
+
+msgid "模板存储路径"
+msgstr "Template Storage Path"
+
+msgid "光盘存储路径"
+msgstr "Optical Disk Storage Path"
+
+msgid "系统存储路径"
+msgstr "System Storage Path"
+
+msgid "备份存储路径"
+msgstr "Backup Storage Path"
+
+msgid "数据存储路径"
+msgstr "Data Storage Path"
+
+msgid "程序启动路径"
+msgstr "Program Startup Path"
+
+msgid "虚拟化程序路径"
+msgstr "Virtualization Program Path"
+
+msgid "服务访问端口"
+msgstr "Service Access Port"
+
+msgid "服务器Public IP"
+msgstr "Server Public IP"
+
+msgid "共享IP设备名"
+msgstr "Shared IP Device Name"
+
+msgid "独立IP设备名"
+msgstr "Dedicated IP Device Name"
+
+msgid "爱快OS配置"
+msgstr "iKuai OS Configuration"
+
+msgid "爱快OS地址"
+msgstr "iKuai OS Address"
+
+msgid "爱快OSUsername"
+msgstr "iKuai OS Username"
+
+msgid "爱快OS管理员用户名"
+msgstr "iKuai OS Admin Username"
+
+msgid "爱快OS密码"
+msgstr "iKuai OS Password"
+
+msgid "爱快OS管理员密码"
+msgstr "iKuai OS Admin Password"
+
+msgid "端口配置"
+msgstr "Port Configuration"
+
+msgid "TCP端口起始"
+msgstr "TCP Port Start"
+
+msgid "TCP端口结束"
+msgstr "TCP Port End"
+
+msgid "VNC服务端口"
+msgstr "VNC Service Port"
+
+msgid "VM Count限制"
+msgstr "VM Count Limit"
+
+msgid "系统映射配置"
+msgstr "System Mapping Configuration"
+
+msgid "配置System Name与镜像文件的映射关系"
+msgstr "Configure the mapping relationship between System Name and image files"
+
+msgid "外部显示System Name"
+msgstr "External Display System Name"
+
+msgid "镜像文件(带后缀)"
+msgstr "Image File (with extension)"
+
+msgid "最低大小(GB)"
+msgstr "Minimum Size (GB)"
+
+msgid "添加系统映射"
+msgstr "Add System Mapping"
+
+msgid "ISO image映射配置"
+msgstr "ISO Image Mapping Configuration"
+
+msgid "显示名称"
+msgstr "Display Name"
+
+msgid "ISO文件名"
+msgstr "ISO Filename"
+
+msgid "添加镜像映射"
+msgstr "Add Image Mapping"
+
+msgid "IP地址池配置"
+msgstr "IP Address Pool Configuration"
+
+msgid "配置Virtual Machine可分配IP addresses段"
+msgstr "Configure the IP address segment assignable to Virtual Machines"
+
+msgid "Add IP Address池"
+msgstr "Add IP Address Pool"
+
+msgid "DNS服务器配置"
+msgstr "DNS Server Configuration"
+
+msgid "DNS服务器（多个用逗号分隔）"
+msgstr "DNS Servers (separated by commas)"
+
+msgid "Reinstall system for统一配置DNS服务器"
+msgstr "Reinstall system to unify DNS server configuration"
+
+msgid "API扩展选项 (JSON格式)"
+msgstr "API Extension Options (JSON format)"
+
+msgid "反向代理"
+msgstr "Reverse Proxy"
+
+msgid "添加反向代理"
+msgstr "Add Reverse Proxy"
+
+msgid "后端地址"
+msgstr "Backend Address"
+
+msgid "协议"
+msgstr "Protocol"
+
+msgid "描述"
+msgstr "Description"
+
+msgid "操作"
+msgstr "Actions"
+
+msgid "总代理数"
+msgstr "Total Proxies"
+
+msgid "HTTP代理"
+msgstr "HTTP Proxy"
+
+msgid "HTTPS代理"
+msgstr "HTTPS Proxy"
+
+msgid "主机数"
+msgstr "Host Count"
+
+msgid "所有主机"
+msgstr "All Hosts"
+
+msgid "所有协议"
+msgstr "All Protocols"
+
+msgid "刷新"
+msgstr "Refresh"
+
+msgid "反向代理配置"
+msgstr "Reverse Proxy Configuration"
+
+msgid "管理"
+msgstr "Manage"
+
+msgid "所有"
+msgstr "All"
+
+msgid "内存"
+msgstr "Memory"
+
+msgid "显存"
+msgstr "VRAM"
+
+msgid "硬盘"
+msgstr "Disk"
+
+msgid "个"
+msgstr ""
+
+msgid "暂无端口转发规则"
+msgstr "No Port Forwarding Rules"
+
+msgid "暂无"
+msgstr "None"
+
+msgid "配置"
+msgstr "Configuration"
+
+msgid "可分配"
+msgstr "Allocatable"
+
+msgid "段"
+msgstr "Range"
+
+msgid "配置名称"
+msgstr "Configuration Name"
+
+msgid "版本"
+msgstr "Version"
+
+msgid "网络类型"
+msgstr "Network Type"
+
+msgid "数量"
+msgstr "Quantity"
+
+msgid "起始IP地址"
+msgstr "Starting IP Address"
+
+msgid "网关地址"
+msgstr "Gateway Address"
+
+msgid "池"
+msgstr "Pool"
+
+msgid "保存"
+msgstr "Save"
+
+msgid "扫描虚拟机"
+msgstr "Scan Virtual Machines"
+
+msgid "停止"
+msgstr "Stop"
+
+msgid "编辑"
+msgstr "Edit"
+
+msgid "删除"
+msgstr "Delete"
+
+msgid "下"
+msgstr "under"
+
+msgid "的"
+msgstr ""
+
+msgid "随机"
+msgstr "Random"
+
+msgid "地址"
+msgstr "Address"
+
+msgid "执行"
+msgstr "Execute"
+
+msgid "启动"
+msgstr "Start"
+
+msgid "确认"
+msgstr "Confirm"
+
+msgid "留空自动分配"
+msgstr "Leave blank for auto-assignment"
+
+msgid "例如"
+msgstr "For example"
+
+msgid "添加"
+msgstr "Add"
+
+msgid "端口用途说明"
+msgstr "Port Usage Description"
