@@ -5,7 +5,7 @@ pywin32
 setuptools
 pythonnet
 requests
-flask
+flask==2.3.3
 requests
 websockify
 py7zr
@@ -22,3 +22,5 @@ nuitka
 pycryptodomex
 pyzstd
 bcj-cffi
+paramiko
+# hypy
