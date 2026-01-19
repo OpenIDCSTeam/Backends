@@ -262,36 +262,47 @@ class BasicServer:
             self.hs_config.i_kuai_user,
             self.hs_config.i_kuai_pass)
         nc_server.login()
+        # 提取端口列表 ==============================================================
         port_result = nc_server.get_port()
-        # 处理get_port返回值，提取端口列表
         wan_list = []
+        # 检查端口是否被占用 ========================================================
         if port_result and isinstance(port_result, dict):
-            data = port_result.get('Data', {})
-            if isinstance(data, dict):
-                now_list = data.get('data', [])
+            now_list = port_result.get('Data', {})
+            if isinstance(now_list, dict):
+                now_list = now_list.get('data', [])
                 if isinstance(now_list, list):
-                    wan_list = [int(i.get("wan_port", 0)) for i in now_list if isinstance(i, dict)]
-
-        # 如果wan_port为0，自动分配一个未使用的端口
+                    wan_list = [int(i.get("wan_port", 0)) \
+                                for i in now_list if isinstance(i, dict)]
+        # 检查端口范围是否正确 ======================================================
+        if self.hs_config.ports_start == "" or self.hs_config.ports_close == "":
+            return ZMessage(
+                success=False, action="PortsMap", message="主机端口范围配置错误")
+        num_port = int(self.hs_config.ports_close) - int(self.hs_config.ports_start)
+        if num_port <= 0 or num_port <= len(wan_list):
+            return ZMessage(
+                success=False, action="PortsMap", message="主机端口可用数量不够")
+        # 检查端口是否被占用 ========================================================
+        if map_info.wan_port in wan_list:
+            return ZMessage(
+                success=False, action="PortsMap", message="端口已被占用")
+        # 自动分配未使用的端口 ======================================================
         if map_info.wan_port == 0:
-            wan_port = randint(self.hs_config.ports_start, self.hs_config.ports_close)
-            while wan_port in wan_list:
-                wan_port = randint(self.hs_config.ports_start, self.hs_config.ports_close)
-            map_info.wan_port = wan_port
-        else:
-            if map_info.wan_port in wan_list:
-                return ZMessage(
-                    success=False, action="PortsMap", message="端口已被占用")
+            map_info.wan_port = 0
+            while map_info.wan_port in wan_list:
+                map_info.wan_port = randint(
+                    self.hs_config.ports_start, self.hs_config.ports_close)
+        # 添加端口映射 ==============================================================
         if flag:
             result = nc_server.add_port(map_info.wan_port, map_info.lan_port,
                                         map_info.lan_addr, map_info.nat_tips)
+        # 删除端口映射 ==============================================================
         else:
             result = nc_server.del_port(map_info.lan_port, map_info.lan_addr)
+        # 返回结果 ==================================================================
         hs_result = ZMessage(
             success=result, action="ProxyMap",
             messages=str(map_info.wan_port) + "端口%s操作%s" % (
-                "添加" if flag else "删除",
-                "成功" if result else "失败"))
+                "添加" if flag else "删除", "成功" if result else "失败"))
         self.data_set()
         return hs_result
 
@@ -766,10 +777,8 @@ class BasicServer:
             elif isinstance(raw, HWStatus):
                 return raw
             return hw
-        # 如果没有记录，返回当前状态
-        from MainObject.Server.HSStatus import HSStatus as HSStatusClass
-        hs_status = HSStatusClass()
-        return hs_status.status()
+        # 如果没有记录，返回空状态
+        return HWStatus()
 
     # 初始宿主机 ####################################################################
     def HSCreate(self) -> ZMessage:

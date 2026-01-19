@@ -217,9 +217,6 @@ class HyperVAPI:
                 # 复制操作系统镜像到_system.vhdx
                 Copy-Item -Path '{source_image}' -Destination '{system_disk}' -Force
 
-                # 删除默认网络适配器（如果有）
-                Get-VMNetworkAdapter -VMName '{vm_name}' | Remove-VMNetworkAdapter -Force
-
                 # 添加系统盘（SCSI控制器，关联到虚拟机）
                 Add-VMHardDiskDrive -VMName '{vm_name}' -Path '{system_disk}' -ControllerType SCSI -ControllerNumber 0 -ControllerLocation 0
 
@@ -236,10 +233,15 @@ class HyperVAPI:
             #     Add-VMHardDiskDrive -VMName '{vm_name}' -Path '{data_disk}' -ControllerType SCSI -ControllerNumber 0 -ControllerLocation 1
             #     """
 
+            # 删除默认网络适配器（Hyper-V默认会创建一个未连接的网卡）
+            command += """
+            # 删除默认网络适配器（Hyper-V默认会创建一个）
+            Get-VMNetworkAdapter -VMName '{vm_name}' | Remove-VMNetworkAdapter -Force
+            """
+
             # 为所有网卡创建网络适配器
             if vm_conf.nic_all and len(vm_conf.nic_all) > 0:
-                nic_list = list(vm_conf.nic_all.values())
-                for i, nic in enumerate(nic_list):
+                for nic_key, nic in vm_conf.nic_all.items():
                     # 根据网卡类型确定虚拟交换机
                     nic_switch = None
                     if nic.nic_type == "nat":
@@ -248,7 +250,8 @@ class HyperVAPI:
                         nic_switch = hs_config.network_pub if hs_config.network_pub else None
 
                     if nic_switch:
-                        nic_name = f'Network Adapter {i}' if i > 0 else ''
+                        # 使用配置中的网卡名称
+                        nic_name = nic_key
                         add_cmd = f"Add-VMNetworkAdapter -VMName '{vm_name}' -SwitchName '{nic_switch}'"
                         if nic_name:
                             add_cmd += f" -Name '{nic_name}'"
@@ -259,7 +262,7 @@ class HyperVAPI:
                             else:
                                 command += f"\nSet-VMNetworkAdapter -VMName '{vm_name}' -StaticMacAddress '{nic.mac_addr}'"
                     else:
-                        logger.warning(f"网卡 {i} 未找到对应的虚拟交换机配置 (nic_type={nic.nic_type})")
+                        logger.warning(f"网卡 {nic_key} 未找到对应的虚拟交换机配置 (nic_type={nic.nic_type})")
 
             result = self._run_powershell(command)
 
@@ -561,14 +564,24 @@ class HyperVAPI:
     # :param vm_name: 虚拟机名称
     # :param switch_name: 虚拟交换机名称
     # :param mac_address: MAC地址（可选）
+    # :param adapter_name: 网卡名称（可选）
     # :return: 操作结果
     ################################################################################
-    def set_network_adapter(self, vm_name: str, switch_name: str, mac_address: str = None) -> ZMessage:
+    def set_network_adapter(self, vm_name: str, switch_name: str, mac_address: str = None, adapter_name: str = "") -> ZMessage:
         try:
-            command = f"Get-VMNetworkAdapter -VMName '{vm_name}' | Connect-VMNetworkAdapter -SwitchName '{switch_name}'"
+            # 获取指定名称的网络适配器
+            if adapter_name:
+                get_cmd = f"Get-VMNetworkAdapter -VMName '{vm_name}' -Name '{adapter_name}' | Connect-VMNetworkAdapter -SwitchName '{switch_name}'"
+            else:
+                get_cmd = f"Get-VMNetworkAdapter -VMName '{vm_name}' | Select-Object -First 1 | Connect-VMNetworkAdapter -SwitchName '{switch_name}'"
+
+            command = get_cmd
 
             if mac_address:
-                command += f"\nSet-VMNetworkAdapter -VMName '{vm_name}' -StaticMacAddress '{mac_address}'"
+                if adapter_name:
+                    command += f"\nSet-VMNetworkAdapter -VMName '{vm_name}' -Name '{adapter_name}' -StaticMacAddress '{mac_address}'"
+                else:
+                    command += f"\nSet-VMNetworkAdapter -VMName '{vm_name}' -StaticMacAddress '{mac_address}'"
 
             result = self._run_powershell(command)
 
@@ -581,6 +594,66 @@ class HyperVAPI:
         except Exception as e:
             logger.error(f"配置网络适配器失败: {str(e)}")
             return ZMessage(success=False, action="SetNetwork", message=str(e))
+
+    # 添加网络适配器 ###############################################################
+    # :param vm_name: 虚拟机名称
+    # :param switch_name: 虚拟交换机名称
+    # :param mac_address: MAC地址（可选）
+    # :param adapter_name: 网卡名称（可选）
+    # :return: 操作结果
+    ################################################################################
+    def add_network_adapter(self, vm_name: str, switch_name: str, mac_address: str = None, adapter_name: str = "") -> ZMessage:
+        try:
+            if adapter_name:
+                # 有网卡名称：添加时直接指定名称
+                add_cmd = f"Add-VMNetworkAdapter -VMName '{vm_name}' -SwitchName '{switch_name}' -Name '{adapter_name}'"
+
+                command = add_cmd
+
+                if mac_address:
+                    command += f"\nSet-VMNetworkAdapter -VMName '{vm_name}' -Name '{adapter_name}' -StaticMacAddress '{mac_address}'"
+            else:
+                # 无网卡名称：先添加，然后获取并设置MAC地址
+                command = f"$newAdapter = Add-VMNetworkAdapter -VMName '{vm_name}' -SwitchName '{switch_name}'"
+
+                if mac_address:
+                    command += f"\nSet-VMNetworkAdapter -VMNetworkAdapter $newAdapter -StaticMacAddress '{mac_address}'"
+
+            result = self._run_powershell(command)
+
+            if result.success:
+                logger.info(f"虚拟机 {vm_name} 网络适配器添加成功")
+                return ZMessage(success=True, action="AddNetwork", message="网络适配器添加成功")
+            else:
+                return ZMessage(success=False, action="AddNetwork", message=result.message)
+
+        except Exception as e:
+            logger.error(f"添加网络适配器失败: {str(e)}")
+            return ZMessage(success=False, action="AddNetwork", message=str(e))
+
+    # 删除网络适配器 ###############################################################
+    # :param vm_name: 虚拟机名称
+    # :param adapter_name: 网卡名称（可选，为空则删除所有）
+    # :return: 操作结果
+    ################################################################################
+    def remove_network_adapter(self, vm_name: str, adapter_name: str = "") -> ZMessage:
+        try:
+            if adapter_name:
+                command = f"Get-VMNetworkAdapter -VMName '{vm_name}' -Name '{adapter_name}' | Remove-VMNetworkAdapter -Force"
+            else:
+                command = f"Get-VMNetworkAdapter -VMName '{vm_name}' | Remove-VMNetworkAdapter -Force"
+
+            result = self._run_powershell(command)
+
+            if result.success:
+                logger.info(f"虚拟机 {vm_name} 网络适配器删除成功")
+                return ZMessage(success=True, action="RemoveNetwork", message="网络适配器删除成功")
+            else:
+                return ZMessage(success=False, action="RemoveNetwork", message=result.message)
+
+        except Exception as e:
+            logger.error(f"删除网络适配器失败: {str(e)}")
+            return ZMessage(success=False, action="RemoveNetwork", message=str(e))
 
     # 获取主机状态 #################################################################
     def get_host_status(self) -> Optional[Dict[str, Any]]:

@@ -924,8 +924,8 @@ class RestManager:
         cache_time = getattr(server, '_status_cache_time', 0)
         cached_status = getattr(server, '_status_cache', None)
 
-        # 检查缓存是否有效（60秒内的数据认为是新鲜的）
-        if not force_refresh and cached_status and (current_time - cache_time) < 60:
+        # 检查缓存是否有效（600秒内的数据认为是新鲜的）
+        if not force_refresh and cached_status and (current_time - cache_time) < 600:
             return self.api_response(200, 'success', {
                 'status': cached_status,
                 'source': 'cached',
@@ -933,7 +933,15 @@ class RestManager:
                 'age_seconds': current_time - cache_time
             })
 
-        # 获取新状态
+        # 如果没有缓存且不强制刷新，返回空状态
+        if not force_refresh and not cached_status:
+            return self.api_response(200, 'success', {
+                'status': {},
+                'source': 'no_data',
+                'message': '暂无主机状态数据，请等待定时任务更新'
+            })
+
+        # 获取新状态（仅在强制刷新时）
         try:
             status = server.HSStatus()
             if status:

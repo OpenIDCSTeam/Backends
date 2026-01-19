@@ -6,6 +6,8 @@ Hyper-V虚拟机管理模块
 import os
 import shutil
 import datetime
+import subprocess
+import traceback
 from copy import deepcopy
 from loguru import logger
 
@@ -93,6 +95,10 @@ class HostServer(BasicServer):
                     f"MEM={hw_status.mem_usage}MB/{hw_status.mem_total}MB"
                 )
                 return hw_status
+            else:
+                # 未获取到状态，返回空状态
+                logger.warning(f"[{self.hs_config.server_name}] 未能获取到主机状态数据")
+                return HWStatus()
         except Exception as e:
             logger.error(f"获取Hyper-V主机状态失败: {str(e)}")
 
@@ -267,16 +273,6 @@ class HostServer(BasicServer):
                     self.hyperv_api.delete_vm(vm_conf.vm_uuid)
                     self.hyperv_api.disconnect()
                     return install_result
-
-            # 配置网络适配器
-            if vm_conf.nic_all:
-                for nic_name, nic_conf in vm_conf.nic_all.items():
-                    if nic_conf.mac_addr:
-                        self.hyperv_api.set_network_adapter(
-                            vm_conf.vm_uuid,
-                            "Default Switch",
-                            nic_conf.mac_addr
-                        )
 
             # 启动虚拟机
             self.hyperv_api.power_on(vm_conf.vm_uuid)
@@ -856,3 +852,201 @@ class HostServer(BasicServer):
         # TODO: 实现Hyper-V GPU查询
         # 通用操作 =============================================================
         return {}
+
+    # 虚拟机控制台 #############################################################
+    def VMRemote(self, vm_uuid: str, ip_addr: str = "127.0.0.1") -> ZMessage:
+        """获取虚拟机远程连接URL"""
+        try:
+            # 检查虚拟机是否存在
+            if vm_uuid not in self.vm_saving:
+                return ZMessage(
+                    success=False,
+                    action="VCRemote",
+                    message=f"虚拟机 {vm_uuid} 不存在")
+
+            # 连接到Hyper-V
+            connect_result = self.hyperv_api.connect()
+            if not connect_result.success:
+                return ZMessage(
+                    success=False,
+                    action="VCRemote",
+                    message=f"无法连接到Hyper-V: {connect_result.message}")
+
+            try:
+                # 获取虚拟机GUID
+                get_guid_command = f"(Get-VM -Name '{vm_uuid}').Id.Guid"
+                guid_result = self.hyperv_api._run_powershell(get_guid_command)
+
+                if not guid_result.success or not guid_result.message:
+                    return ZMessage(
+                        success=False,
+                        action="VCRemote",
+                        message=f"无法获取虚拟机GUID: {guid_result.message}")
+
+                # 解析GUID（去除前后空格和换行）
+                vm_guid = guid_result.message.strip()
+
+                # 获取密码并加密
+                password = self.hs_config.server_pass
+
+                # 使用Password51.ps1加密密码
+                ps1_path = os.path.join("HostConfig", "Password51.ps1")
+                encrypt_command = f"powershell -ExecutionPolicy Bypass -Command \". '{ps1_path}'; Encrypt-RDP-Password -Password \\\"{password}\\\"\""
+
+                encrypt_result = subprocess.run(
+                    encrypt_command,
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                    encoding='utf-8',
+                    errors='replace'
+                )
+
+                if encrypt_result.returncode != 0:
+                    logger.error(f"密码加密失败: {encrypt_result.stderr}")
+                    logger.error(f"命令: {encrypt_command}")
+                    return ZMessage(
+                        success=False,
+                        action="VCRemote",
+                        message=f"密码加密失败: {encrypt_result.stderr}")
+
+                # 提取加密后的密码哈希（去除可能的多余输出）
+                password_hash = encrypt_result.stdout.strip()
+                logger.info(f"密码加密原始输出: {encrypt_result.stdout}")
+                logger.info(f"密码哈希: {password_hash}")
+
+                # 构建远程连接URL
+                remote_url = (
+                    f"http://localhost:{self.hs_config.remote_port}/Myrtille/?"
+                    f"__EVENTTARGET=&"
+                    f"__EVENTARGUMENT=&"
+                    f"vmGuid={vm_guid}&"
+                    f"server={self.hs_config.server_addr}&"
+                    f"user={self.hs_config.server_user}&"
+                    f"passwordHash={password_hash}&"
+                    f"width=1024&"
+                    f"height=768&"
+                    f"connect=Connect%21&"
+                    f"vmEnhancedMode=checked"
+                )
+
+                logger.info(f"虚拟机 {vm_uuid} 远程连接URL已生成")
+
+                return ZMessage(
+                    success=True,
+                    action="VCRemote",
+                    message=remote_url
+                )
+
+            finally:
+                # 断开连接
+                self.hyperv_api.disconnect()
+
+        except Exception as e:
+            traceback.print_exc()
+            logger.error(f"获取远程连接URL失败: {str(e)}")
+            return ZMessage(
+                success=False,
+                action="VCRemote",
+                message=f"获取远程连接URL失败: {str(e)}"
+            )
+
+    # 更新网络配置 ###############################################################
+    # Hyper-V专用的网络配置更新方法
+    ################################################################################
+    def IPUpdate(self, vm_conf: VMConfig, vm_last: VMConfig) -> ZMessage:
+        """更新Hyper-V虚拟机网络配置"""
+        try:
+            # 确保已连接到Hyper-V
+            if not self.hyperv_api.session and not self.hyperv_api.is_local:
+                connect_result = self.hyperv_api.connect()
+                if not connect_result.success:
+                    return ZMessage(
+                        success=False, action="IPUpdate",
+                        message=f"无法连接到Hyper-V: {connect_result.message}")
+
+            vm_name = vm_conf.vm_uuid
+
+            # 获取当前网络适配器列表（用于对比）
+            existing_adapters = []
+            if vm_last and vm_last.nic_all:
+                existing_adapters = list(vm_last.nic_all.keys())
+
+            # 获取新配置的网络适配器列表
+            new_adapters = []
+            if vm_conf.nic_all:
+                new_adapters = list(vm_conf.nic_all.keys())
+
+            all_success = True
+            error_message = ""
+
+            # 删除不再需要的网络适配器
+            for nic_name in existing_adapters:
+                if nic_name not in new_adapters:
+                    # 删除该网络适配器
+                    adapter_result = self.hyperv_api.remove_network_adapter(vm_name, nic_name)
+                    if not adapter_result.success:
+                        all_success = False
+                        if not error_message:
+                            error_message = f"删除网络适配器 {nic_name} 失败: {adapter_result.message}"
+                        logger.warning(f"删除网络适配器 {nic_name} 失败: {adapter_result.message}")
+
+            # 添加或更新网络适配器
+            for nic_name in new_adapters:
+                nic_data = vm_conf.nic_all[nic_name]
+
+                # 根据网卡类型确定虚拟交换机
+                nic_switch = None
+                if nic_data.nic_type == "nat":
+                    nic_switch = self.hs_config.network_nat if self.hs_config.network_nat else None
+                elif nic_data.nic_type == "pub":
+                    nic_switch = self.hs_config.network_pub if self.hs_config.network_pub else None
+
+                if not nic_switch:
+                    all_success = False
+                    if not error_message:
+                        error_message = f"网卡 {nic_name} 未找到对应的虚拟交换机配置 (nic_type={nic_data.nic_type})"
+                    logger.warning(f"网卡 {nic_name} 未找到对应的虚拟交换机配置 (nic_type={nic_data.nic_type})")
+                    continue
+
+                # 检查是新增还是更新
+                if nic_name in existing_adapters:
+                    # 更新现有网络适配器
+                    adapter_result = self.hyperv_api.set_network_adapter(
+                        vm_name,
+                        nic_switch,
+                        nic_data.mac_addr,
+                        nic_name
+                    )
+                    if adapter_result.success:
+                        logger.info(f"网络适配器 {nic_name} 更新成功")
+                    else:
+                        all_success = False
+                        if not error_message:
+                            error_message = f"网络适配器 {nic_name} 更新失败: {adapter_result.message}"
+                        logger.warning(f"网络适配器 {nic_name} 更新失败: {adapter_result.message}")
+                else:
+                    # 添加新的网络适配器
+                    adapter_result = self.hyperv_api.add_network_adapter(
+                        vm_name,
+                        nic_switch,
+                        nic_data.mac_addr,
+                        nic_name
+                    )
+                    if adapter_result.success:
+                        logger.info(f"网络适配器 {nic_name} 添加成功")
+                    else:
+                        all_success = False
+                        if not error_message:
+                            error_message = f"网络适配器 {nic_name} 添加失败: {adapter_result.message}"
+                        logger.warning(f"网络适配器 {nic_name} 添加失败: {adapter_result.message}")
+
+            if all_success:
+                return ZMessage(success=True, action="IPUpdate", message="网络配置更新成功")
+            else:
+                return ZMessage(success=False, action="IPUpdate", message=f"网络配置更新失败: {error_message}")
+
+        except Exception as e:
+            logger.error(f"更新网络配置失败: {str(e)}")
+            traceback.print_exc()
+            return ZMessage(success=False, action="IPUpdate", message=f"网络配置更新失败: {str(e)}")
