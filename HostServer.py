@@ -80,6 +80,7 @@ def index():
 
 # 登录页面 ####################################################################
 @app.route('/login', methods=['GET', 'POST'])
+@app.route('/api/login', methods=['GET', 'POST'])
 def login():
     try:
         if request.method == 'GET':
@@ -161,6 +162,7 @@ def login():
 
 # 退出登录 ####################################################################
 @app.route('/logout')
+@app.route('/api/logout')
 def logout():
     session.clear()
     return redirect(url_for('login'))
@@ -272,6 +274,7 @@ def profile_page():
 
 # 用户注册 ####################################################################
 @app.route('/register', methods=['GET', 'POST'])
+@app.route('/api/register', methods=['GET', 'POST'])
 def register():
     try:
         if request.method == 'GET':
@@ -936,6 +939,7 @@ def api_delete_vm(hs_name, vm_uuid):
 
 # 虚拟机所有者管理 ########################################################################
 @app.route('/api/client/owners/<hs_name>/<vm_uuid>', methods=['GET'])
+@app.route('/api/client/owners/detail/<hs_name>/<vm_uuid>', methods=['GET'])
 @require_auth
 def api_get_vm_owners(hs_name, vm_uuid):
     """获取虚拟机所有者列表"""
@@ -1178,6 +1182,12 @@ def api_admin_delete_proxy(hs_name, vm_uuid, proxy_index):
 # ============================================================================
 # 数据盘管理API
 # ============================================================================
+@app.route('/api/client/hdd/detail/<hs_name>/<vm_uuid>', methods=['GET'])
+@require_auth
+def api_get_vm_hdds(hs_name, vm_uuid):
+    """获取虚拟机数据盘列表"""
+    return rest_manager.get_vm_hdds(hs_name, vm_uuid)
+
 @app.route('/api/client/hdd/mount/<hs_name>/<vm_uuid>', methods=['POST'])
 @require_auth
 def api_mount_vm_hdd(hs_name, vm_uuid):
@@ -1209,6 +1219,12 @@ def api_delete_vm_hdd(hs_name, vm_uuid):
 # ============================================================================
 # ISO管理API
 # ============================================================================
+@app.route('/api/client/isos/detail/<hs_name>/<vm_uuid>', methods=['GET'])
+@require_auth
+def api_get_vm_isos(hs_name, vm_uuid):
+    """获取虚拟机ISO挂载列表"""
+    return rest_manager.get_vm_isos(hs_name, vm_uuid)
+
 @app.route('/api/client/iso/mount/<hs_name>/<vm_uuid>', methods=['POST'])
 @require_auth
 def api_mount_vm_iso(hs_name, vm_uuid):
@@ -1226,6 +1242,12 @@ def api_unmount_vm_iso(hs_name, vm_uuid, iso_name):
 # ============================================================================
 # 备份管理API
 # ============================================================================
+@app.route('/api/client/backup/detail/<hs_name>/<vm_uuid>', methods=['GET'])
+@require_auth
+def api_get_vm_backups(hs_name, vm_uuid):
+    """获取虚拟机备份列表"""
+    return rest_manager.get_vm_backups(hs_name, vm_uuid)
+
 @app.route('/api/client/backup/create/<hs_name>/<vm_uuid>', methods=['POST'])
 @require_auth
 def api_create_vm_backup(hs_name, vm_uuid):
