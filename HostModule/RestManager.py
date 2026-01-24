@@ -2830,6 +2830,32 @@ class RestManager:
     # 数据盘管理API - /api/client/hdd/<action>/<hs_name>/<vm_uuid>
     # ========================================================================
 
+    # 适配前端的新版数据盘管理接口 ########################################################
+
+    def get_vm_hdds(self, hs_name, vm_uuid):
+        """获取虚拟机数据盘列表"""
+        server = self.hs_manage.get_host(hs_name)
+        if not server:
+            return self.api_response(404, '主机不存在')
+
+        vm_config = server.vm_saving.get(vm_uuid)
+        if not vm_config:
+            return self.api_response(404, '虚拟机不存在')
+            
+        hdd_list = []
+        if hasattr(vm_config, 'hdd_all'):
+            # 必须保证顺序一致，以便通过索引删除
+            for i, (name, hdd) in enumerate(vm_config.hdd_all.items()):
+                info = {
+                    'hdd_index': i,
+                    'hdd_num': round(hdd.hdd_size / 1024, 2), # MB -> GB
+                    'hdd_path': hdd.hdd_name
+                }
+                hdd_list.append(info)
+                
+        return self.api_response(200, '获取成功', hdd_list)
+
+
     # 挂载数据盘 ########################################################################
     # :param hs_name: 主机名称
     # :param vm_uuid: 虚拟机UUID
@@ -3007,6 +3033,30 @@ class RestManager:
     # :param vm_uuid: 虚拟机UUID
     # :return: API响应
     # ####################################################################################
+    def get_vm_isos(self, hs_name, vm_uuid):
+        """获取虚拟机ISO挂载列表"""
+        server = self.hs_manage.get_host(hs_name)
+        if not server:
+            return self.api_response(404, '主机不存在')
+
+        vm_config = server.vm_saving.get(vm_uuid)
+        if not vm_config:
+            return self.api_response(404, '虚拟机不存在')
+
+        iso_list = []
+        if hasattr(vm_config, 'iso_all'):
+            # 必须保证顺序一致，以便通过索引删除
+            for i, (name, iso) in enumerate(vm_config.iso_all.items()):
+                info = {
+                    'iso_index': i,
+                    'iso_path': iso.iso_file,
+                    'iso_name': iso.iso_name,
+                    'iso_hint': iso.iso_hint
+                }
+                iso_list.append(info)
+        
+        return self.api_response(200, '获取成功', iso_list)
+
     def mount_vm_iso(self, hs_name, vm_uuid):
         """挂载ISO镜像到虚拟机"""
         server = self.hs_manage.get_host(hs_name)
@@ -3082,6 +3132,38 @@ class RestManager:
     # ========================================================================
     # 备份管理API - /api/client/backup/<action>/<hs_name>/<vm_uuid>
     # ========================================================================
+
+    # 获取备份列表 ####################################################################
+    # :param hs_name: 主机名称
+    # :param vm_uuid: 虚拟机UUID
+    # :return: API响应
+    # ####################################################################################
+    def get_vm_backups(self, hs_name, vm_uuid):
+        """获取虚拟机备份列表"""
+        server = self.hs_manage.get_host(hs_name)
+        if not server:
+            return self.api_response(404, '主机不存在')
+
+        vm_config = server.vm_saving.get(vm_uuid)
+        if not vm_config:
+            return self.api_response(404, '虚拟机不存在')
+
+        backup_list = []
+        if hasattr(vm_config, 'backups'):
+            for i, backup in enumerate(vm_config.backups):
+                # 格式化时间
+                backup_time_str = str(backup.backup_time)
+                
+                info = {
+                    'backup_index': i,
+                    'backup_name': backup.backup_name,
+                    'backup_path': '', # 暂时无法获取
+                    'created_time': backup_time_str,
+                    'size': '未知' # 暂时无法获取
+                }
+                backup_list.append(info)
+        
+        return self.api_response(200, '获取成功', backup_list)
 
     # 创建备份 ########################################################################
     # :param hs_name: 主机名称
