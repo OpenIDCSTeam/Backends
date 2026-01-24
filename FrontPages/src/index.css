@@ -1,0 +1,134 @@
+/* TailwindCSS基础样式 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 自定义字体定义 */
+@font-face {
+  font-family: 'MapleMonoNL';
+  src: url('/ttf/MapleMonoNL-NF-CN-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 全局样式 */
+@layer base {
+  /* 设置默认字体和平滑滚动 */
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+    font-family: 'MapleMonoNL', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  /* 代码元素使用等宽字体 */
+  code, pre, .font-mono {
+    font-family: 'MapleMonoNL', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
+  }
+
+  /* 自定义滚动条样式 */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full hover:bg-gray-400;
+  }
+}
+
+/* 自定义组件样式 */
+@layer components {
+  /* 卡片悬停效果 */
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+  }
+
+  /* 按钮悬停效果 */
+  .btn-hover {
+    @apply transition-all duration-200 active:scale-95;
+  }
+
+  /* 平滑过渡 */
+  .smooth-transition {
+    @apply transition-all duration-300 ease-in-out;
+  }
+
+  /* 自定义动画 */
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* 状态徽章 */
+  .status-badge {
+    @apply inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium;
+  }
+
+  .status-running {
+    @apply bg-green-100 text-green-700;
+  }
+
+  .status-stopped {
+    @apply bg-gray-100 text-gray-700;
+  }
+
+  .status-error {
+    @apply bg-red-100 text-red-700;
+  }
+
+  .status-pending {
+    @apply bg-yellow-100 text-yellow-700;
+  }
+}
+
+/* 工具类 */
+@layer utilities {
+  /* 文本省略 */
+  .text-ellipsis-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .text-ellipsis-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* 隐藏滚动条但保持滚动功能 */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Ant Design样式覆盖 */
+.ant-message {
+  z-index: 10000 !important;
+}
+
+.ant-modal-wrap {
+  z-index: 1000 !important;
+}
+
+.ant-drawer {
+  z-index: 1000 !important;
+}
+
+/* SweetAlert2样式覆盖 */
+.swal2-container {
+  z-index: 10000 !important;
+}
