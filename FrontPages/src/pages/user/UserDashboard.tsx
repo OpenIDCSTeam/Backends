@@ -56,7 +56,7 @@ const UserDashboard: React.FC = () => {
     
     return (
       <Col xs={24} sm={12} md={8} lg={6} style={{ marginBottom: 16 }}>
-        <Card title={title} bordered={false}>
+        <Card title={title} variant="borderless">
           <div style={{ textAlign: 'center' }}>
             <Progress type="dashboard" percent={isUnlimited ? 0 : percent} status={status} format={() => usedDisplay} />
             <div style={{ marginTop: 8 }}>

@@ -497,6 +497,18 @@ function Dashboard() {
   }
 
   /**
+   * 格式化存储容量显示
+   */
+  const formatStorage = (mb: number): string => {
+    if (!mb) return '0 MB'
+    if (mb < 1024) return `${mb} MB`
+    const gb = mb / 1024
+    if (gb < 1024) return `${gb.toFixed(1)} GB`
+    const tb = gb / 1024
+    return `${tb.toFixed(1)} TB`
+  }
+
+  /**
    * 获取虚拟机状态标签
    */
   const getVMStatusTag = (vm: VMInfo) => {
@@ -1019,12 +1031,12 @@ function Dashboard() {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item label="系统密码" name="os_pass">
-                <Input.Password placeholder="自动生成密码" />
+                <Input.Password placeholder="自动生成密码" autoComplete="new-password" />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item label="VNC密码" name="vc_pass">
-                <Input.Password placeholder="与系统密码一致" />
+                <Input.Password placeholder="与系统密码一致" autoComplete="new-password" />
               </Form.Item>
             </Col>
           </Row>

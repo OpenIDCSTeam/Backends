@@ -24,7 +24,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:1880', // Flask后端服务器地址（默认端口1880）
         changeOrigin: true,
-        // 不重写路径，保持/api前缀，因为后端路由也包含/api
+        //rewrite: (path) => path.replace(/^\/api/, ''), // 重写路径，移除/api前缀
       },
       // 静态资源代理（如果需要访问后端的static目录）
       '/static': {

@@ -285,6 +285,7 @@ function Login() {
               <Input
                 size="large"
                 placeholder="请输入用户名"
+                autoComplete="username"
                 style={{
                   borderRadius: '8px',
                   boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
@@ -306,6 +307,7 @@ function Login() {
               <Input.Password
                 size="large"
                 placeholder="请输入密码"
+                autoComplete="current-password"
                 style={{
                   borderRadius: '8px',
                   boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',

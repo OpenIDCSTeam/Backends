@@ -377,8 +377,8 @@ export const getVMHDDs = (hsName: string, vmUuid: string): Promise<ApiResponse<a
 /**
  * 添加硬盘
  */
-export const addHDD = (hsName: string, vmUuid: string, data: { hdd_size: number; hdd_hint?: string }): Promise<ApiResponse> => {
-  return http.post(`/api/client/hdd/create/${hsName}/${vmUuid}`, data);
+export const addHDD = (hsName: string, vmUuid: string, data: { hdd_size: number; hdd_name: string; hdd_type?: number }): Promise<ApiResponse> => {
+  return http.post(`/api/client/hdd/mount/${hsName}/${vmUuid}`, data);
 };
 
 /**
@@ -399,7 +399,7 @@ export const getVMOwners = (hsName: string, vmUuid: string): Promise<ApiResponse
  * 添加虚拟机分享用户
  */
 export const addVMOwner = (hsName: string, vmUuid: string, data: { username: string }): Promise<ApiResponse> => {
-  return http.post(`/api/client/owners/create/${hsName}/${vmUuid}`, data);
+  return http.post(`/api/client/owners/${hsName}/${vmUuid}`, data);
 };
 
 /**
