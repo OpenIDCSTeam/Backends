@@ -1374,3 +1374,104 @@ class vSphereAPI:
             logger.error(f"获取WebMKS票据失败: {str(e)}")
             return ZMessage(success=False, action="get_webmks_ticket",
                             message=f"获取WebMKS票据失败: {str(e)}")
+
+    def get_vm_screenshot(self, vm_name: str, screenshot_path: str) -> ZMessage:
+        """
+        获取虚拟机截图
+        
+        :param vm_name: 虚拟机名称
+        :param screenshot_path: 截图保存路径
+        :return: 操作结果
+        """
+        try:
+            vm = self.get_vm(vm_name)
+            if not vm:
+                return ZMessage(success=False, action="get_vm_screenshot",
+                                message=f"虚拟机 {vm_name} 不存在")
+            
+            # 检查虚拟机是否开机
+            if vm.runtime.powerState != vim.VirtualMachinePowerState.poweredOn:
+                return ZMessage(success=False, action="get_vm_screenshot",
+                                message=f"虚拟机 {vm_name} 未开机，无法获取截图")
+            
+            # 使用CreateScreenshot_Task方法获取截图
+            # 这个方法会在数据存储中创建一个截图文件
+            task = vm.CreateScreenshot_Task()
+            
+            # 等待任务完成
+            result = self._wait_for_task(task)
+            
+            if not result.success:
+                return ZMessage(success=False, action="get_vm_screenshot",
+                                message=f"创建截图任务失败: {result.message}")
+            
+            # 任务结果包含截图文件在数据存储中的路径
+            screenshot_datastore_path = result.results
+            
+            # 从数据存储下载截图文件
+            # 解析数据存储路径，格式：[datastore] path/to/screenshot.png
+            if not screenshot_datastore_path or '[' not in screenshot_datastore_path:
+                return ZMessage(success=False, action="get_vm_screenshot",
+                                message="截图文件路径格式错误")
+            
+            # 提取数据存储名称和文件路径
+            import re
+            match = re.match(r'\[([^\]]+)\]\s*(.+)', screenshot_datastore_path)
+            if not match:
+                return ZMessage(success=False, action="get_vm_screenshot",
+                                message="无法解析截图文件路径")
+            
+            datastore_name = match.group(1)
+            file_path = match.group(2).strip()
+            
+            # 构建下载URL
+            # ESXi的文件下载URL格式：https://host/folder/path?dcPath=ha-datacenter&dsName=datastore
+            import urllib.parse
+            download_url = (f"https://{self.host}/folder/{urllib.parse.quote(file_path)}"
+                           f"?dcPath=ha-datacenter&dsName={urllib.parse.quote(datastore_name)}")
+            
+            # 使用requests下载文件
+            import requests
+            import urllib3
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            
+            response = requests.get(
+                download_url,
+                auth=(self.user, self.password),
+                verify=False,
+                timeout=30
+            )
+            
+            if response.status_code != 200:
+                return ZMessage(success=False, action="get_vm_screenshot",
+                                message=f"下载截图文件失败，HTTP状态码: {response.status_code}")
+            
+            # 保存截图文件
+            with open(screenshot_path, 'wb') as f:
+                f.write(response.content)
+            
+            # 删除数据存储中的临时截图文件
+            try:
+                file_manager = self.content.fileManager
+                datacenter = self._get_obj(vim.Datacenter)
+                if isinstance(datacenter, list) and len(datacenter) > 0:
+                    datacenter = datacenter[0]
+                
+                delete_task = file_manager.DeleteDatastoreFile_Task(
+                    name=screenshot_datastore_path,
+                    datacenter=datacenter
+                )
+                self._wait_for_task(delete_task)
+            except Exception as e:
+                logger.warning(f"删除临时截图文件失败: {str(e)}")
+            
+            logger.info(f"成功获取虚拟机 {vm_name} 的截图")
+            return ZMessage(success=True, action="get_vm_screenshot",
+                            message="获取截图成功")
+        
+        except Exception as e:
+            logger.error(f"获取虚拟机截图失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return ZMessage(success=False, action="get_vm_screenshot",
+                            message=f"获取虚拟机截图失败: {str(e)}")

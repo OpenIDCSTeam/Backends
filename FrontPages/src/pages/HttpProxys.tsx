@@ -3,20 +3,15 @@ import { Table, Button, Space, Tag, Modal, Form, Input, InputNumber, message, Se
 import { PlusOutlined, DeleteOutlined, EditOutlined, ReloadOutlined, GlobalOutlined, LockOutlined, UnlockOutlined, CloudServerOutlined } from '@ant-design/icons'
 import api from '@/utils/apis.ts'
 import type { ColumnsType } from 'antd/es/table'
+import { ProxyConfig } from '@/types'
 
 /**
- * Web代理数据接口
+ * Web代理数据接口（扩展自ProxyConfig）
  */
-interface WebProxy {
-  host_name: string
-  vm_uuid: string
-  vm_name: string
-  proxy_index: number
-  domain: string
-  backend_ip: string
-  backend_port: number
-  ssl_enabled: boolean
-  description: string
+interface WebProxy extends ProxyConfig {
+  hostName: string
+  vmUuid: string
+  vmName?: string
 }
 
 /**
@@ -36,12 +31,13 @@ interface VM {
 }
 
 /**
- * Web反向代理管理页面
+ * Web反向代理管理页面（管理员）
+ * 可以管理所有虚拟机的反向代理配置
  */
 function HttpProxys() {
   // 状态管理
-  const [proxys, setProxys] = useState<WebProxy[]>([])
-  const [filteredProxys, setFilteredProxys] = useState<WebProxy[]>([])
+  const [proxies, setProxies] = useState<WebProxy[]>([])
+  const [filteredProxies, setFilteredProxies] = useState<WebProxy[]>([])
   const [hosts, setHosts] = useState<Host[]>([])
   const [vms, setVms] = useState<{ [key: string]: VM[] }>({})
   const [loading, setLoading] = useState(false)
@@ -90,64 +86,59 @@ function HttpProxys() {
   }
 
   /**
-   * 加载代理列表
+   * 加载代理列表（从所有虚拟机配置中获取）
    */
   const loadProxys = async () => {
+    setLoading(true)
     try {
-      setLoading(true)
-      
-      // 临时方案：通过遍历主机和虚拟机来获取代理列表
-      // TODO: 等待后端实现 /api/client/proxys/list 接口后可以直接调用
-      const proxyList: WebProxy[] = []
-      
-      // 获取所有主机
-      const hostsResponse = await api.getHosts()
-      if (hostsResponse.code === 200) {
-        const hostList = Array.isArray(hostsResponse.data) ? hostsResponse.data : []
-        
-        // 遍历每个主机获取虚拟机列表
-        for (const host of hostList) {
-          try {
-            const vmsResponse = await api.getVMs(host.server_name)
-            if (vmsResponse.code === 200 && Array.isArray(vmsResponse.data)) {
-              // 遍历每个虚拟机获取代理配置
-              for (const vm of vmsResponse.data) {
-                try {
-                  const proxysResponse = await api.getProxyConfigs(host.server_name, vm.vm_uuid)
-                  if (proxysResponse.code === 200 && Array.isArray(proxysResponse.data)) {
-                    // 将代理配置添加到列表中
-                    proxysResponse.data.forEach((proxy: any) => {
-                      proxyList.push({
-                        host_name: host.server_name,
-                        vm_uuid: vm.vm_uuid,
-                        vm_name: vm.vm_name || vm.vm_uuid,
-                        proxy_index: proxy.proxy_index,
-                        domain: proxy.domain,
-                        backend_ip: proxy.backend_ip || '',
-                        backend_port: proxy.backend_port,
-                        ssl_enabled: proxy.ssl_enabled || false,
-                        description: proxy.description || ''
-                      })
+      // 1. 获取所有主机
+      const hostsRes = await api.getHosts()
+      if (hostsRes.code !== 200 || !hostsRes.data) {
+        throw new Error('获取主机列表失败')
+      }
+      const hostsList = Object.keys(hostsRes.data)
+
+      const allProxies: WebProxy[] = []
+
+      // 2. 遍历主机获取VMs
+      for (const hostName of hostsList) {
+        try {
+          const vmsRes = await api.getVMs(hostName)
+          if (vmsRes.code === 200 && vmsRes.data) {
+            const vms = Array.isArray(vmsRes.data) ? vmsRes.data : Object.values(vmsRes.data)
+            
+            // 3. 遍历VMs获取Proxies
+            await Promise.all(vms.map(async (vm: any) => {
+              const vmUuid = vm.config?.vm_uuid || vm.uuid
+              const vmName = vm.config?.vm_name || vm.vm_name || vmUuid
+              try {
+                const proxyRes = await api.getProxyConfigs(hostName, vmUuid)
+                if (proxyRes.code === 200 && proxyRes.data) {
+                  proxyRes.data.forEach((p: ProxyConfig) => {
+                    allProxies.push({
+                      ...p,
+                      hostName,
+                      vmUuid,
+                      vmName
                     })
-                  }
-                } catch (error) {
-                  // 忽略单个虚拟机的错误，继续处理其他虚拟机
-                  console.error(`获取虚拟机 ${vm.vm_uuid} 的代理配置失败:`, error)
+                  })
                 }
+              } catch (e) {
+                // 忽略单个虚拟机的错误
+                console.error(`获取虚拟机 ${vmUuid} 的代理配置失败:`, e)
               }
-            }
-          } catch (error) {
-            // 忽略单个主机的错误，继续处理其他主机
-            console.error(`获取主机 ${host.server_name} 的虚拟机列表失败:`, error)
+            }))
           }
+        } catch (e) {
+          console.error(`获取主机 ${hostName} 数据失败`, e)
         }
       }
-      
-      setProxys(proxyList)
-      setFilteredProxys(proxyList)
+
+      setProxies(allProxies)
+      setFilteredProxies(allProxies)
     } catch (error) {
-      console.error('加载代理列表失败:', error)
-      message.error('加载代理列表失败')
+      console.error('获取反向代理失败', error)
+      message.error('获取数据失败')
     } finally {
       setLoading(false)
     }
@@ -162,20 +153,20 @@ function HttpProxys() {
    * 筛选代理列表
    */
   useEffect(() => {
-    let filtered = [...proxys]
+    let filtered = [...proxies]
     
     // 搜索筛选
     if (searchText) {
       const search = searchText.toLowerCase()
       filtered = filtered.filter(proxy => 
         proxy.domain.toLowerCase().includes(search) ||
-        proxy.vm_name.toLowerCase().includes(search)
+        (proxy.vmName && proxy.vmName.toLowerCase().includes(search))
       )
     }
     
     // 主机筛选
     if (hostFilter) {
-      filtered = filtered.filter(proxy => proxy.host_name === hostFilter)
+      filtered = filtered.filter(proxy => proxy.hostName === hostFilter)
     }
     
     // 协议筛选
@@ -187,17 +178,17 @@ function HttpProxys() {
       }
     }
     
-    setFilteredProxys(filtered)
-  }, [searchText, hostFilter, protocolFilter, proxys])
+    setFilteredProxies(filtered)
+  }, [searchText, hostFilter, protocolFilter, proxies])
 
   /**
    * 计算统计数据
    */
   const statistics = {
-    total: proxys.length,
-    http: proxys.filter(p => !p.ssl_enabled).length,
-    https: proxys.filter(p => p.ssl_enabled).length,
-    hosts: new Set(proxys.map(p => p.host_name)).size
+    total: proxies.length,
+    http: proxies.filter(p => !p.ssl_enabled).length,
+    https: proxies.filter(p => p.ssl_enabled).length,
+    hosts: new Set(proxies.map(p => p.hostName)).size
   }
 
   /**
@@ -218,10 +209,10 @@ function HttpProxys() {
     setEditingProxy(proxy)
     
     // 加载该主机的虚拟机列表
-    loadVMsForHost(proxy.host_name).then(() => {
+    loadVMsForHost(proxy.hostName).then(() => {
       form.setFieldsValue({
-        host_name: proxy.host_name,
-        vm_uuid: proxy.vm_uuid,
+        host_name: proxy.hostName,
+        vm_uuid: proxy.vmUuid,
         domain: proxy.domain,
         backend_ip: proxy.backend_ip,
         backend_port: proxy.backend_port,
@@ -251,8 +242,8 @@ function HttpProxys() {
       if (isEdit && editingProxy) {
         // 编辑模式
         const response = await api.updateWebProxy(
-          editingProxy.host_name,
-          editingProxy.vm_uuid,
+          editingProxy.hostName,
+          editingProxy.vmUuid,
           editingProxy.proxy_index,
           {
             domain: values.domain,
@@ -310,8 +301,8 @@ function HttpProxys() {
       onOk: async () => {
         try {
           const response = await api.deleteWebProxy(
-            proxy.host_name,
-            proxy.vm_uuid,
+            proxy.hostName,
+            proxy.vmUuid,
             proxy.proxy_index
           )
           if (response.code === 200) {
@@ -348,15 +339,15 @@ function HttpProxys() {
     },
     {
       title: '主机',
-      dataIndex: 'host_name',
-      key: 'host_name',
-      render: (name: string) => <Tag>{name}</Tag>
+      dataIndex: 'hostName',
+      key: 'hostName',
+      render: (name: string) => <Tag color="blue">{name}</Tag>
     },
     {
       title: '虚拟机',
-      dataIndex: 'vm_name',
-      key: 'vm_name',
-      render: (name: string) => <Tag color="default">{name}</Tag>
+      dataIndex: 'vmName',
+      key: 'vmName',
+      render: (name: string) => <Tag color="default">{name || '-'}</Tag>
     },
     {
       title: '后端地址',
@@ -376,6 +367,16 @@ function HttpProxys() {
           color={record.ssl_enabled ? 'success' : 'default'}
         >
           {record.ssl_enabled ? 'HTTPS' : 'HTTP'}
+        </Tag>
+      )
+    },
+    {
+      title: '状态',
+      dataIndex: 'enabled',
+      key: 'enabled',
+      render: (enabled: boolean) => (
+        <Tag color={enabled ? 'success' : 'error'}>
+          {enabled ? '已启用' : '已禁用'}
         </Tag>
       )
     },
@@ -535,8 +536,8 @@ function HttpProxys() {
       <Card>
         <Table
           columns={columns}
-          dataSource={filteredProxys}
-          rowKey={(record) => `${record.host_name}-${record.vm_uuid}-${record.proxy_index}`}
+          dataSource={filteredProxies}
+          rowKey={(record) => `${record.hostName}-${record.vmUuid}-${record.proxy_index}`}
           loading={loading}
           locale={{
             emptyText: (

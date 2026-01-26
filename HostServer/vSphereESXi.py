@@ -39,7 +39,7 @@ class HostServer(BasicServer):
             datastore_name=datastore_name
         )
 
-    # 辅助方法：获取虚拟机存储目录 #############################################
+    # 辅助方法 - 获取虚拟机存储目录 =============================================
     def _get_vm_directory(self) -> str:
         """
         从system_path获取虚拟机存储目录
@@ -48,6 +48,55 @@ class HostServer(BasicServer):
         if self.hs_config.system_path and '/' in self.hs_config.system_path:
             return self.hs_config.system_path.split('/', 1)[1]
         return ""  # 空字符串表示数据存储根目录
+
+    # 辅助方法 - 连接ESXi并执行操作 ============================================
+    def _execute_with_connection(self, operation_name: str, operation_func):
+        """
+        统一的连接管理模式：连接ESXi、执行操作、断开连接、处理异常
+        
+        :param operation_name: 操作名称（用于日志和错误消息）
+        :param operation_func: 操作函数，接收self作为参数
+        :return: ZMessage结果
+        """
+        try:
+            # 连接ESXi =========================================================
+            connect_result = self.esxi_api.connect()
+            if not connect_result.success:
+                return connect_result
+            
+            # 执行操作 =========================================================
+            result = operation_func()
+            
+            # 断开连接 =========================================================
+            self.esxi_api.disconnect()
+            
+            return result
+            
+        except Exception as e:
+            # 异常处理 =========================================================
+            logger.error(f"{operation_name}失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            try:
+                self.esxi_api.disconnect()
+            except:
+                pass
+            return ZMessage(
+                success=False, 
+                action=operation_name,
+                message=f"{operation_name}失败: {str(e)}")
+
+    # 辅助方法 - 检查虚拟机是否存在 ============================================
+    def _check_vm_exists(self, vm_name: str) -> tuple:
+        """
+        检查虚拟机是否存在
+        
+        :param vm_name: 虚拟机名称
+        :return: (是否存在, 虚拟机配置或None)
+        """
+        if vm_name not in self.vm_saving:
+            return False, None
+        return True, self.vm_saving[vm_name]
 
     # 读取远程 ######################################################################
     # 初始化WebMKS远程控制台（使用HttpManager反向代理）
@@ -69,40 +118,49 @@ class HostServer(BasicServer):
             f"（HttpManager端口: {self.hs_config.remote_port}）")
         return True
 
-    # 宿主机任务 ###############################################################
+    # 宿主机任务 ===============================================================
     def Crontabs(self) -> bool:
         # 专用操作 =============================================================
         # 获取远程ESXi主机状态并保存
         try:
+            # 获取主机状态 =====================================================
             hw_status = self.HSStatus()
             if hw_status:
                 from MainObject.Server.HSStatus import HSStatus
                 hs_status = HSStatus()
                 hs_status.hw_status = hw_status
+                
+                # 保存状态 =====================================================
                 self.host_set(hs_status)
                 logger.debug(f"[{self.hs_config.server_name}] ESXi远程主机状态已更新")
+                
         except Exception as e:
+            # 异常处理 =========================================================
             logger.error(f"[{self.hs_config.server_name}] 获取ESXi远程主机状态失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
         # 通用操作 =============================================================
         return True
 
-    # 宿主机状态 ###############################################################
+    # 宿主机状态 ===============================================================
     def HSStatus(self) -> HWStatus:
         # 专用操作 =============================================================
         # 获取远程ESXi主机状态
         try:
-            # 连接到ESXi
+            # 连接到ESXi =======================================================
             connect_result = self.esxi_api.connect()
             if not connect_result.success:
                 logger.error(f"无法连接到ESXi获取状态: {connect_result.message}")
                 return super().HSStatus()
 
-            # 获取主机状态
+            # 获取主机状态 =====================================================
             host_status = self.esxi_api.get_host_status()
 
-            # 断开连接
+            # 断开连接 =========================================================
             self.esxi_api.disconnect()
 
+            # 构建状态对象 =====================================================
             if host_status:
                 hw_status = HWStatus()
                 hw_status.cpu_usage = host_status.get("cpu_usage_percent", 0)
@@ -113,50 +171,69 @@ class HostServer(BasicServer):
                 hw_status.mem_usage = host_status.get("memory_used_mb", 0)
                 logger.debug(f"[{self.hs_config.server_name}] 获取ESXi远程主机状态成功")
                 return hw_status
+                
         except Exception as e:
+            # 异常处理 =========================================================
             logger.error(f"获取ESXi主机状态失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
 
         # 通用操作 =============================================================
         return super().HSStatus()
 
-    # 初始宿主机 ###############################################################
+    # 初始宿主机 ===============================================================
     def HSCreate(self) -> ZMessage:
         # 专用操作 =============================================================
         # ESXi不需要初始化操作，主机已经存在
         # 通用操作 =============================================================
         return super().HSCreate()
 
-    # 还原宿主机 ###############################################################
+    # 还原宿主机 ===============================================================
     def HSDelete(self) -> ZMessage:
         # 专用操作 =============================================================
         # ESXi不需要还原操作
         # 通用操作 =============================================================
         return super().HSDelete()
 
-    # 读取宿主机 ###############################################################
+    # 读取宿主机 ===============================================================
     def HSLoader(self) -> ZMessage:
         # 专用操作 =============================================================
-        # 测试连接到ESXi
-        result = self.esxi_api.connect()
-        if result.success:
-            self.esxi_api.disconnect()
-            logger.info(f"成功连接到ESXi主机: {self.hs_config.server_addr}")
-        else:
-            logger.error(f"无法连接到ESXi主机: {result.message}")
-            return result
+        try:
+            # 测试连接到ESXi ===================================================
+            result = self.esxi_api.connect()
+            if result.success:
+                self.esxi_api.disconnect()
+                logger.info(f"成功连接到ESXi主机: {self.hs_config.server_addr}")
+            else:
+                logger.error(f"无法连接到ESXi主机: {result.message}")
+                return result
+                
+        except Exception as e:
+            # 异常处理 =========================================================
+            logger.error(f"连接ESXi主机失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return ZMessage(success=False, action="HSLoader", message=str(e))
 
         # 通用操作 =============================================================
         return super().HSLoader()
 
-    # 卸载宿主机 ###############################################################
+    # 卸载宿主机 ===============================================================
     def HSUnload(self) -> ZMessage:
         # 专用操作 =============================================================
-        # 断开ESXi连接
-        self.esxi_api.disconnect()
+        try:
+            # 断开ESXi连接 =====================================================
+            self.esxi_api.disconnect()
+        except Exception as e:
+            # 异常处理 =========================================================
+            logger.error(f"断开ESXi连接失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
         # 通用操作 =============================================================
         return super().HSUnload()
 
-    # 虚拟机列出 ###############################################################
+    # 虚拟机列出 ===============================================================
     def VMStatus(self, vm_name: str = "",
                  s_t: int = None, e_t: int = None) -> dict[str, list[HWStatus]]:
 
@@ -165,45 +242,44 @@ class HostServer(BasicServer):
         # 通用操作 =============================================================
         return super().VMStatus(vm_name)
 
-    # 虚拟机扫描 ###############################################################
+    # 虚拟机扫描 ===============================================================
     def VMDetect(self) -> ZMessage:
         # 专用操作 =============================================================
         try:
-            # 连接到ESXi
+            # 连接到ESXi =======================================================
             connect_result = self.esxi_api.connect()
             if not connect_result.success:
                 return connect_result
 
+            # 获取虚拟机列表 ===================================================
             # 使用主机配置的filter_name作为前缀过滤
             filter_prefix = self.hs_config.filter_name if self.hs_config else ""
-
-            # 获取所有虚拟机列表
             vms_list = self.esxi_api.list_vms(filter_prefix)
 
             scanned_count = len(vms_list)
             added_count = 0
 
-            # 处理每个虚拟机
+            # 处理每个虚拟机 ===================================================
             for vm_info in vms_list:
                 vm_name = vm_info.get("name", "")
                 if not vm_name:
                     continue
 
-                # 检查是否已存在
+                # 检查是否已存在 ===============================================
                 if vm_name in self.vm_saving:
                     continue
 
-                # 创建默认虚拟机配置
+                # 创建默认虚拟机配置 ===========================================
                 default_vm_config = VMConfig()
                 default_vm_config.vm_uuid = vm_name
                 default_vm_config.cpu_num = vm_info.get("cpu", 1)
                 default_vm_config.mem_num = vm_info.get("memory_mb", 1024)
 
-                # 添加到服务器的虚拟机配置中
+                # 添加到服务器的虚拟机配置中 ===================================
                 self.vm_saving[vm_name] = default_vm_config
                 added_count += 1
 
-                # 记录日志
+                # 记录日志 =====================================================
                 log_msg = ZMessage(
                     success=True,
                     action="VScanner",
@@ -217,10 +293,10 @@ class HostServer(BasicServer):
                 )
                 self.push_log(log_msg)
 
-            # 断开连接
+            # 断开连接 =========================================================
             self.esxi_api.disconnect()
 
-            # 保存到数据库
+            # 保存到数据库 =====================================================
             if added_count > 0:
                 success = self.data_set()
                 if not success:
@@ -228,7 +304,7 @@ class HostServer(BasicServer):
                         success=False, action="VScanner",
                         message="Failed to save scanned DockManage to database")
 
-            # 返回成功消息
+            # 返回成功消息 =====================================================
             return ZMessage(
                 success=True,
                 action="VScanner",
@@ -241,16 +317,23 @@ class HostServer(BasicServer):
             )
 
         except Exception as e:
-            self.esxi_api.disconnect()
+            # 异常处理 =========================================================
+            logger.error(f"扫描虚拟机失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            try:
+                self.esxi_api.disconnect()
+            except:
+                pass
             return ZMessage(success=False, action="VScanner",
                             message=f"扫描虚拟机时出错: {str(e)}")
 
         # 通用操作 =============================================================
         # return ZMessage(success=False, action="VScanner", message="Not implemented")
 
-    # 创建虚拟机 ###############################################################
+    # 创建虚拟机 ===============================================================
     def VMCreate(self, vm_conf: VMConfig) -> ZMessage:
-        # 网络检查和IP分配
+        # 网络检查和IP分配 =====================================================
         vm_conf, net_result = self.NetCheck(vm_conf)
         if not net_result.success:
             return net_result
@@ -258,18 +341,18 @@ class HostServer(BasicServer):
 
         # 专用操作 =============================================================
         try:
-            # 连接到ESXi
+            # 连接到ESXi =======================================================
             connect_result = self.esxi_api.connect()
             if not connect_result.success:
                 return connect_result
 
-            # 创建虚拟机
+            # 创建虚拟机 =======================================================
             create_result = self.esxi_api.create_vm(vm_conf, self.hs_config)
             if not create_result.success:
                 self.esxi_api.disconnect()
                 return create_result
 
-            # 如果有系统镜像，安装系统
+            # 安装系统 =========================================================
             if vm_conf.os_name:
                 install_result = self.VMSetups(vm_conf)
                 if not install_result.success:
@@ -278,16 +361,23 @@ class HostServer(BasicServer):
                     self.esxi_api.disconnect()
                     return install_result
 
-            # 启动虚拟机
+            # 启动虚拟机 =======================================================
             self.esxi_api.power_on(vm_conf.vm_uuid)
 
-            # 断开连接
+            # 断开连接 =========================================================
             self.esxi_api.disconnect()
 
             logger.info(f"虚拟机 {vm_conf.vm_uuid} 创建成功")
 
         except Exception as e:
-            self.esxi_api.disconnect()
+            # 异常处理 =========================================================
+            logger.error(f"虚拟机创建失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            try:
+                self.esxi_api.disconnect()
+            except:
+                pass
             # 创建失败时清理
             hs_result = ZMessage(
                 success=False, action="VMCreate",
@@ -311,7 +401,7 @@ class HostServer(BasicServer):
 
         return result
 
-    # 安装虚拟机 ###############################################################
+    # 安装虚拟机 ===============================================================
     def VMSetups(self, vm_conf: VMConfig) -> ZMessage:
         # 专用操作 =============================================================
         # 注意：硬盘已经在create_vm时分配，这里只需要返回成功
@@ -321,16 +411,19 @@ class HostServer(BasicServer):
             return ZMessage(success=True, action="VInstall",
                             message="系统安装完成")
         except Exception as e:
+            # 异常处理 =========================================================
             logger.error(f"安装虚拟机失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return ZMessage(success=False, action="VInstall",
                             message=f"安装失败: {str(e)}")
 
         # 通用操作 =============================================================
         # return super().VInstall(vm_conf)
 
-    # 配置虚拟机 ###############################################################
+    # 配置虚拟机 ===============================================================
     def VMUpdate(self, vm_conf: VMConfig, vm_last: VMConfig) -> ZMessage:
-        # 网络检查
+        # 网络检查 =============================================================
         vm_conf, net_result = self.NetCheck(vm_conf)
         if not net_result.success:
             return net_result
@@ -338,44 +431,45 @@ class HostServer(BasicServer):
 
         # 专用操作 =============================================================
         try:
-            # 连接到ESXi
+            # 连接到ESXi =======================================================
             connect_result = self.esxi_api.connect()
             if not connect_result.success:
                 return connect_result
 
-            # 检查虚拟机是否存在
+            # 检查虚拟机是否存在 ===============================================
             if vm_conf.vm_uuid not in self.vm_saving:
                 self.esxi_api.disconnect()
                 return ZMessage(
                     success=False, action="VMUpdate",
                     message=f"虚拟机 {vm_conf.vm_uuid} 不存在")
 
-            # 更新虚拟机配置存储
+            # 更新虚拟机配置存储 ===============================================
             self.vm_saving[vm_conf.vm_uuid] = vm_conf
 
-            # 关闭虚拟机（ESXi需要关机才能修改配置）
+            # 关闭虚拟机 =======================================================
+            # ESXi需要关机才能修改配置
             self.esxi_api.power_off(vm_conf.vm_uuid)
 
-            # 重装系统
+            # 重装系统 =========================================================
             if vm_conf.os_name != vm_last.os_name and vm_last.os_name != "":
                 install_result = self.VMSetups(vm_conf)
                 if not install_result.success:
                     self.esxi_api.disconnect()
                     return install_result
 
-            # 更新CPU和内存配置
+            # 更新CPU和内存配置 ================================================
             if vm_conf.cpu_num != vm_last.cpu_num or vm_conf.mem_num != vm_last.mem_num:
                 update_result = self.esxi_api.update_vm_config(vm_conf.vm_uuid, vm_conf)
                 if not update_result.success:
                     self.esxi_api.disconnect()
                     return update_result
 
-            # 更新硬盘（如果需要扩容）
+            # 更新硬盘 =========================================================
             if vm_conf.hdd_num > vm_last.hdd_num:
                 # TODO: 实现磁盘扩容
                 logger.warning("ESXi磁盘扩容功能待实现")
 
-            # 更新网卡（先更新ESXi虚拟机的网卡设备，再更新网络绑定）
+            # 更新网卡设备 =====================================================
             network_result = self.esxi_api.update_network_adapters(vm_conf.vm_uuid, vm_conf, vm_last, self.hs_config)
             if not network_result.success:
                 self.esxi_api.disconnect()
@@ -383,7 +477,7 @@ class HostServer(BasicServer):
                     success=False, action="VMUpdate",
                     message=f"虚拟机 {vm_conf.vm_uuid} 网卡设备更新失败: {network_result.message}")
 
-            # 更新网络绑定（IP-MAC映射）
+            # 更新网络绑定 =====================================================
             binding_result = self.IPUpdate(vm_conf, vm_last)
             if not binding_result.success:
                 self.esxi_api.disconnect()
@@ -391,7 +485,7 @@ class HostServer(BasicServer):
                     success=False, action="VMUpdate",
                     message=f"虚拟机 {vm_conf.vm_uuid} 网络绑定更新失败: {binding_result.message}")
 
-            # 启动虚拟机
+            # 启动虚拟机 =======================================================
             start_result = self.esxi_api.power_on(vm_conf.vm_uuid)
             if not start_result.success:
                 self.esxi_api.disconnect()
@@ -399,11 +493,18 @@ class HostServer(BasicServer):
                     success=False, action="VMUpdate",
                     message=f"虚拟机 {vm_conf.vm_uuid} 启动失败: {start_result.message}")
 
-            # 断开连接
+            # 断开连接 =========================================================
             self.esxi_api.disconnect()
 
         except Exception as e:
-            self.esxi_api.disconnect()
+            # 异常处理 =========================================================
+            logger.error(f"虚拟机配置更新失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            try:
+                self.esxi_api.disconnect()
+            except:
+                pass
             return ZMessage(
                 success=False, action="VMUpdate",
                 message=f"虚拟机配置更新失败: {str(e)}")
@@ -411,38 +512,48 @@ class HostServer(BasicServer):
         # 通用操作 =============================================================
         return super().VMUpdate(vm_conf, vm_last)
 
-    # 删除虚拟机 ###############################################################
+    # 删除虚拟机 ===============================================================
     def VMDelete(self, vm_name: str, rm_back=True) -> ZMessage:
         # 专用操作 =============================================================
         try:
+            # 检查虚拟机是否存在 ===============================================
             vm_conf = self.VMSelect(vm_name)
             if vm_conf is None:
-                self.esxi_api.disconnect()
                 return ZMessage(
                     success=False,
                     action="VMDelete",
                     message=f"虚拟机 {vm_name} 不存在")
 
-            # 连接到ESXi
+            # 连接到ESXi =======================================================
             connect_result = self.esxi_api.connect()
             if not connect_result.success:
                 return connect_result
 
-            # 删除网络绑定
+            # 删除网络绑定 =====================================================
             self.IPBinder(vm_conf, False)
 
-            # 删除虚拟机
+            # 删除虚拟机 =======================================================
             delete_result = self.esxi_api.delete_vm(vm_name)
 
-            # 断开连接
+            # 断开连接 =========================================================
             self.esxi_api.disconnect()
+            
+            # 更新配置 =========================================================
             self.vm_saving.pop(vm_name)
             self.data_set()
+            
             if not delete_result.success:
                 return delete_result
 
         except Exception as e:
-            self.esxi_api.disconnect()
+            # 异常处理 =========================================================
+            logger.error(f"删除虚拟机失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            try:
+                self.esxi_api.disconnect()
+            except:
+                pass
             return ZMessage(
                 success=False, action="VMDelete",
                 message=f"删除虚拟机失败: {str(e)}")
@@ -451,16 +562,16 @@ class HostServer(BasicServer):
         super().VMDelete(vm_name)
         return ZMessage(success=True, action="VMDelete", message="虚拟机删除成功")
 
-    # 虚拟机电源 ###############################################################
+    # 虚拟机电源 ===============================================================
     def VMPowers(self, vm_name: str, power: VMPowers) -> ZMessage:
         # 专用操作 =============================================================
         try:
-            # 连接到ESXi
+            # 连接到ESXi =======================================================
             connect_result = self.esxi_api.connect()
             if not connect_result.success:
                 return connect_result
 
-            # 执行电源操作
+            # 执行电源操作 =====================================================
             if power == VMPowers.S_START:
                 hs_result = self.esxi_api.power_on(vm_name)
             elif power == VMPowers.H_CLOSE:
@@ -474,13 +585,21 @@ class HostServer(BasicServer):
                     success=False, action="VMPowers",
                     message=f"不支持的电源操作: {power}")
 
-            # 断开连接
+            # 断开连接 =========================================================
             self.esxi_api.disconnect()
 
+            # 记录日志 =========================================================
             self.logs_set(hs_result)
 
         except Exception as e:
-            self.esxi_api.disconnect()
+            # 异常处理 =========================================================
+            logger.error(f"电源操作失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            try:
+                self.esxi_api.disconnect()
+            except:
+                pass
             hs_result = ZMessage(
                 success=False, action="VMPowers",
                 message=f"电源操作失败: {str(e)}")
@@ -490,39 +609,40 @@ class HostServer(BasicServer):
         super().VMPowers(vm_name, power)
         return hs_result
 
-    # 设置虚拟机密码 ###########################################################
+    # 设置虚拟机密码 ===========================================================
     def VMPasswd(self, vm_name: str, os_pass: str) -> ZMessage:
         # 专用操作 =============================================================
         # ESXi通过guest tools设置密码，这里使用父类的实现
         # 通用操作 =============================================================
         return super().VMPasswd(vm_name, os_pass)
 
-    # 备份虚拟机 ###############################################################
+    # 备份虚拟机 ===============================================================
     def VMBackup(self, vm_name: str, vm_tips: str) -> ZMessage:
         # 专用操作 =============================================================
         try:
+            # 生成备份名称 =========================================================
             bak_time = datetime.datetime.now()
             bak_name = vm_name + "-" + bak_time.strftime("%Y%m%d%H%M%S")
 
-            # 连接到ESXi
+            # 连接到ESXi =======================================================
             connect_result = self.esxi_api.connect()
             if not connect_result.success:
                 return connect_result
 
-            # 创建快照作为备份
+            # 创建快照作为备份 =====================================================
             snapshot_result = self.esxi_api.create_snapshot(
                 vm_name,
                 bak_name,
                 vm_tips
             )
 
-            # 断开连接
+            # 断开连接 =========================================================
             self.esxi_api.disconnect()
 
             if not snapshot_result.success:
                 return snapshot_result
 
-            # 记录备份信息
+            # 记录备份信息 =========================================================
             if vm_name in self.vm_saving:
                 self.vm_saving[vm_name].backups.append(
                     VMBackup(
@@ -537,26 +657,33 @@ class HostServer(BasicServer):
                             message=f"虚拟机备份成功: {bak_name}")
 
         except Exception as e:
-            self.esxi_api.disconnect()
+            # 异常处理 =========================================================
+            logger.error(f"备份失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            try:
+                self.esxi_api.disconnect()
+            except:
+                pass
             return ZMessage(success=False, action="VMBackup",
                             message=f"备份失败: {str(e)}")
 
         # 通用操作 =============================================================
         # return super().VMBackup(vm_name, vm_tips)
 
-    # 恢复虚拟机 ###############################################################
+    # 恢复虚拟机 ===============================================================
     def Restores(self, vm_name: str, vm_back: str) -> ZMessage:
         # 专用操作 =============================================================
         try:
-            # 连接到ESXi
+            # 连接到ESXi =======================================================
             connect_result = self.esxi_api.connect()
             if not connect_result.success:
                 return connect_result
 
-            # 恢复快照
+            # 恢复快照 =========================================================
             restore_result = self.esxi_api.revert_snapshot(vm_name, vm_back)
 
-            # 断开连接
+            # 断开连接 =========================================================
             self.esxi_api.disconnect()
 
             if not restore_result.success:
@@ -566,31 +693,39 @@ class HostServer(BasicServer):
                             message=f"虚拟机恢复成功: {vm_back}")
 
         except Exception as e:
-            self.esxi_api.disconnect()
+            # 异常处理 =========================================================
+            logger.error(f"恢复失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            try:
+                self.esxi_api.disconnect()
+            except:
+                pass
             return ZMessage(success=False, action="Restores",
                             message=f"恢复失败: {str(e)}")
 
         # 通用操作 =============================================================
         # return super().Restores(vm_name, vm_back)
 
-    # VM镜像挂载 ###############################################################
+    # VM镜像挂载 ===============================================================
     def HDDMount(self, vm_name: str, vm_imgs: SDConfig, in_flag=True) -> ZMessage:
         # 专用操作 =============================================================
         try:
+            # 检查虚拟机是否存在 ===============================================
             if vm_name not in self.vm_saving:
                 return ZMessage(
                     success=False, action="HDDMount", message="虚拟机不存在")
 
-            # 连接到ESXi
+            # 连接到ESXi =======================================================
             connect_result = self.esxi_api.connect()
             if not connect_result.success:
                 return connect_result
 
-            # 关闭虚拟机
+            # 关闭虚拟机 =======================================================
             self.esxi_api.power_off(vm_name)
 
-            if in_flag:  # 挂载磁盘
-                # 添加磁盘
+            if in_flag:  # 挂载磁盘 =============================================
+                # 添加磁盘 =====================================================
                 add_result = self.esxi_api.add_disk(
                     vm_name,
                     vm_imgs.hdd_size,
@@ -602,7 +737,7 @@ class HostServer(BasicServer):
 
                 vm_imgs.hdd_flag = 1
                 self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name] = vm_imgs
-            else:  # 卸载磁盘
+            else:  # 卸载磁盘 ===================================================
                 if vm_imgs.hdd_name not in self.vm_saving[vm_name].hdd_all:
                     self.esxi_api.power_on(vm_name)
                     self.esxi_api.disconnect()
@@ -612,13 +747,13 @@ class HostServer(BasicServer):
                 # TODO: 实现磁盘卸载
                 self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name].hdd_flag = 0
 
-            # 启动虚拟机
+            # 启动虚拟机 =======================================================
             self.esxi_api.power_on(vm_name)
 
-            # 断开连接
+            # 断开连接 =========================================================
             self.esxi_api.disconnect()
 
-            # 保存配置
+            # 保存配置 =========================================================
             self.data_set()
 
             action_text = "挂载" if in_flag else "卸载"
@@ -628,7 +763,14 @@ class HostServer(BasicServer):
                 message=f"磁盘{action_text}成功")
 
         except Exception as e:
-            self.esxi_api.disconnect()
+            # 异常处理 =========================================================
+            logger.error(f"磁盘操作失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            try:
+                self.esxi_api.disconnect()
+            except:
+                pass
             return ZMessage(
                 success=False, action="HDDMount",
                 message=f"磁盘操作失败: {str(e)}")
@@ -636,28 +778,29 @@ class HostServer(BasicServer):
         # 通用操作 =============================================================
         # return super().HDDMount(vm_name, vm_imgs, in_flag)
 
-    # ISO镜像挂载 ##############################################################
+    # ISO镜像挂载 ==============================================================
     def ISOMount(self, vm_name: str, vm_imgs: IMConfig, in_flag=True) -> ZMessage:
         # 专用操作 =============================================================
         try:
+            # 检查虚拟机是否存在 ===============================================
             if vm_name not in self.vm_saving:
                 return ZMessage(
                     success=False, action="ISOMount", message="虚拟机不存在")
 
-            # 连接到ESXi
+            # 连接到ESXi =======================================================
             connect_result = self.esxi_api.connect()
             if not connect_result.success:
                 return connect_result
 
             logger.info(f"准备{'挂载' if in_flag else '卸载'}ISO: {vm_imgs.iso_name}")
 
-            # 关闭虚拟机
+            # 关闭虚拟机 =======================================================
             self.esxi_api.power_off(vm_name)
 
-            if in_flag:  # 挂载ISO
-                # ISO文件路径，从dvdrom_path配置读取
+            if in_flag:  # 挂载ISO =============================================
+                # 构建ISO文件路径 =============================================
                 # dvdrom_path格式: datastore1/images
-                if self.hs_config.dvdrom_path and '/' in self.hs_config.dvdrom_path:  # 使用dvdrom_path存储光盘镜像
+                if self.hs_config.dvdrom_path and '/' in self.hs_config.dvdrom_path:
                     images_parts = self.hs_config.dvdrom_path.split('/', 1)
                     iso_datastore = images_parts[0]
                     iso_dir = images_parts[1]
@@ -667,14 +810,14 @@ class HostServer(BasicServer):
 
                 iso_path = f"[{iso_datastore}] {iso_dir}/{vm_imgs.iso_file}"
 
-                # 挂载ISO
+                # 挂载ISO =======================================================
                 attach_result = self.esxi_api.attach_iso(vm_name, iso_path)
                 if not attach_result.success:
                     self.esxi_api.power_on(vm_name)
                     self.esxi_api.disconnect()
                     return attach_result
 
-                # 检查挂载名称是否已存在
+                # 检查挂载名称是否已存在 =======================================
                 if vm_imgs.iso_name in self.vm_saving[vm_name].iso_all:
                     self.esxi_api.power_on(vm_name)
                     self.esxi_api.disconnect()
@@ -683,7 +826,7 @@ class HostServer(BasicServer):
 
                 self.vm_saving[vm_name].iso_all[vm_imgs.iso_name] = vm_imgs
                 logger.info(f"ISO挂载成功: {vm_imgs.iso_name} -> {vm_imgs.iso_file}")
-            else:  # 卸载ISO
+            else:  # 卸载ISO ===================================================
                 if vm_imgs.iso_name not in self.vm_saving[vm_name].iso_all:
                     self.esxi_api.power_on(vm_name)
                     self.esxi_api.disconnect()
@@ -694,13 +837,13 @@ class HostServer(BasicServer):
                 del self.vm_saving[vm_name].iso_all[vm_imgs.iso_name]
                 logger.info(f"ISO卸载成功: {vm_imgs.iso_name}")
 
-            # 启动虚拟机
+            # 启动虚拟机 =======================================================
             self.esxi_api.power_on(vm_name)
 
-            # 断开连接
+            # 断开连接 =========================================================
             self.esxi_api.disconnect()
 
-            # 保存配置
+            # 保存配置 =========================================================
             self.data_set()
 
             action_text = "挂载" if in_flag else "卸载"
@@ -710,7 +853,14 @@ class HostServer(BasicServer):
                 message=f"ISO镜像{action_text}成功")
 
         except Exception as e:
-            self.esxi_api.disconnect()
+            # 异常处理 =========================================================
+            logger.error(f"ISO操作失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            try:
+                self.esxi_api.disconnect()
+            except:
+                pass
             return ZMessage(
                 success=False, action="ISOMount",
                 message=f"ISO操作失败: {str(e)}")
@@ -718,28 +868,28 @@ class HostServer(BasicServer):
         # 通用操作 =============================================================
         # return super().ISOMount(vm_name, vm_imgs, in_flag)
 
-    # 加载备份 #################################################################
+    # 加载备份 =================================================================
     def LDBackup(self, vm_back: str = "") -> ZMessage:
         # 专用操作 =============================================================
         try:
-            # 连接到ESXi
+            # 连接到ESXi =======================================================
             connect_result = self.esxi_api.connect()
             if not connect_result.success:
                 return connect_result
 
-            # 清空现有备份记录
+            # 清空现有备份记录 =====================================================
             for vm_name in self.vm_saving:
                 self.vm_saving[vm_name].backups = []
 
             bal_nums = 0
 
-            # 遍历所有虚拟机，获取快照信息
+            # 遍历所有虚拟机，获取快照信息 =======================================
             for vm_name in self.vm_saving:
                 vm = self.esxi_api.get_vm(vm_name)
                 if not vm or not hasattr(vm, 'snapshot') or not vm.snapshot:
                     continue
 
-                # 递归获取所有快照
+                # 递归获取所有快照 =============================================
                 snapshots = self._get_all_snapshots(vm.snapshot.rootSnapshotList)
 
                 for snapshot in snapshots:
@@ -760,10 +910,10 @@ class HostServer(BasicServer):
                         except ValueError:
                             logger.warning(f"无法解析快照时间: {snap_name}")
 
-            # 断开连接
+            # 断开连接 =========================================================
             self.esxi_api.disconnect()
 
-            # 保存配置
+            # 保存配置 =========================================================
             self.data_set()
 
             return ZMessage(
@@ -772,7 +922,14 @@ class HostServer(BasicServer):
                 message=f"{bal_nums}个备份快照已加载")
 
         except Exception as e:
-            self.esxi_api.disconnect()
+            # 异常处理 =========================================================
+            logger.error(f"加载备份失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            try:
+                self.esxi_api.disconnect()
+            except:
+                pass
             return ZMessage(
                 success=False, action="LDBackup",
                 message=f"加载备份失败: {str(e)}")
@@ -780,6 +937,7 @@ class HostServer(BasicServer):
         # 通用操作 =============================================================
         # return super().LDBackup(vm_back)
 
+    # 辅助方法 - 递归获取所有快照 ============================================
     def _get_all_snapshots(self, snapshot_list):
         """递归获取所有快照"""
         snapshots = []
@@ -789,11 +947,11 @@ class HostServer(BasicServer):
                 snapshots.extend(self._get_all_snapshots(snapshot.childSnapshotList))
         return snapshots
 
-    # 移除备份 #################################################################
+    # 移除备份 =================================================================
     def RMBackup(self, vm_name: str, vm_back: str = "") -> ZMessage:
         # 专用操作 =============================================================
         try:
-            # 从备份名称中提取虚拟机名称
+            # 从备份名称中提取虚拟机名称 =======================================
             parts = vm_back.split("-")
             if len(parts) < 2:
                 return ZMessage(
@@ -802,21 +960,21 @@ class HostServer(BasicServer):
 
             vm_name = parts[0]
 
-            # 连接到ESXi
+            # 连接到ESXi =======================================================
             connect_result = self.esxi_api.connect()
             if not connect_result.success:
                 return connect_result
 
-            # 删除快照
+            # 删除快照 =========================================================
             delete_result = self.esxi_api.delete_snapshot(vm_name, vm_back)
 
-            # 断开连接
+            # 断开连接 =========================================================
             self.esxi_api.disconnect()
 
             if not delete_result.success:
                 return delete_result
 
-            # 从配置中移除备份记录
+            # 从配置中移除备份记录 =============================================
             if vm_name in self.vm_saving:
                 self.vm_saving[vm_name].backups = [
                     b for b in self.vm_saving[vm_name].backups
@@ -829,7 +987,14 @@ class HostServer(BasicServer):
                 message="备份快照已删除")
 
         except Exception as e:
-            self.esxi_api.disconnect()
+            # 异常处理 =========================================================
+            logger.error(f"删除备份失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            try:
+                self.esxi_api.disconnect()
+            except:
+                pass
             return ZMessage(
                 success=False, action="RMBackup",
                 message=f"删除备份失败: {str(e)}")
@@ -837,10 +1002,11 @@ class HostServer(BasicServer):
         # 通用操作 =============================================================
         # return super().RMBackup(vm_back)
 
-    # 移除磁盘 #################################################################
+    # 移除磁盘 =================================================================
     def RMMounts(self, vm_name: str, vm_imgs: str) -> ZMessage:
         # 专用操作 =============================================================
         try:
+            # 检查虚拟机是否存在 ===============================================
             if vm_name not in self.vm_saving:
                 return ZMessage(
                     success=False, action="RMMounts", message="虚拟机不存在")
@@ -848,16 +1014,16 @@ class HostServer(BasicServer):
                 return ZMessage(
                     success=False, action="RMMounts", message="虚拟盘不存在")
 
-            # 获取虚拟磁盘数据
+            # 获取虚拟磁盘数据 =================================================
             hd_data = self.vm_saving[vm_name].hdd_all[vm_imgs]
 
-            # 卸载虚拟磁盘
+            # 卸载虚拟磁盘 =====================================================
             if hd_data.hdd_flag == 1:
                 unmount_result = self.HDDMount(vm_name, hd_data, False)
                 if not unmount_result.success:
                     return unmount_result
 
-            # 从配置中移除
+            # 从配置中移除 =====================================================
             self.vm_saving[vm_name].hdd_all.pop(vm_imgs)
             self.data_set()
 
@@ -868,6 +1034,10 @@ class HostServer(BasicServer):
                 message="磁盘删除成功")
 
         except Exception as e:
+            # 异常处理 =========================================================
+            logger.error(f"删除磁盘失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return ZMessage(
                 success=False, action="RMMounts",
                 message=f"删除磁盘失败: {str(e)}")
@@ -875,7 +1045,7 @@ class HostServer(BasicServer):
         # 通用操作 =============================================================
         # return super().RMMounts(vm_name, vm_imgs)
 
-    # 查找显卡 #################################################################
+    # 查找显卡 =================================================================
     def GPUShows(self) -> dict[str, str]:
         # 专用操作 =============================================================
         # ESXi的GPU直通需要特殊配置，这里返回空字典
@@ -883,7 +1053,7 @@ class HostServer(BasicServer):
         # 通用操作 =============================================================
         return {}
 
-    # 虚拟机截图 #################################################################
+    # 虚拟机截图 ===============================================================
     def VMScreen(self, vm_name: str = "") -> str:
         """获取虚拟机截图
         
@@ -893,31 +1063,31 @@ class HostServer(BasicServer):
         try:
             logger.info(f"[{self.hs_config.server_name}] 开始获取虚拟机 {vm_name} 截图")
             
-            # 1. 检查虚拟机是否存在
+            # 检查虚拟机是否存在 ===============================================
             if vm_name not in self.vm_saving:
                 logger.error(f"[{self.hs_config.server_name}] 虚拟机 {vm_name} 不存在")
                 return ""
             
-            # 2. 连接到ESXi
+            # 连接到ESXi =======================================================
             connect_result = self.esxi_api.connect()
             if not connect_result.success:
                 logger.error(f"[{self.hs_config.server_name}] 无法连接到ESXi获取截图: {connect_result.message}")
                 return ""
             
-            # 3. 获取虚拟机对象
+            # 获取虚拟机对象 ===================================================
             vm = self.esxi_api.get_vm(vm_name)
             if not vm:
                 self.esxi_api.disconnect()
                 logger.error(f"[{self.hs_config.server_name}] 未找到虚拟机 {vm_name}")
                 return ""
             
-            # 4. 检查虚拟机是否正在运行
+            # 检查虚拟机是否正在运行 ===========================================
             if vm.runtime.powerState != "poweredOn":
                 self.esxi_api.disconnect()
                 logger.warning(f"[{self.hs_config.server_name}] 虚拟机 {vm_name} 未运行，无法获取截图")
                 return ""
             
-            # 5. 使用vSphere API获取截图
+            # 使用vSphere API获取截图 =========================================
             import tempfile
             import os
             import base64
@@ -928,18 +1098,19 @@ class HostServer(BasicServer):
             # 使用vSphere API的CreateScreenshot_Task方法获取截图
             screenshot_result = self.esxi_api.get_vm_screenshot(vm_name, screenshot_path)
             
+            # 断开连接 =========================================================
             self.esxi_api.disconnect()
             
             if not screenshot_result.success:
                 logger.error(f"[{self.hs_config.server_name}] 获取虚拟机截图失败: {screenshot_result.message}")
                 return ""
             
-            # 6. 读取截图文件并转换为base64
+            # 读取截图文件并转换为base64 =======================================
             if os.path.exists(screenshot_path):
                 with open(screenshot_path, "rb") as f:
                     screenshot_base64 = base64.b64encode(f.read()).decode('utf-8')
                 
-                # 7. 删除临时文件
+                # 删除临时文件 =================================================
                 os.remove(screenshot_path)
                 
                 logger.info(f"[{self.hs_config.server_name}] 成功获取虚拟机 {vm_name} 截图")
@@ -949,7 +1120,10 @@ class HostServer(BasicServer):
                 return ""
                 
         except Exception as e:
+            # 异常处理 =========================================================
             logger.error(f"[{self.hs_config.server_name}] 获取虚拟机截图时出错: {str(e)}")
+            import traceback
+            traceback.print_exc()
             try:
                 self.esxi_api.disconnect()
             except:

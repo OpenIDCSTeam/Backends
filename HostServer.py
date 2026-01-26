@@ -983,6 +983,14 @@ def api_vm_console(hs_name, vm_uuid):
     return rest_manager.vm_console(hs_name, vm_uuid)
 
 
+# 虚拟机截图 ########################################################################
+@app.route('/api/client/screenshot/<hs_name>/<vm_uuid>', methods=['GET'])
+@require_auth
+def api_vm_screenshot(hs_name, vm_uuid):
+    """获取虚拟机截图"""
+    return rest_manager.vm_screenshot(hs_name, vm_uuid)
+
+
 # 修改密码 ########################################################################
 @app.route('/api/client/password/<hs_name>/<vm_uuid>', methods=['POST'])
 @require_auth
@@ -1102,6 +1110,14 @@ def api_delete_vm_ip_address_rest(hs_name, vm_uuid, nic_name):
 # ============================================================================
 # 虚拟机网络配置API - 反向代理管理
 # ============================================================================
+
+# 获取所有代理配置 ####################################################################
+@app.route('/api/client/proxys/list', methods=['GET'])
+@require_auth
+def api_list_all_user_proxys():
+    """获取当前用户的所有反向代理配置列表"""
+    return rest_manager.list_all_user_proxys()
+
 
 # 获取代理配置 ########################################################################
 @app.route('/api/client/proxys/detail/<hs_name>/<vm_uuid>', methods=['GET'])

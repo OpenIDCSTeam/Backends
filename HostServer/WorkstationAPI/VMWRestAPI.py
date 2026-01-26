@@ -610,3 +610,163 @@ class VRestAPI:
     # :param vmx_path: VMX文件路径
     def resets_vmx(self, vmx_path: str) -> ZMessage:
         pass
+
+    # 查找虚拟机VMX路径 ##################################################
+    # 根据虚拟机名称查找VMX文件路径
+    # :param vm_name: 虚拟机名称
+    # :return: ZMessage对象，results中包含vm_path
+    # #####################################################################
+    def find_vmx_path(self, vm_name: str) -> ZMessage:
+        try:
+            # 获取虚拟机列表
+            vm_info_result = self.return_vmx()
+            if not vm_info_result.success:
+                return ZMessage(
+                    success=False,
+                    actions="find_vmx_path",
+                    message=f"获取虚拟机列表失败: {vm_info_result.message}"
+                )
+            
+            # 查找匹配的虚拟机路径
+            vm_path = ""
+            for vm_info in vm_info_result.results:
+                if vm_info.get("path", "").find(vm_name) > 0:
+                    vm_path = vm_info.get("path", "")
+                    break
+            
+            if not vm_path:
+                return ZMessage(
+                    success=False,
+                    actions="find_vmx_path",
+                    message=f"未找到虚拟机 {vm_name} 的VMX路径"
+                )
+            
+            return ZMessage(
+                success=True,
+                actions="find_vmx_path",
+                message="成功找到VMX路径",
+                results={"vm_path": vm_path}
+            )
+            
+        except Exception as e:
+            error_msg = f"查找VMX路径时出错: {str(e)}"
+            logger.error(f"[find_vmx_path] {error_msg}")
+            return ZMessage(
+                success=False,
+                actions="find_vmx_path",
+                message=error_msg,
+                execute=e
+            )
+
+    # 执行vmrun命令 #######################################################
+    def execute_vmrun(self, command: str, vm_path: str, args: list = None,
+                     vc_user: str = None, vc_pass: str = None) -> ZMessage:
+        try:
+            vmrun_path = os.path.join(self.host_path, "vmrun.exe")
+            if not os.path.exists(vmrun_path):
+                return ZMessage(
+                    success=False,
+                    actions="execute_vmrun",
+                    message="未找到vmrun.exe文件"
+                )
+
+            # 构建命令
+            cmd = [vmrun_path, "-T", "ws"]
+
+            # 如果提供了客户机凭据，添加认证参数
+            if vc_user and vc_pass:
+                cmd.extend(["-gu", vc_user, "-gp", vc_pass])
+            
+            # 添加命令和VMX路径
+            cmd.append(command)
+            cmd.append(vm_path)
+            
+            # 添加其他参数
+            if args:
+                cmd.extend(args)
+            
+            # 执行命令
+            result = subprocess.run(
+                cmd, 
+                capture_output=True, 
+                text=True, 
+                encoding='utf-8', 
+                errors='replace'
+            )
+            logger.info(f"[execute_vmrun] 成功执行vmrun命令: {command}")
+            return ZMessage(
+                success=True,
+                actions="execute_vmrun",
+                message="命令执行成功",
+                results={"stdout": result.stdout, "stderr": result.stderr}
+            )
+            
+        except Exception as e:
+            error_msg = f"执行vmrun命令时出错: {str(e)}"
+            logger.error(f"[execute_vmrun] {error_msg}")
+            import traceback
+            traceback.print_exc()
+            return ZMessage(
+                success=False,
+                actions="execute_vmrun",
+                message=error_msg,
+                execute=e
+            )
+
+    # 虚拟机截图 ##########################################################
+    # 使用vmrun命令获取虚拟机截图
+    # :param vm_name: 虚拟机名称
+    # :param screenshot_path: 截图保存路径
+    # :param guest_user: 客户机用户名（可选）
+    # :param guest_pass: 客户机密码（可选）
+    # :return: ZMessage对象
+    # #####################################################################
+    def capture_screen(self, vm_name: str, screenshot_path: str,
+                      guest_user: str = None, guest_pass: str = None) -> ZMessage:
+        try:
+            # 查找VMX路径
+            vmx_result = self.find_vmx_path(vm_name)
+            if not vmx_result.success:
+                return vmx_result
+            
+            vm_path = vmx_result.results.get("vm_path", "")
+            
+            # 执行vmrun截图命令
+            capture_result = self.execute_vmrun(
+                "captureScreen",
+                vm_path,
+                [screenshot_path],
+                guest_user,
+                guest_pass
+            )
+            
+            if not capture_result.success:
+                return capture_result
+            
+            # 检查截图文件是否存在
+            if not os.path.exists(screenshot_path):
+                return ZMessage(
+                    success=False,
+                    actions="capture_screen",
+                    message=f"截图文件不存在: {screenshot_path}"
+                )
+            
+            logger.info(f"[capture_screen] 成功获取虚拟机截图: {screenshot_path}")
+            return ZMessage(
+                success=True,
+                actions="capture_screen",
+                message="截图成功",
+                results={"screenshot_path": screenshot_path}
+            )
+            
+        except Exception as e:
+            error_msg = f"获取虚拟机截图时出错: {str(e)}"
+            logger.error(f"[capture_screen] {error_msg}")
+            import traceback
+            traceback.print_exc()
+            return ZMessage(
+                success=False,
+                actions="capture_screen",
+                message=error_msg,
+                execute=e
+            )

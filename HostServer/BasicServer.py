@@ -286,8 +286,11 @@ class BasicServer:
             return ZMessage(
                 success=False, action="PortsMap", message="端口已被占用")
         # 自动分配未使用的端口 ======================================================
-        if map_info.wan_port == 0:
-            map_info.wan_port = 0
+        if map_info.wan_port == 0 or map_info.wan_port == "":
+            # 随机分配一个端口
+            map_info.wan_port = randint(
+                self.hs_config.ports_start, self.hs_config.ports_close)
+            # 如果被占用，继续随机分配
             while map_info.wan_port in wan_list:
                 map_info.wan_port = randint(
                     self.hs_config.ports_start, self.hs_config.ports_close)
@@ -316,7 +319,8 @@ class BasicServer:
                             action="ProxyMap",
                             message="虚拟机不存在")
         # 获取虚拟机端口 ============================================================
-        if self.hs_config.server_addr not in ["localhost", "127.0.0.1", ""]:
+        if self.hs_config.server_addr.split(":")[0] not in \
+                ["localhost", "127.0.0.1", ""]:
             pm_info.lan_port = self.PortsGet(vm_uuid, pm_info.lan_port)
             pm_info.lan_addr = self.hs_config.server_addr
             if pm_info.lan_port == 0 and in_flag:
@@ -537,7 +541,6 @@ class BasicServer:
 
     # 同步端口转发配置（TTY容器专用）################################################
     def syn_port_TTY(self):
-        """同步端口转发配置（TTY容器专用：LXContainer、OCInterface）"""
         try:
             # 判断是否为远程主机
             is_remote = self.web_flag()
@@ -1036,7 +1039,7 @@ class BasicServer:
             action="ISOMount",
             message=f"ISO镜像{action_text}成功")
 
-    # 磁盘移交检查 ##########################################################################
+    # 磁盘移交检查 ##################################################################
     def HDDCheck(self, vm_name: str, vm_imgs: SDConfig, ex_name: str) -> ZMessage:
         # 原始设备是否存在===========================================================
         if vm_name not in self.vm_saving:
@@ -1172,13 +1175,8 @@ class BasicServer:
         return {}
 
     # 转移用户 ######################################################################
-    # 移交虚拟机所有权
-    # :param vm_name: 虚拟机UUID
-    # :param new_owner: 新所有者用户名
-    # :param keep_access: 是否保留原所有者的访问权限
-    # :return: 操作结果消息
-    #################################################################################
-    def Transfer(self, vm_name: str, new_owner: str, keep_access: bool = False) -> ZMessage:
+    def Transfer(self, vm_name: str, new_owner: str,
+                 keep_access: bool = False) -> ZMessage:
         # 检查虚拟机是否存在
         if vm_name not in self.vm_saving:
             return ZMessage(

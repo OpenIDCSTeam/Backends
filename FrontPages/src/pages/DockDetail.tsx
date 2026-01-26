@@ -105,11 +105,11 @@ interface VMStatus {
     network_rx?: number
     network_tx?: number
     flu_usage?: number
+    ext_usage?: Record<string, [number, number]>
     on_update: number
 
     [key: string]: any
 }
-
 
 
 interface NATRule {
@@ -131,9 +131,9 @@ interface IPAddress {
 }
 
 interface ProxyRule {
-    id: number
+    id?: number
     domain: string
-    target_port: number
+    backend_port: number
     ssl_enabled: boolean
     backend_ip?: string
     description?: string
@@ -144,6 +144,8 @@ interface HDDInfo {
     hdd_num: number
     hdd_path: string
     hdd_type?: number
+    hdd_flag?: number
+    hdd_size?: number
 }
 
 interface ISOInfo {
@@ -161,6 +163,8 @@ interface BackupInfo {
     backup_path?: string
     created_time: string
     size?: string
+    backup_time?: number
+    backup_hint?: string
 }
 
 interface OwnerInfo {
@@ -276,16 +280,33 @@ function VMDetail() {
     const [backupActionLoading, setBackupActionLoading] = useState(false)
     const [ownerActionLoading, setOwnerActionLoading] = useState(false)
     const [reinstallActionLoading, setReinstallActionLoading] = useState(false)
+    // 端口转发和反向代理操作加载状态
+    const [natActionLoading, setNatActionLoading] = useState(false)
+    const [proxyActionLoading, setProxyActionLoading] = useState(false)
     // 截图状态
     const [vmScreenshot, setVmScreenshot] = useState<string>('')
     const [loadingScreenshot, setLoadingScreenshot] = useState<boolean>(false)
-    
+    const [screenshotError, setScreenshotError] = useState<boolean>(false)
+
     // 当前虚拟机状态 - 用于避免使用未初始化的变量
-    const [currentStatus, setCurrentStatus] = useState<VMStatus>({ ac_status: 'UNKNOWN', mem_total: 0, mem_usage: 0, hdd_total: 0, hdd_usage: 0, gpu_total: 0, gpu_usage: 0, cpu_usage: 0, network_u: 0, network_d: 0, on_update: 0 })
+    const [currentStatus, setCurrentStatus] = useState<VMStatus>({
+        ac_status: 'UNKNOWN',
+        mem_total: 0,
+        mem_usage: 0,
+        hdd_total: 0,
+        hdd_usage: 0,
+        gpu_total: 0,
+        gpu_usage: 0,
+        cpu_usage: 0,
+        network_u: 0,
+        network_d: 0,
+        ext_usage: {},
+        on_update: 0
+    })
 
     // 计算所有可用的IP地址
     const availableIPs = useMemo(() => {
-        if (!vm || !vm.config) return []
+        if (!vm || !vm.config || typeof vm.config !== 'object') return []
         const ipList: string[] = []
 
         // 优先从网卡配置获取确定的IP
@@ -349,27 +370,34 @@ function VMDetail() {
                 const config = result.data as unknown as HostConfig
                 setHostConfig(config)
             }
-        } catch (error) {
-            console.error(error)
+        } catch (error: any) {
+            console.error('加载主机配置失败:', error)
+            // 主机不存在时不显示错误消息，避免重复提示
         }
     }
 
     // 获取虚拟机截图
     const loadVMScreenshot = async () => {
         if (!hostName || !uuid || !vm) return
-        
+
         const vmType = vm.config?.virt_type || '';
         if (vmType === 'OCInterface' || vmType === 'LxContainer') return;
-        
+
         if (currentStatus.ac_status === 'STARTED') {
             setLoadingScreenshot(true);
+            setScreenshotError(false);
             try {
                 const response = await api.getVMScreenshot(hostName, uuid);
                 if (response.data && response.data.screenshot) {
                     setVmScreenshot(`data:image/png;base64,${response.data.screenshot}`);
+                } else {
+                    setScreenshotError(true);
+                    setVmScreenshot('');
                 }
             } catch (error) {
                 console.error('获取截图失败:', error);
+                setScreenshotError(true);
+                setVmScreenshot('');
             } finally {
                 setLoadingScreenshot(false);
             }
@@ -404,8 +432,18 @@ function VMDetail() {
 
                 setVM(vmData)
             }
-        } catch (error) {
-            if (!isPolling) message.error('加载虚拟机详情失败')
+        } catch (error: any) {
+            console.error('加载虚拟机详情失败:', error)
+            if (!isPolling) {
+                // 只在首次加载时显示错误消息
+                message.error(error?.message || '加载虚拟机详情失败')
+                // 如果是主机不存在，可以考虑跳转回列表页
+                if (error?.message?.includes('主机不存在')) {
+                    setTimeout(() => {
+                        navigate('/hosts')
+                    }, 2000)
+                }
+            }
         } finally {
             if (!isPolling) setLoading(false)
         }
@@ -417,8 +455,9 @@ function VMDetail() {
         try {
             const response = await api.getNATRules(hostName, uuid)
             if (response.data) setNatRules(Array.isArray(response.data) ? response.data as unknown as NATRule[] : [])
-        } catch (error) {
-            console.error(error)
+        } catch (error: any) {
+            console.error('加载NAT规则失败:', error)
+            // 主机不存在时不显示错误消息
         }
     }
 
@@ -436,8 +475,9 @@ function VMDetail() {
                     user_data: user
                 })
             }
-        } catch (error) {
-            console.error(error)
+        } catch (error: any) {
+            console.error('加载IP地址失败:', error)
+            // 主机不存在时不显示错误消息
         }
     }
 
@@ -446,8 +486,9 @@ function VMDetail() {
         try {
             const response = await api.getProxyConfigs(hostName, uuid)
             if (response.data) setProxyRules(Array.isArray(response.data) ? response.data as unknown as ProxyRule[] : [])
-        } catch (error) {
-            console.error(error)
+        } catch (error: any) {
+            console.error('加载代理规则失败:', error)
+            // 主机不存在时不显示错误消息
         }
     }
 
@@ -533,40 +574,53 @@ function VMDetail() {
             if (response.data && Array.isArray(response.data)) {
                 setMonitorData(processMonitorData(response.data, timeRange))
             }
-        } catch (error) {
-            console.error(error)
+        } catch (error: any) {
+            console.error('加载监控数据失败:', error)
+            // 主机不存在时不显示错误消息
         }
     }
 
     const loadHDDs = async () => {
         if (!hostName || !uuid) return
         try {
-            const response = await api.getVMHDDs(hostName, uuid)
-            if (response.data) {
+            const response = await api.getVMDetail(hostName, uuid)
+            if (response.data && (response.data as any).config) {
                 const data = response.data as any
-                const hddList = Object.entries(data.hdd_all || {}).map(([key, value]: [string, any]) => ({
-                    hdd_path: key, ...value
+                const hddAll = data.config.hdd_all || {}
+                const hddList = Object.entries(hddAll).map(([key, value]: [string, any]) => ({
+                    hdd_path: key,
+                    hdd_size: value.hdd_size || 0,
+                    hdd_type: value.hdd_type || 0,
+                    hdd_flag: value.hdd_flag || 0,
+                    hdd_num: value.hdd_size || 0,
+                    ...value
                 }))
                 setHdds(hddList)
             }
-        } catch (error) {
-            console.error(error)
+        } catch (error: any) {
+            console.error('加载硬盘信息失败:', error)
+            // 主机不存在时不显示错误消息
         }
     }
 
     const loadISOs = async () => {
         if (!hostName || !uuid) return
         try {
-            const response = await api.getVMISOs(hostName, uuid)
-            if (response.data) {
+            const response = await api.getVMDetail(hostName, uuid)
+            if (response.data && (response.data as any).config) {
                 const data = response.data as any
-                const isoList = Object.entries(data.iso_all || {}).map(([key, value]: [string, any]) => ({
-                    iso_key: key, ...value
+                const isoAll = data.config.iso_all || {}
+                const isoList = Object.entries(isoAll).map(([key, value]: [string, any]) => ({
+                    iso_name: key,
+                    iso_file: value.iso_file || '',
+                    iso_hint: value.iso_hint || '',
+                    ...value
                 }))
                 setIsos(isoList)
             }
-        } catch (error) {
-            console.error(error)
+        } catch (error: any) {
+            console.error('加载ISO信息失败:', error)
+            // 主机不存在时不显示错误消息
         }
     }
 
@@ -593,9 +647,10 @@ function VMDetail() {
             } else {
                 setBackups([])
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('加载备份失败:', error)
             setBackups([])
+            // 主机不存在时不显示错误消息
         }
     }
 
@@ -619,9 +674,10 @@ function VMDetail() {
             } else {
                 setOwners([])
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('加载用户失败:', error)
             setOwners([])
+            // 主机不存在时不显示错误消息
         }
     }
 
@@ -771,63 +827,136 @@ function VMDetail() {
     }
 
     const handleAddIPAddress = async (_values: any) => {
-        const hide = message.loading('正在添加网卡...', 0)
-        try {
-            await api.addIPAddress(hostName!, uuid!, _values)
-            hide()
-            message.success('网卡添加成功')
-            setIpModalVisible(false);
-            ipForm.resetFields();
-            loadIPAddresses()
-        } catch (error) {
-            hide()
-            message.error('添加失败')
-        }
+        // 显示确认对话框，提示需要重启虚拟机
+        Modal.confirm({
+            title: '添加网卡确认',
+            content: (
+                <div>
+                    <p className="mb-3">确定要添加网卡吗？</p>
+                    <Alert message="添加网卡后需要重启虚拟机才能生效" type="warning" showIcon className="mb-3"/>
+                    <div className="bg-gray-50 p-3 rounded">
+                        <p className="text-sm text-gray-700 mb-1">网卡类型：{_values.nic_type === 'pub' ? '公网' : '内网'}</p>
+                        {_values.ip4_addr && <p className="text-sm text-gray-700 mb-1">IPv4地址：{_values.ip4_addr}</p>}
+                        {_values.ip6_addr && <p className="text-sm text-gray-700">IPv6地址：{_values.ip6_addr}</p>}
+                    </div>
+                </div>
+            ),
+            okText: '确认添加',
+            cancelText: '取消',
+            onOk: async () => {
+                const hide = message.loading('正在添加网卡...', 0)
+                try {
+                    await api.addIPAddress(hostName!, uuid!, _values)
+                    hide()
+                    message.success('网卡添加成功，请重启虚拟机使其生效')
+                    setIpModalVisible(false);
+                    ipForm.resetFields();
+                    loadIPAddresses()
+                    loadVMDetail() // 刷新虚拟机信息以更新网卡列表
+                } catch (error) {
+                    hide()
+                    message.error('添加失败')
+                }
+            }
+        })
     }
 
     const handleDeleteIPAddress = async (nicName: string) => {
-        showConfirmAction('删除IP确认', '确定要删除这个IP地址吗？', async () => {
-            await api.deleteIPAddress(hostName!, uuid!, nicName)
-            loadIPAddresses()
-        }, true)
+        Modal.confirm({
+            title: '删除网卡确认',
+            content: (
+                <div>
+                    <p className="mb-3">确定要删除网卡 "{nicName}" 吗？</p>
+                    <Alert message="删除网卡后需要重启虚拟机才能生效" type="warning" showIcon/>
+                </div>
+            ),
+            okText: '确认删除',
+            okType: 'danger',
+            cancelText: '取消',
+            onOk: async () => {
+                const hide = message.loading('正在删除网卡...', 0)
+                try {
+                    await api.deleteIPAddress(hostName!, uuid!, nicName)
+                    hide()
+                    message.success('网卡删除成功，请重启虚拟机使其生效')
+                    loadIPAddresses()
+                    loadVMDetail() // 刷新虚拟机信息以更新网卡列表
+                } catch (error) {
+                    hide()
+                    message.error('删除失败')
+                }
+            }
+        })
     }
 
     const handleAddProxy = async (_values: any) => {
+        setProxyActionLoading(true);
         try {
-            await api.addProxyConfig(hostName!, uuid!, _values)
+            const data = {
+                domain: _values.domain,
+                backend_ip: _values.backend_ip || '',
+                backend_port: parseInt(_values.backend_port),
+                ssl_enabled: _values.ssl_enabled || false,
+                description: _values.description || ''
+            }
+            await api.addProxyConfig(hostName!, uuid!, data)
             message.success('反向代理添加成功')
             setProxyModalVisible(false);
             proxyForm.resetFields();
             loadProxyRules()
-        } catch (error) {
-            message.error('添加失败')
+        } catch (error: any) {
+            message.error(error?.message || '添加失败')
+        } finally {
+            setProxyActionLoading(false);
         }
     }
 
     const handleDeleteProxy = async (proxyId: number) => {
         showConfirmAction('删除代理确认', '确定要删除这个反向代理吗？', async () => {
-            await api.deleteProxyConfig(hostName!, uuid!, proxyId)
-            loadProxyRules()
+            setProxyActionLoading(true);
+            try {
+                await api.deleteProxyConfig(hostName!, uuid!, proxyId)
+                loadProxyRules()
+            } finally {
+                setProxyActionLoading(false);
+            }
         }, true)
     }
 
     const handleAddNATRule = async (_values: any) => {
+        setNatActionLoading(true);
         try {
-            await api.addNATRule(hostName!, uuid!, _values)
+            // 使用老前端的字段名：wan_port, lan_port, lan_addr, nat_tips
+            // 处理wan_port：undefined、null、空字符串、0都转换为0，由后端自动分配
+            const data: any = {
+                wan_port: _values.wan_port || '',
+                lan_port: parseInt(_values.lan_port),
+                lan_addr: _values.lan_addr || '',
+                nat_tips: _values.nat_tips || ''
+            }
+
+            await api.addNATRule(hostName!, uuid!, data)
             message.success('NAT规则添加成功')
             setNatModalVisible(false);
             form.resetFields();
             loadNATRules()
-        } catch (error) {
-            message.error('添加失败')
+        } catch (error: any) {
+            message.error(error?.message || '添加失败')
+        } finally {
+            setNatActionLoading(false);
         }
     }
 
-    const handleDeleteNAT = async (id: number) => {
+    const handleDeleteNAT = async (index: number) => {
         showConfirmAction('删除NAT规则', '确定要删除该规则吗？', async () => {
-            await api.deleteNATRule(hostName!, uuid!, id)
-            loadNATRules()
-        }, true)
+            setNatActionLoading(true);
+            try {
+                await api.deleteNATRule(hostName!, uuid!, index)
+                loadNATRules()
+            } finally {
+                setNatActionLoading(false);
+            }
+        }, false)
     }
 
     const handleAddHDD = async (_values: any) => {
@@ -857,16 +986,20 @@ function VMDetail() {
     const handleMountHDD = async () => {
         if (!currentMountHdd) return
         setHddActionLoading(true)
+        const hide = message.loading('正在挂载数据盘，请稍候...', 0)
         try {
             await api.post(`/api/client/hdd/mount/${hostName}/${uuid}`, {
                 hdd_name: currentMountHdd.hdd_path,
                 hdd_size: currentMountHdd.hdd_num,
                 hdd_type: currentMountHdd.hdd_type
             })
-            message.success('数据盘挂载成功')
+            hide()
+            message.success('数据盘挂载成功，请重启虚拟机使其生效')
             setMountHddModalVisible(false);
+            setMountHddConfirmChecked(false);
             loadHDDs()
         } catch (error) {
+            hide()
             message.error('挂载失败')
         } finally {
             setHddActionLoading(false)
@@ -876,12 +1009,16 @@ function VMDetail() {
     const handleUnmountHDD = async () => {
         if (!currentUnmountHdd) return
         setHddActionLoading(true)
+        const hide = message.loading('正在卸载数据盘，请稍候...', 0)
         try {
             await api.post(`/api/client/hdd/unmount/${hostName}/${uuid}`, {hdd_name: currentUnmountHdd.hdd_path})
-            message.success('数据盘卸载成功')
+            hide()
+            message.success('数据盘卸载成功，请重启虚拟机使其生效')
             setUnmountHddModalVisible(false);
+            setUnmountHddConfirmChecked(false);
             loadHDDs()
         } catch (error) {
+            hide()
             message.error('卸载失败')
         } finally {
             setHddActionLoading(false)
@@ -905,15 +1042,23 @@ function VMDetail() {
     const handleTransferHDD = async () => {
         if (!currentTransferHdd) return
         setHddActionLoading(true)
+        const hide = message.loading('正在移交数据盘，请稍候...', 0)
         try {
             await api.post(`/api/client/hdd/transfer/${hostName}/${uuid}`, {
                 hdd_name: currentTransferHdd.hdd_path,
                 target_vm: transferTargetUuid
             })
-            message.success('数据盘移交指令已发送')
+            hide()
+            message.success('数据盘移交成功，页面将自动刷新')
             setTransferHddModalVisible(false);
-            loadHDDs()
+            setTransferHddConfirmChecked(false);
+            // 移交成功后刷新页面
+            setTimeout(() => {
+                loadHDDs()
+                loadVMDetail()
+            }, 1500)
         } catch (error) {
+            hide()
             message.error('数据盘移交失败')
         } finally {
             setHddActionLoading(false)
@@ -922,38 +1067,40 @@ function VMDetail() {
 
     const handleAddISO = async (_values: any) => {
         setIsoActionLoading(true)
+        const hide = message.loading('正在挂载ISO镜像，请稍候...', 0)
         try {
             await api.addISO(hostName!, uuid!, {
                 iso_name: _values.iso_name,
                 iso_file: _values.iso_file,
                 iso_hint: _values.iso_hint
             })
-            message.success('ISO挂载成功')
+            hide()
+            message.success('ISO挂载成功，请重启虚拟机使其生效')
             setIsoModalVisible(false);
             isoForm.resetFields();
+            setIsoMountConfirmChecked(false);
             loadISOs()
         } catch (error) {
+            hide()
             message.error('挂载失败')
         } finally {
             setIsoActionLoading(false)
         }
     }
 
-    const handleDeleteISO = (isoName: string) => {
-        setCurrentUnmountIso(isoName);
-        setUnmountIsoConfirmChecked(false);
-        setUnmountIsoConfirmVisible(true)
-    }
-
     const executeUnmountISO = async () => {
         if (!currentUnmountIso) return
         setIsoActionLoading(true)
+        const hide = message.loading('正在卸载ISO镜像，请稍候...', 0)
         try {
             await api.deleteISO(hostName!, uuid!, currentUnmountIso)
-            message.success('ISO卸载成功')
+            hide()
+            message.success('ISO卸载成功，请重启虚拟机使其生效')
             setUnmountIsoConfirmVisible(false);
+            setUnmountIsoConfirmChecked(false);
             loadISOs()
         } catch (error) {
+            hide()
             message.error('卸载失败')
         } finally {
             setIsoActionLoading(false)
@@ -962,35 +1109,37 @@ function VMDetail() {
 
     const handleCreateBackup = async (_values: any) => {
         setBackupActionLoading(true)
+        const hide = message.loading('正在创建备份，请稍候...', 0)
         try {
             await api.createVMBackup(hostName!, uuid!, {vm_tips: _values.backup_name})
-            message.success('备份创建指令已发送')
+            hide()
+            message.success('备份创建指令已发送，备份可能需要数十分钟')
             setBackupModalVisible(false);
             backupForm.resetFields();
+            setBackupCreateConfirmChecked(false);
             loadBackups()
         } catch (error) {
+            hide()
             message.error('创建失败')
         } finally {
             setBackupActionLoading(false)
         }
     }
 
-    const handleRestoreBackup = (backupName: string) => {
-        setCurrentRestoreBackup(backupName);
-        setRestoreConfirmChecked1(false);
-        setRestoreConfirmChecked2(false);
-        setRestoreBackupModalVisible(true)
-    }
-
     const executeRestoreBackup = async () => {
         if (!currentRestoreBackup) return
         setBackupActionLoading(true)
+        const hide = message.loading('正在恢复备份，请稍候...', 0)
         try {
             await api.restoreVMBackup(hostName!, uuid!, currentRestoreBackup)
-            message.success('恢复指令已发送')
+            hide()
+            message.success('备份恢复指令已发送，页面将自动刷新')
             setRestoreBackupModalVisible(false);
+            setRestoreConfirmChecked1(false);
+            setRestoreConfirmChecked2(false);
             setTimeout(() => window.location.reload(), 3000)
         } catch (error) {
+            hide()
             message.error('恢复失败')
         } finally {
             setBackupActionLoading(false)
@@ -1029,17 +1178,23 @@ function VMDetail() {
     const handleTransferOwnership = async () => {
         if (!transferOwnerUsername) return
         setOwnerActionLoading(true)
+        const hide = message.loading('正在移交所有权，请稍候...', 0)
         try {
             await api.post(`/api/client/owners/${hostName}/${uuid}/transfer`, {
                 new_owner: transferOwnerUsername,
                 keep_access: keepAccessChecked,
                 confirm_transfer: transferOwnerConfirmChecked
             })
-            message.success('所有权移交成功')
+            hide()
+            message.success('所有权移交成功，页面将自动刷新')
             setTransferOwnershipModalVisible(false);
+            setTransferOwnerUsername('');
+            setKeepAccessChecked(false);
+            setTransferOwnerConfirmChecked(false);
             setTimeout(() => window.location.reload(), 1500)
-        } catch (error) {
-            message.error('移交失败')
+        } catch (error: any) {
+            hide()
+            message.error(error?.message || '移交失败')
         } finally {
             setOwnerActionLoading(false)
         }
@@ -1209,9 +1364,9 @@ function VMDetail() {
     const ResourceCard = ({title, icon, value, percent, color}: any) => (
         <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 h-full flex flex-col justify-between">
             <div className="flex items-center gap-2 mb-[15px]">
-                    {icon}
-                    <span className="text-base text-gray-500">{title}</span>
-                </div>
+                {icon}
+                <span className="text-base text-gray-500">{title}</span>
+            </div>
             <div>
                 <div className="flex justify-between text-sm text-gray-500 mb-1">
                     <span className="font-medium text-gray-700">{value}</span>
@@ -1316,20 +1471,32 @@ function VMDetail() {
                                             );
                                         } else if (currentStatus.ac_status === 'STARTED') {
                                             return (
-                                                <div className="w-full h-full flex items-center justify-center relative">
-                                                    <img 
-                                                        src={vmScreenshot || ''} 
-                                                        alt="虚拟机截图" 
-                                                        className="max-w-full max-h-full object-contain"
-                                                    />
-                                                    <Spin spinning={loadingScreenshot} tip="获取截图中..." />
+                                                <div
+                                                    className="w-full h-full flex items-center justify-center relative">
+                                                    {screenshotError ? (
+                                                        <div className="text-center">
+                                                            <div className="text-4xl mb-2">📷</div>
+                                                            <div className="text-xs text-gray-400">无法获取截图</div>
+                                                        </div>
+                                                    ) : (
+                                                        vmScreenshot && (
+                                                            <img
+                                                                src={vmScreenshot}
+                                                                alt="虚拟机截图"
+                                                                className="max-w-full max-h-full object-contain"
+                                                            />
+                                                        )
+                                                    )}
+                                                    <Spin spinning={loadingScreenshot} tip="获取截图中..."/>
                                                 </div>
                                             );
                                         } else {
                                             return (
                                                 <div className="text-center">
-                                                    <div className="text-4xl mb-2">{getOSIcon(config.os_name || '')}</div>
-                                                    <div className="text-xs text-gray-400">虚拟机未运行，无法获取截图</div>
+                                                    <div
+                                                        className="text-4xl mb-2">{getOSIcon(config.os_name || '')}</div>
+                                                    <div className="text-xs text-gray-400">虚拟机未运行，无法获取截图
+                                                    </div>
                                                 </div>
                                             );
                                         }
@@ -1339,43 +1506,56 @@ function VMDetail() {
                                     <Tooltip title="启动"><Button size="small" icon={<PlayCircleOutlined/>}
                                                                   onClick={() => handlePowerAction('start')}
                                                                   disabled={currentStatus.ac_status === 'STARTED'}
-                                                                  block><span className="hidden md:inline">启动</span></Button></Tooltip>
+                                                                  block><span
+                                        className="hidden md:inline">启动</span></Button></Tooltip>
                                     <Tooltip title="关机"><Button size="small" icon={<PoweroffOutlined/>}
                                                                   onClick={() => handlePowerAction('stop')}
                                                                   disabled={currentStatus.ac_status !== 'STARTED'}
-                                                                  block><span className="hidden md:inline">关机</span></Button></Tooltip>
+                                                                  block><span
+                                        className="hidden md:inline">关机</span></Button></Tooltip>
                                     <Tooltip title="重启"><Button size="small" icon={<ReloadOutlined/>}
                                                                   onClick={() => handlePowerAction('reset')}
-                                                                  block><span className="hidden md:inline">重启</span></Button></Tooltip>
+                                                                  block><span
+                                        className="hidden md:inline">重启</span></Button></Tooltip>
                                     <Tooltip title="暂停"><Button size="small" icon={<PauseCircleOutlined/>}
                                                                   onClick={() => handlePowerAction('pause')}
                                                                   disabled={currentStatus.ac_status !== 'STARTED'}
-                                                                  block><span className="hidden md:inline">暂停</span></Button></Tooltip>
+                                                                  block><span
+                                        className="hidden md:inline">暂停</span></Button></Tooltip>
 
                                     <Tooltip title="恢复"><Button size="small" icon={<PlayCircleOutlined/>}
                                                                   onClick={() => handlePowerAction('resume')}
                                                                   disabled={currentStatus.ac_status !== 'SUSPEND'}
-                                                                  block><span className="hidden md:inline">恢复</span></Button></Tooltip>
+                                                                  block><span
+                                        className="hidden md:inline">恢复</span></Button></Tooltip>
                                     <Tooltip title="强制关机"><Button size="small" danger icon={<PoweroffOutlined/>}
                                                                       onClick={() => handlePowerAction('hard_stop')}
-                                                                      block><span className="hidden md:inline">强关</span></Button></Tooltip>
+                                                                      block><span
+                                        className="hidden md:inline">强关</span></Button></Tooltip>
                                     <Tooltip title="强制重启"><Button size="small" danger icon={<ReloadOutlined/>}
                                                                       onClick={() => handlePowerAction('hard_reset')}
-                                                                      block><span className="hidden md:inline">重置</span></Button></Tooltip>
+                                                                      block><span
+                                        className="hidden md:inline">重置</span></Button></Tooltip>
                                     <Tooltip title="编辑配置"><Button size="small" icon={<EditOutlined/>}
-                                                                      onClick={() => setEditModalVisible(true)} block><span className="hidden md:inline">编辑</span></Button></Tooltip>
+                                                                      onClick={() => setEditModalVisible(true)}
+                                                                      block><span
+                                        className="hidden md:inline">编辑</span></Button></Tooltip>
 
                                     <Tooltip title="重装系统"><Button size="small" danger icon={<CloudSyncOutlined/>}
                                                                       onClick={() => setReinstallModalVisible(true)}
-                                                                      block><span className="hidden md:inline">重装</span></Button></Tooltip>
+                                                                      block><span
+                                        className="hidden md:inline">重装</span></Button></Tooltip>
                                     <Tooltip title="删除"><Button size="small" danger icon={<DeleteOutlined/>}
-                                                                  onClick={handleDelete} block><span className="hidden md:inline">删除</span></Button></Tooltip>
+                                                                  onClick={handleDelete} block><span
+                                        className="hidden md:inline">删除</span></Button></Tooltip>
                                     <Tooltip title="VNC控制台"><Button size="small" type="primary"
                                                                        icon={<DesktopOutlined/>} onClick={handleOpenVNC}
-                                                                       block><span className="hidden md:inline">VNC</span></Button></Tooltip>
+                                                                       block><span
+                                        className="hidden md:inline">VNC</span></Button></Tooltip>
                                     <Tooltip title="修改密码"><Button size="small" icon={<KeyOutlined/>}
                                                                       onClick={() => setPasswordModalVisible(true)}
-                                                                      block><span className="hidden md:inline">改密</span></Button></Tooltip>
+                                                                      block><span
+                                        className="hidden md:inline">改密</span></Button></Tooltip>
                                 </div>
                             </Col>
                         </Row>
@@ -1404,7 +1584,7 @@ function VMDetail() {
                             </Col>
                             <Col span={8}>
                                 <div className="space-y-4">
-                                    <ResourceCard title="硬盘" icon={<HddOutlined className="text-yellow-500"/>}
+                                    <ResourceCard title="系统盘" icon={<HddOutlined className="text-yellow-500"/>}
                                                   value={`已用 ${formatDisk(currentStatus.hdd_usage || 0)} / ${formatDisk(config.hdd_num || 0)}`}
                                                   subValue="使用率"
                                                   percent={config.hdd_num > 0 ? Math.round((currentStatus.hdd_usage || 0) / config.hdd_num * 100) : 0}
@@ -1539,57 +1719,165 @@ function VMDetail() {
         {
             key: 'ip',
             label: '网卡管理',
-            children: <Card title="IP地址管理" extra={<Button type="primary" icon={<PlusOutlined/>}
-                                                              onClick={() => setIpModalVisible(true)}>添加IP地址</Button>}
-                            variant="borderless"><Table rowKey={(r) => `${r.nic_name || 'nic'}-${r.ip_address || 'ip'}`}
-                                                        dataSource={ipAddresses} columns={[{
-                title: '网卡名称',
-                dataIndex: 'nic_name'
-            }, {title: 'IPv4地址', dataIndex: 'ip_address'}, {
-                title: 'IPv6地址',
-                dataIndex: 'ip6_address'
-            }, {
-                title: '操作',
-                render: (_, r) => <Button danger size="small"
-                                          onClick={() => handleDeleteIPAddress(r.nic_name)}>删除</Button>
-            }]} pagination={false}/></Card>
+            children: <Card title="网卡列表" extra={<Button type="primary" icon={<PlusOutlined/>}
+                                                            onClick={() => setIpModalVisible(true)}>添加网卡</Button>}
+                            variant="borderless">
+                {vm && vm.config && vm.config.nic_all && Object.keys(vm.config.nic_all).length > 0 ? (
+                    <div className="space-y-3">
+                        {Object.entries(vm.config.nic_all).map(([nicName, nicConfig]: [string, any]) => (
+                            <div key={nicName} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="font-medium text-gray-700">{nicName}</span>
+                                    <div className="flex items-center gap-2">
+                                        <Tag color={nicConfig.nic_type === 'pub' ? 'blue' : 'green'}>
+                                            {nicConfig.nic_type === 'pub' ? '公网' : '内网'}
+                                        </Tag>
+                                        <Button danger size="small"
+                                                onClick={() => handleDeleteIPAddress(nicName)}>删除</Button>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-gray-500">IPv4:</span>
+                                        <span className="font-mono text-gray-700">{nicConfig.ip4_addr || '-'}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-gray-500">IPv6:</span>
+                                        <span
+                                            className="font-mono text-gray-700 break-all">{nicConfig.ip6_addr || '-'}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-gray-500">MAC:</span>
+                                        <span
+                                            className="font-mono text-gray-700 break-all">{nicConfig.mac_addr || '-'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center text-gray-500 py-8">暂无网卡配置</div>
+                )}
+            </Card>
         },
         {
             key: 'hdd',
             label: '数据磁盘',
             children: <Card title="数据盘管理" extra={<Button type="primary" icon={<PlusOutlined/>}
-                                                              onClick={() => setHddModalVisible(true)}>添加数据盘</Button>}
-                            variant="borderless"><Table rowKey={(r) => r.hdd_path || `hdd-${Math.random()}`}
-                                                        dataSource={hdds} columns={[{
-                title: '路径',
-                dataIndex: 'hdd_path'
-            }, {title: '大小(MB)', dataIndex: 'hdd_num'}, {
-                title: '操作',
-                render: (_, r) => <Space><Button size="small" onClick={() => {
-                    setCurrentMountHdd(r);
-                    setMountHddModalVisible(true)
-                }}>挂载</Button><Button size="small" danger onClick={() => {
-                    setCurrentUnmountHdd(r);
-                    setUnmountHddModalVisible(true)
-                }}>卸载</Button><Button danger size="small" onClick={() => {
-                    handleOpenTransferHDD(r)
-                }}>移交</Button><Button danger size="small"
-                                        onClick={() => handleDeleteHDD(r.hdd_path)}>删除</Button></Space>
-            }]} pagination={false}/></Card>
+                                                              onClick={() => setHddModalVisible(true)}>挂载数据盘</Button>}
+                            variant="borderless">
+                {hdds && hdds.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {hdds.map((hdd, index) => {
+                            const hddName = hdd.hdd_path || `hdd-${index}`
+                            const isMounted = hdd.hdd_flag === 1
+                            const sizeGB = ((hdd.hdd_size || 0) / 1024).toFixed(1)
+                            const typeText = hdd.hdd_type === 1 ? 'SSD' : 'HDD'
+                            return (
+                                <div key={hddName}
+                                     className="bg-white border border-gray-200 rounded-lg p-4 hover:border-purple-300 hover:shadow-md transition-all">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex gap-2">
+                                            <span
+                                                className="px-2 py-0.5 text-xs font-medium text-blue-700 bg-blue-100 rounded">
+                                                {typeText}
+                                            </span>
+                                            <Tag color={isMounted ? 'green' : 'orange'}>
+                                                {isMounted ? '已挂载' : '未挂载'}
+                                            </Tag>
+                                        </div>
+                                        <Space>
+                                            {isMounted ? (
+                                                <>
+                                                    <Button size="small" onClick={() => {
+                                                        setCurrentUnmountHdd(hdd);
+                                                        setUnmountHddConfirmChecked(false);
+                                                        setUnmountHddModalVisible(true)
+                                                    }}>卸载</Button>
+                                                    <Button danger size="small"
+                                                            onClick={() => handleDeleteHDD(hddName)}>删除</Button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Button type="primary" size="small" onClick={() => {
+                                                        setCurrentMountHdd(hdd);
+                                                        setMountHddConfirmChecked(false);
+                                                        setMountHddModalVisible(true)
+                                                    }}>挂载</Button>
+                                                    <Button size="small"
+                                                            onClick={() => handleOpenTransferHDD(hdd)}>移交</Button>
+                                                    <Button danger size="small"
+                                                            onClick={() => handleDeleteHDD(hddName)}>删除</Button>
+                                                </>
+                                            )}
+                                        </Space>
+                                    </div>
+                                    <div className="bg-gray-50 rounded-lg p-3 mb-2">
+                                        <p className="text-xs text-gray-500">磁盘名称</p>
+                                        <code className="text-sm font-mono text-gray-800 break-all">{hddName}</code>
+                                    </div>
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className="text-gray-500">容量</span>
+                                        <code
+                                            className="px-2 py-0.5 font-medium font-mono text-gray-700 bg-gray-100 rounded">{sizeGB} GB</code>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                ) : (
+                    <div className="text-center text-gray-500 py-8">暂无数据盘</div>
+                )}
+            </Card>
         },
         {
             key: 'iso',
             label: '光盘镜像',
-            children: <Card title="ISO挂载" extra={<Button type="primary" icon={<PlusOutlined/>}
-                                                           onClick={() => setIsoModalVisible(true)}>挂载ISO</Button>}
-                            variant="borderless"><Table rowKey={(r) => r.iso_key || `iso-${Math.random()}`}
-                                                        dataSource={isos} columns={[{
-                title: '名称',
-                dataIndex: 'iso_name'
-            }, {title: '文件', dataIndex: 'iso_file'}, {
-                title: '操作',
-                render: (_, r) => <Button danger size="small" onClick={() => handleDeleteISO(r.iso_name!)}>卸载</Button>
-            }]} pagination={false}/></Card>
+            children: <Card title="ISO镜像管理" extra={<Button type="primary" icon={<PlusOutlined/>}
+                                                               onClick={() => setIsoModalVisible(true)}>挂载ISO</Button>}
+                            variant="borderless">
+                {isos && isos.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {isos.map((iso, index) => (
+                            <div key={iso.iso_name || `iso-${index}`}
+                                 className="bg-white border border-gray-200 rounded-lg p-4 hover:border-purple-300 hover:shadow-md transition-all">
+                                <div className="flex items-center justify-between mb-3">
+                                    <span
+                                        className="px-2 py-0.5 text-xs font-medium text-green-700 bg-green-100 rounded">
+                                        ISO
+                                    </span>
+                                    <Button danger size="small" icon={<span className="iconify" data-icon="mdi:eject"/>}
+                                            onClick={() => {
+                                                setCurrentUnmountIso(iso.iso_name!);
+                                                setUnmountIsoConfirmChecked(false);
+                                                setUnmountIsoConfirmVisible(true)
+                                            }}>卸载</Button>
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="bg-gray-50 rounded-lg p-3">
+                                        <p className="text-xs text-gray-500 mb-1">挂载名称</p>
+                                        <code
+                                            className="text-sm font-mono text-gray-800 break-all">{iso.iso_name || '-'}</code>
+                                    </div>
+                                    <div className="bg-gray-50 rounded-lg p-3">
+                                        <p className="text-xs text-gray-500 mb-1">文件名</p>
+                                        <code
+                                            className="text-sm font-mono text-gray-800 break-all">{iso.iso_file || '-'}</code>
+                                    </div>
+                                    {iso.iso_hint && (
+                                        <div className="bg-blue-50 rounded-lg p-3">
+                                            <p className="text-xs text-gray-500 mb-1">备注</p>
+                                            <p className="text-sm text-gray-700">{iso.iso_hint}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center text-gray-500 py-8">暂无ISO挂载</div>
+                )}
+            </Card>
         },
         {
             key: 'nat',
@@ -1597,21 +1885,34 @@ function VMDetail() {
             children: <Card title="NAT端口转发规则"
                             extra={<Button type="primary" icon={<PlusOutlined/>} onClick={() => {
                                 setNatModalVisible(true);
-                                form.setFieldsValue({internal_ip: availableIPs[0]})
+                                form.setFieldsValue({lan_addr: availableIPs[0]})
                             }}>添加规则</Button>} variant="borderless"><Table
-                rowKey={(r) => r.id?.toString() || `nat-${Math.random()}`} dataSource={natRules}
-                columns={[{title: '外网端口', dataIndex: 'public_port', width: 100}, {
+                rowKey={(_r, index) => `nat-${index}`} dataSource={natRules}
+                columns={[{
+                    title: '外网端口',
+                    dataIndex: 'wan_port',
+                    width: 100,
+                    render: (port: number) => port || ''
+                }, {
                     title: '内网端口',
-                    dataIndex: 'private_port',
-                    width: 100
-                }, {title: '内网地址', dataIndex: 'internal_ip', width: 140}, {
+                    dataIndex: 'lan_port',
+                    width: 100,
+                    render: (port: number) => port || ''
+                }, {
+                    title: '内网地址',
+                    dataIndex: 'lan_addr',
+                    width: 140,
+                    render: (addr: string) => addr || ''
+                }, {
                     title: '备注',
-                    dataIndex: 'description',
-                    ellipsis: true
+                    dataIndex: 'nat_tips',
+                    ellipsis: true,
+                    render: (tips: string) => tips || ''
                 }, {
                     title: '操作',
                     width: 80,
-                    render: (_, r) => <Button danger size="small" onClick={() => handleDeleteNAT(r.id)}>删除</Button>
+                    render: (_: any, __: any, index: number) => <Button danger size="small"
+                                                     onClick={() => handleDeleteNAT(index)}>删除</Button>
                 }]} pagination={false}/></Card>
         },
         {
@@ -1620,46 +1921,164 @@ function VMDetail() {
             children: <Card title="反向代理配置" extra={<Button type="primary" icon={<PlusOutlined/>} onClick={() => {
                 setProxyModalVisible(true);
                 proxyForm.setFieldsValue({backend_ip: availableIPs[0]})
-            }}>添加代理</Button>} variant="borderless"><Table
-                rowKey={(r) => r.id?.toString() || `proxy-${Math.random()}`} dataSource={proxyRules}
-                columns={[{title: '域名', dataIndex: 'domain'}, {
-                    title: '后端IP',
-                    dataIndex: 'backend_ip'
-                }, {title: '目标端口', dataIndex: 'target_port'}, {
-                    title: '操作',
-                    render: (_, r) => <Button danger size="small" onClick={() => handleDeleteProxy(r.id)}>删除</Button>
-                }]} pagination={false}/></Card>
+            }}>添加代理</Button>} variant="borderless">
+                {proxyRules && proxyRules.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {proxyRules.map((proxy, index) => (
+                            <div key={proxy.id || `proxy-${index}`}
+                                 className="bg-white border border-gray-200 rounded-lg p-4 hover:border-pink-300 hover:shadow-md transition-all">
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className={`px-2 py-0.5 text-xs font-medium rounded ${
+                                        proxy.ssl_enabled 
+                                            ? 'text-green-700 bg-green-100' 
+                                            : 'text-gray-600 bg-gray-100'
+                                    }`}>
+                                        {proxy.ssl_enabled ? 'HTTPS' : 'HTTP'}
+                                    </span>
+                                    <Button danger size="small" 
+                                            icon={<DeleteOutlined/>}
+                                            onClick={() => handleDeleteProxy(index)}>删除</Button>
+                                </div>
+                                <div className="bg-gray-50 rounded-lg p-3 mb-2">
+                                    <p className="text-xs text-gray-500 mb-1">域名</p>
+                                    <code className="text-sm font-mono text-gray-800 break-all">{proxy.domain}</code>
+                                </div>
+                                <div className="flex items-center justify-between text-xs mb-2">
+                                    <span className="text-gray-500">后端地址</span>
+                                    <code className="px-2 py-0.5 font-medium font-mono text-gray-700 bg-gray-100 rounded">
+                                        {proxy.backend_ip || '默认'}:{proxy.backend_port}
+                                    </code>
+                                </div>
+                                {proxy.description && (
+                                    <p className="text-xs text-gray-500 mt-2">{proxy.description}</p>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center text-gray-500 py-8">暂无反向代理配置</div>
+                )}
+            </Card>
         },
         {
             key: 'backup',
             label: '备份管理',
             children: <Card title="备份管理" extra={<Button type="primary" icon={<PlusOutlined/>}
                                                             onClick={() => setBackupModalVisible(true)}>创建备份</Button>}
-                            variant="borderless"><Table rowKey={(r) => r.backup_name || `backup-${Math.random()}`}
-                                                        dataSource={backups} columns={[{
-                title: '名称',
-                dataIndex: 'backup_name'
-            }, {title: '创建时间', dataIndex: 'created_time'}, {
-                title: '操作',
-                render: (_, r) => <Space><Button size="small"
-                                                 onClick={() => handleRestoreBackup(r.backup_name)}>恢复</Button><Button
-                    danger size="small" onClick={() => handleDeleteBackup(r.backup_name)}>删除</Button></Space>
-            }]} pagination={false}/></Card>
+                            variant="borderless">
+                {backups && backups.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {backups.map((backup, index) => {
+                            const backupDate = backup.backup_time ? new Date(backup.backup_time * 1000).toLocaleString('zh-CN') : (backup.created_time || '未知时间')
+                            const backupHint = backup.backup_hint || ''
+                            return (
+                                <div key={backup.backup_name || `backup-${index}`}
+                                     className="bg-white border border-gray-200 rounded-lg p-4 hover:border-purple-300 hover:shadow-md transition-all">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <span
+                                            className="px-2 py-0.5 text-xs font-medium text-purple-700 bg-purple-100 rounded">
+                                            备份
+                                        </span>
+                                        <Space>
+                                            <Button size="small"
+                                                    icon={<span className="iconify" data-icon="mdi:restore"/>}
+                                                    onClick={() => {
+                                                        setCurrentRestoreBackup(backup.backup_name!);
+                                                        setRestoreConfirmChecked1(false);
+                                                        setRestoreConfirmChecked2(false);
+                                                        setRestoreBackupModalVisible(true)
+                                                    }}>恢复</Button>
+                                            <Button danger size="small"
+                                                    icon={<span className="iconify" data-icon="mdi:delete"/>}
+                                                    onClick={() => handleDeleteBackup(backup.backup_name!)}>删除</Button>
+                                        </Space>
+                                    </div>
+                                    <div className="bg-gray-50 rounded-lg p-3 mb-2">
+                                        <p className="text-xs text-gray-500 mb-1">备份名称</p>
+                                        <code
+                                            className="text-sm font-mono text-gray-800 break-all">{backup.backup_name || '-'}</code>
+                                    </div>
+                                    {backupHint && (
+                                        <div className="mb-2">
+                                            <p className="text-xs text-gray-500 mb-1">备份注释</p>
+                                            <p className="text-sm text-gray-700">{backupHint}</p>
+                                        </div>
+                                    )}
+                                    <div className="text-xs text-gray-500">
+                                        <span className="iconify inline" data-icon="mdi:clock-outline"
+                                              style={{width: '14px'}}></span>
+                                        {' '}{backupDate}
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                ) : (
+                    <div className="text-center text-gray-500 py-8">暂无备份</div>
+                )}
+            </Card>
         },
         {
             key: 'owners',
             label: '用户权限',
-            children: <Card title="用户管理" extra={<Button type="primary" icon={<UsergroupAddOutlined/>}
-                                                            onClick={() => setOwnerModalVisible(true)}>添加用户</Button>}
-                            variant="borderless"><Table rowKey={(r) => r.username || `owner-${Math.random()}`}
-                                                        dataSource={owners} columns={[{
-                title: '用户名',
-                dataIndex: 'username'
-            }, {title: '角色', dataIndex: 'role'}, {
-                title: '操作',
-                render: (_, r) => <Button danger size="small"
-                                          onClick={() => handleDeleteOwner(r.username)}>删除</Button>
-            }]} pagination={false}/></Card>
+            children: <Card title="用户管理" extra={
+                <Space>
+                    <Button type="primary" icon={<UsergroupAddOutlined/>}
+                            onClick={() => setOwnerModalVisible(true)}>添加用户</Button>
+                    {owners && owners.length > 0 && (
+                        <Button icon={<KeyOutlined/>}
+                                onClick={() => setTransferOwnershipModalVisible(true)}>移交所有权</Button>
+                    )}
+                </Space>
+            }
+                            variant="borderless">
+                {owners && owners.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {owners.map((owner, index) => {
+                            const isFirstOwner = index === 0
+                            const roleText = isFirstOwner ? '所有者' : '使用者'
+                            const roleClass = isFirstOwner ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'
+                            return (
+                                <div key={owner.username || `owner-${index}`}
+                                     className="bg-white border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <span className="iconify text-blue-600" data-icon="mdi:account"
+                                                  style={{fontSize: '24px'}}></span>
+                                            <span className="font-medium text-gray-800">{owner.username}</span>
+                                            {isFirstOwner &&
+                                                <span className="text-xs text-gray-500 ml-1">(主所有者)</span>}
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            {!isFirstOwner && (
+                                                <>
+                                                    <Button type="primary" size="small" icon={<KeyOutlined/>}
+                                                            onClick={() => {
+                                                                setTransferOwnerUsername(owner.username);
+                                                                setTransferOwnershipModalVisible(true);
+                                                            }}>移交所有权</Button>
+                                                    <Button danger size="small" icon={<span className="iconify"
+                                                                                            data-icon="mdi:account-remove"/>}
+                                                            onClick={() => handleDeleteOwner(owner.username)}>移除</Button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <div>
+                                            <span className={`px-2 py-0.5 text-xs font-medium ${roleClass} rounded`}>
+                                                {roleText}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                ) : (
+                    <div className="text-center text-gray-500 py-8">暂无使用者</div>
+                )}
+            </Card>
         },
     ];
 
@@ -1710,8 +2129,11 @@ function VMDetail() {
                                            text={getStatusText(currentStatus.ac_status)}/>
                                     <span
                                         className="text-gray-500 text-sm border-l pl-3 ml-1">
-                                        IPv4 : {vm.ipv4_address || '未分配'} <CopyOutlined className="cursor-pointer" onClick={() => handleCopyPassword(vm.ipv4_address || '', 'IPv4')}/>
-                                        &nbsp;| IPv6 : {vm.ipv6_address || '未分配'} <CopyOutlined className="cursor-pointer" onClick={() => handleCopyPassword(vm.ipv6_address || '', 'IPv6')}/>
+                                        IPv4 : {vm.ipv4_address || '未分配'} <CopyOutlined className="cursor-pointer"
+                                                                                           onClick={() => handleCopyPassword(vm.ipv4_address || '', 'IPv4')}/>
+                                        &nbsp;| IPv6 : {vm.ipv6_address || '未分配'} <CopyOutlined
+                                        className="cursor-pointer"
+                                        onClick={() => handleCopyPassword(vm.ipv6_address || '', 'IPv6')}/>
                                     </span>
                                 </div>
                                 <div className="flex gap-4 mt-2 text-sm text-gray-500">
@@ -1899,22 +2321,20 @@ function VMDetail() {
             </Modal>
 
             <Modal title="添加NAT规则" open={natModalVisible} onCancel={() => setNatModalVisible(false)}
-                   onOk={() => form.submit()}>
+                   onOk={() => form.submit()} confirmLoading={natActionLoading}>
                 <Form form={form} onFinish={handleAddNATRule} layout="vertical">
-                    <Form.Item label="协议" name="protocol"
-                               rules={[{required: true, message: '请选择协议'}]}><Select><Select.Option
-                        value="tcp">TCP</Select.Option><Select.Option
-                        value="udp">UDP</Select.Option></Select></Form.Item>
-                    <Form.Item label="公网端口" name="public_port" initialValue={0}
+                    <Form.Item label="外网端口 (WAN)" name="wan_port" initialValue={""}
                                help="留空或填0表示自动分配"><InputNumber min={0} max={65535}
                                                                          style={{width: '100%'}}/></Form.Item>
-                    <Form.Item label="内网端口" name="private_port"
+                    <Form.Item label="内网端口 (LAN)" name="lan_port"
                                rules={[{required: true, message: '请输入内网端口'}]}><InputNumber min={1} max={65535}
                                                                                                   style={{width: '100%'}}/></Form.Item>
-                    <Form.Item label="内网地址" name="internal_ip" initialValue={availableIPs[0]}><Select
+                    <Form.Item label="内网地址" name="lan_addr" initialValue={availableIPs[0]}
+                               rules={[{required: true, message: '请选择IP地址'}]}><Select
                         placeholder="请选择IP地址">{availableIPs.map(ip => <Select.Option key={ip}
                                                                                           value={ip}>{ip}</Select.Option>)}</Select></Form.Item>
-                    <Form.Item label="描述" name="description"><Input.TextArea rows={3}/></Form.Item>
+                    <Form.Item label="备注" name="nat_tips"><Input.TextArea rows={3}
+                                                                            placeholder="端口用途说明"/></Form.Item>
                 </Form>
             </Modal>
 
@@ -1939,7 +2359,7 @@ function VMDetail() {
             </Modal>
 
             <Modal title="添加反向代理" open={proxyModalVisible} onCancel={() => setProxyModalVisible(false)}
-                   onOk={() => proxyForm.submit()}>
+                   onOk={() => proxyForm.submit()} confirmLoading={proxyActionLoading}>
                 <Form form={proxyForm} onFinish={handleAddProxy} layout="vertical">
                     <Form.Item label="域名" name="domain" rules={[{required: true, message: '请输入域名'}]}
                                help="例如: www.example.com"><Input placeholder="example.com"/></Form.Item>
@@ -2127,7 +2547,7 @@ function VMDetail() {
                 </div>
                 <div className="mb-4"><Space direction="vertical">
                     <Checkbox checked={keepAccessChecked} onChange={(e) => setKeepAccessChecked(e.target.checked)}>保留我的访问权限
-                        (作为普通协作者)</Checkbox>
+                        (作为使用者)</Checkbox>
                     <div className="ml-6 text-xs text-blue-600 mb-2">勾选将继续保留此虚拟机的访问权限，但不再是所有者
                     </div>
                     <Checkbox checked={transferOwnerConfirmChecked}

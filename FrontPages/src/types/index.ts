@@ -136,7 +136,8 @@ export interface NATRule {
 export interface ProxyConfig {
   proxy_index: number;
   domain: string;
-  target_port: number;
+  backend_ip?: string;
+  backend_port: number;
   ssl_enabled: boolean;
   ssl_cert_path?: string;
   ssl_key_path?: string;

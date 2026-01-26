@@ -2,7 +2,6 @@
 # 提供LXD容器的创建、管理和监控功能
 ################################################################################
 import os
-import shutil
 import datetime
 import traceback
 from pylxd import Client
@@ -1373,7 +1372,7 @@ class HostServer(BasicServer):
     # 虚拟机控制台 ##############################################################
     def VMRemote(self, vm_uuid: str, ip_addr: str = "127.0.0.1") -> ZMessage:
         """生成 Web Terminal 访问 URL"""
-        # 专用操作 =============================================================
+        # 专用操作 ==============================================================
         if vm_uuid not in self.vm_saving:
             return ZMessage(
                 success=False,

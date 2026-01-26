@@ -672,11 +672,11 @@ function HostManage() {
                     <Col span={8} style={{minWidth: '240px', flexShrink: 0, flexGrow: 0}}>
                         <div className="space-y-1 text-xs">
                             <div className="flex justify-between items-center">
-                                <span className="text-gray-600">服务器访问地址:</span>
+                                <span className="text-gray-600">主机连接IP:</span>
                                 <span className="truncate">{host.addr || '未配置'}</span>
                             </div>
                             <div className="flex justify-between items-start">
-                                <span className="text-gray-600">服务器公共地址:</span>
+                                <span className="text-gray-600">公共公共IP:</span>
                                 <div className="text-right max-w-[60%]">
                                     {host.config?.public_addr && host.config.public_addr.length > 0 ? (
                                         host.config.public_addr.map((ip, idx) => (
@@ -695,41 +695,41 @@ function HostManage() {
                                 </div>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-gray-600">服务器访问端口:</span>
+                                <span className="text-gray-600">访问端口:</span>
                                 <span>{host.config?.server_port && host.config.server_port > 0 ? host.config.server_port : '未配置'}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-gray-600">服务器桌面端口:</span>
+                                <span className="text-gray-600">桌面端口:</span>
                                 <span>{host.config?.remote_port || '未配置'}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-gray-600">虚拟机过滤名称:</span>
+                                <span className="text-gray-600">虚拟机前缀:</span>
                                 <span className=" truncate">{host.config?.filter_name || '未配置'}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-gray-600">虚拟机可用数量:</span>
+                                <span className="text-gray-600">虚拟机数量:</span>
                                 <span
                                 >{host.vm_count || 0} / {host.config?.limits_nums || 0} 台</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-gray-600">内网网络控制器:</span>
+                                <span className="text-gray-600">内网网桥:</span>
                                 <span>{host.config?.network_nat || '未配置'}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-gray-600">公网网络控制器:</span>
+                                <span className="text-gray-600">公网网桥:</span>
                                 <span>{host.config?.network_pub || '未配置'}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-gray-600">可映射端口范围:</span>
+                                <span className="text-gray-600">端口范围:</span>
                                 <span
                                 >{host.config?.ports_start && host.config?.ports_close ? `${host.config.ports_start}-${host.config.ports_close}` : '未配置'}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-gray-600">服务器爱快地址:</span>
+                                <span className="text-gray-600">爱快地址:</span>
                                 <span className=" truncate">{host.config?.i_kuai_addr || '未配置'}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-gray-600">可用挂载模板数:</span>
+                                <span className="text-gray-600">模板数:</span>
                                 <span
                                 >系统盘 {host.config?.system_maps && Object.keys(host.config.system_maps).length > 0 ? Object.keys(host.config.system_maps).length : 0} / 光盘 {host.config?.images_maps && Object.keys(host.config.images_maps).length > 0 ? Object.keys(host.config.images_maps).length : 0} 个</span>
                             </div>

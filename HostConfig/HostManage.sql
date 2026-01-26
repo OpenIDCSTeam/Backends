@@ -105,17 +105,17 @@ CREATE TABLE IF NOT EXISTS hs_logger
 );
 
 -- 全局反向代理配置表 (web_proxy)
-CREATE TABLE IF NOT EXISTS web_proxy
-(
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,   -- 主键
-    lan_port   INTEGER NOT NULL,                    -- 内网端口
-    lan_addr   TEXT NOT NULL,                       -- 内网地址
-    web_addr   TEXT NOT NULL UNIQUE,                -- 域名地址
-    web_tips   TEXT DEFAULT '',                     -- 代理说明
-    is_https   INTEGER DEFAULT 1,                   -- 是否HTTPS (1=是, 0=否)
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- 创建时间
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP  -- 更新时间
-);
+-- CREATE TABLE IF NOT EXISTS web_proxy
+-- (
+--     id         INTEGER PRIMARY KEY AUTOINCREMENT,   -- 主键
+--     lan_port   INTEGER NOT NULL,                    -- 内网端口
+--     lan_addr   TEXT NOT NULL,                       -- 内网地址
+--     web_addr   TEXT NOT NULL UNIQUE,                -- 域名地址
+--     web_tips   TEXT DEFAULT '',                     -- 代理说明
+--     is_https   INTEGER DEFAULT 1,                   -- 是否HTTPS (1=是, 0=否)
+--     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- 创建时间
+--     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP  -- 更新时间
+-- );
 
 -- 用户表 (web_users)
 CREATE TABLE IF NOT EXISTS web_users

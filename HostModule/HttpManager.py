@@ -226,10 +226,10 @@ class HttpManager:
             self.config_all()
 
             # 保存到数据库（只有persistent为True时才写入）
-            if persistent:
-                self.global_set(domain, self.proxys_list[domain])
-            else:
-                print(f"代理 {domain} 为临时代理，不写入数据库")
+            # if persistent:
+            #     self.global_set(domain, self.proxys_list[domain])
+            # else:
+            #     print(f"代理 {domain} 为临时代理，不写入数据库")
 
             # 重载Caddy配置
             return self.reload_web()
@@ -261,7 +261,7 @@ class HttpManager:
             self.config_all()
 
             # 从数据库删除（不写入JSON文件）
-            self.global_del(domain)
+            # self.global_del(domain)
 
             # 重载Caddy配置
             result = self.reload_web()
@@ -270,7 +270,7 @@ class HttpManager:
                 # 回滚
                 self.proxys_list[domain] = backup
                 self.config_all()
-                self.global_set(domain, backup)
+                # self.global_set(domain, backup)
 
             return result
 
@@ -349,55 +349,29 @@ class HttpManager:
             print(f"重载Caddy配置时发生错误: {str(e)}")
             return False
 
-    # 加载代理配置 ###############################################################################
-    def global_get(self):
-        """从数据库加载代理配置"""
-        try:
-            # 从数据库获取代理配置
-            web_proxies = self.db_manager.get_web_proxy()
-            self.proxys_list = {}
-
-            for proxy in web_proxies:
-                web_addr = proxy.get('web_addr', '')
-                if web_addr:
-                    self.proxys_list[web_addr] = {
-                        "target": (proxy.get('lan_port', 80), proxy.get('lan_addr', '')),
-                        "is_https": proxy.get('is_https', True),
-                        "listen_port": None  # 数据库中没有存储，设为默认
-                    }
-
-            print(f"已从数据库加载 {len(self.proxys_list)} 个代理配置")
-            return True
-        except Exception as e:
-            print(f"加载代理配置失败: {str(e)}")
-            self.proxys_list = {}
-            return False
-
-    # 保存代理配置 ###############################################################################
-    def global_set(self, domain, proxy_info):
-        """将代理配置保存到数据库"""
-        try:
-            target_port, target_ip = proxy_info["target"]
-            proxy_data = {
-                'lan_port': target_port,
-                'lan_addr': target_ip,
-                'web_addr': domain,
-                'web_tips': f"代理配置: {domain} -> {target_ip}:{target_port}",
-                'is_https': proxy_info.get('is_https', True)
-            }
-            return self.db_manager.add_web_proxy(proxy_data)
-        except Exception as e:
-            print(f"保存代理到数据库失败: {str(e)}")
-            return False
-
-    # 删除代理配置 ###############################################################################
-    def global_del(self, domain):
-        """从数据库删除代理配置"""
-        try:
-            return self.db_manager.del_web_proxy(domain)
-        except Exception as e:
-            print(f"从数据库删除代理失败: {str(e)}")
-            return False
+    # # 加载代理配置 ###############################################################################
+    # def global_get(self):
+    #     """从虚拟机配置加载代理配置（已废弃，由HostManager.all_load统一管理）"""
+    #     # 此函数已废弃，代理配置现在从虚拟机配置中加载
+    #     # 在HostManager.all_load中会遍历所有虚拟机的web_all并调用create_web
+    #     print("global_get已废弃，代理配置由HostManager统一管理")
+    #     return True
+    #
+    # # 保存代理配置 ###############################################################################
+    # def global_set(self, domain, proxy_info):
+    #     """将代理配置保存到虚拟机配置（已废弃，由虚拟机配置统一管理）"""
+    #     # 此函数已废弃，代理配置现在保存在虚拟机的web_all列表中
+    #     # 通过admin_add_proxy或用户的add_proxy接口添加
+    #     print(f"global_set已废弃，代理 {domain} 应通过虚拟机配置管理")
+    #     return True
+    #
+    # # 删除代理配置 ###############################################################################
+    # def global_del(self, domain):
+    #     """从虚拟机配置删除代理配置（已废弃，由虚拟机配置统一管理）"""
+    #     # 此函数已废弃，代理配置现在从虚拟机的web_all列表中删除
+    #     # 通过admin_delete_proxy或用户的delete_proxy接口删除
+    #     print(f"global_del已废弃，代理 {domain} 应通过虚拟机配置管理")
+    #     return True
 
 
 # 使用示例

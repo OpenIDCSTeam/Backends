@@ -22,7 +22,7 @@ class HostManage:
         self.bearer: str = ""  # 先初始化saving变量
         self.saving = DataManager("./DataSaving/hostmanage.db")
         self.proxys: HttpManager | None = None
-        self.web_all: list[WebProxy] = []  # 全局代理配置列表
+        # 删除 self.web_all，不再使用全局代理列表
         self.set_conf()
 
     # 字典化 #####################################################################
@@ -158,28 +158,11 @@ class HostManage:
 
             # 启动Http实例
             self.proxys = HttpManager()
-            self.proxys.global_get()
+            # 不再调用 global_get，因为代理配置现在在虚拟机中
             self.proxys.config_all()
             self.proxys.launch_web()
 
-            # 加载全局代理配置
-            # self.web_all = []
-            self.web_all = self.saving.get_web_proxy()
-
-            # for proxy_data in web_proxy_list:
-            #     web_proxy = WebProxy()
-            #     web_proxy.lan_port = proxy_data.get('lan_port', 0)
-            #     web_proxy.lan_addr = proxy_data.get('lan_addr', '')
-            #     web_proxy.web_addr = proxy_data.get('web_addr', '')
-            #     web_proxy.web_tips = proxy_data.get('web_tips', '')
-            #     web_proxy.is_https = proxy_data.get('is_https', True)
-            #     self.web_all.append(web_proxy)
-            #     # 添加到HttpManage
-            #     self.proxys.proxy_add(
-            #         (web_proxy.lan_port, web_proxy.lan_addr),
-            #         web_proxy.web_addr,
-            #         web_proxy.is_https
-            #     )
+            # 删除全局代理配置的加载，不再使用 web_all
 
             # 加载所有主机配置
             host_configs = self.saving.all_hs_config()
@@ -303,103 +286,20 @@ class HostManage:
     # 添加全局代理 ###################################################################
     def add_proxy(self, proxy_data: dict) -> ZMessage:
         """
-        添加全局代理配置
+        添加全局代理配置（已废弃，请使用虚拟机的代理配置）
         :param proxy_data: 代理配置数据字典
         :return: 操作结果
         """
-        try:
-            # 创建WebProxy对象
-            web_proxy = WebProxy()
-            web_proxy.lan_port = proxy_data.get('lan_port', 0)
-            web_proxy.lan_addr = proxy_data.get('lan_addr', '')
-            web_proxy.web_addr = proxy_data.get('web_addr', '')
-            web_proxy.web_tips = proxy_data.get('web_tips', '')
-            web_proxy.is_https = proxy_data.get('is_https', True)
-
-            # 检查代理是否已存在
-            for proxy in self.web_all:
-                if proxy.web_addr == web_proxy.web_addr:
-                    return ZMessage(success=False, message=f"代理域名 {web_proxy.web_addr} 已存在")
-
-            # 调用HttpManage添加代理
-            if self.proxys:
-                result = self.proxys.create_web(
-                    (web_proxy.lan_port, web_proxy.lan_addr),
-                    web_proxy.web_addr,
-                    web_proxy.is_https
-                )
-                if not result:
-                    return ZMessage(success=False, message="添加代理到HttpManage失败")
-            else:
-                return ZMessage(success=False, message="HttpManage未初始化")
-
-            # 添加到web_all列表
-            self.web_all.append(web_proxy)
-
-            # 保存到数据库
-            success = self.saving.add_web_proxy(proxy_data)
-            if not success:
-                # 如果保存失败，回滚操作
-                self.web_all.remove(web_proxy)
-                if self.proxys:
-                    self.proxys.remove_web(web_proxy.web_addr)
-                return ZMessage(success=False, message="保存代理配置到数据库失败")
-
-            return ZMessage(success=True, message=f"代理 {web_proxy.web_addr} 添加成功")
-
-        except Exception as e:
-            logger.error(f"添加全局代理失败: {e}")
-            traceback.print_exc()
-            return ZMessage(success=False, message=f"添加代理失败: {str(e)}")
+        return ZMessage(success=False, message="此函数已废弃，请使用 admin_add_proxy 或 add_vm_proxy_config")
 
     # 删除全局代理 ###################################################################
     def del_proxy(self, web_addr: str) -> ZMessage:
         """
-        删除全局代理配置
+        删除全局代理配置（已废弃，请使用虚拟机的代理配置）
         :param web_addr: 代理域名
         :return: 操作结果
         """
-        try:
-            # 查找代理
-            web_proxy = None
-            for proxy in self.web_all:
-                if proxy.web_addr == web_addr:
-                    web_proxy = proxy
-                    break
-
-            if not web_proxy:
-                return ZMessage(success=False, message=f"代理域名 {web_addr} 不存在")
-
-            # 调用HttpManage删除代理
-            if self.proxys:
-                result = self.proxys.remove_web(web_addr)
-                if not result:
-                    return ZMessage(success=False, message="从HttpManage删除代理失败")
-            else:
-                return ZMessage(success=False, message="HttpManage未初始化")
-
-            # 从web_all列表移除
-            self.web_all.remove(web_proxy)
-
-            # 从数据库删除
-            success = self.saving.del_web_proxy(web_addr)
-            if not success:
-                # 如果删除失败，回滚操作
-                self.web_all.append(web_proxy)
-                if self.proxys:
-                    self.proxys.create_web(
-                        (web_proxy.lan_port, web_proxy.lan_addr),
-                        web_proxy.web_addr,
-                        web_proxy.is_https
-                    )
-                return ZMessage(success=False, message="从数据库删除代理配置失败")
-
-            return ZMessage(success=True, message=f"代理 {web_addr} 删除成功")
-
-        except Exception as e:
-            logger.error(f"删除全局代理失败: {e}")
-            traceback.print_exc()
-            return ZMessage(success=False, message=f"删除代理失败: {str(e)}")
+        return ZMessage(success=False, message="此函数已废弃，请使用 admin_delete_proxy 或 delete_vm_proxy_config")
 
     # 定时任务 ###################################################################
     def exe_cron(self):

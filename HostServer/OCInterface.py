@@ -172,6 +172,7 @@ class HostServer(BasicServer):
 
         except Exception as e:
             logger.error(f"[{self.hs_config.server_name}] 解析容器 {vm_uuid} 统计信息失败: {e}")
+            traceback.print_exc()
 
         return hw_status
 
@@ -226,12 +227,14 @@ class HostServer(BasicServer):
 
                 except Exception as e:
                     logger.error(f"[{self.hs_config.server_name}] Crontabs: 处理容器 {vm_uuid} 时出错: {e}")
+                    traceback.print_exc()
                     continue
 
             return True
 
         except Exception as e:
             logger.error(f"[{self.hs_config.server_name}] Crontabs: 容器状态采集失败: {e}")
+            traceback.print_exc()
             return True  # 即使失败也返回True，避免影响其他定时任务
 
     # 宿主机状态 ###############################################################
@@ -269,24 +272,28 @@ class HostServer(BasicServer):
                             if 'CPU' in key and '%' in value:
                                 try:
                                     hw_status.cpu_usage = int(float(value.replace('%', '').strip()))
-                                except:
+                                except Exception as e:
+                                    traceback.print_exc()
                                     pass
                             # 解析内存使用
                             elif 'Memory' in key and 'GiB' in value:
                                 try:
                                     mem_used = float(value.split('/')[0].replace('GiB', '').strip())
                                     hw_status.mem_usage = int(mem_used * 1024)  # 转换为MB
-                                except:
+                                except Exception as e:
+                                    traceback.print_exc()
                                     pass
                 
                 return hw_status
                 
             except Exception as e:
                 logger.error(f"获取Docker主机状态失败: {str(e)}")
+                traceback.print_exc()
                 return super().HSStatus()
                 
         except Exception as e:
             logger.error(f"获取Docker主机状态失败: {str(e)}")
+            traceback.print_exc()
         
         # 通用操作 =============================================================
         return super().HSStatus()
@@ -486,11 +493,11 @@ class HostServer(BasicServer):
 
                 except Exception as e:
                     logger.error(f"处理IP分配时出错: {str(e)}")
+                    traceback.print_exc()
                     return vm_conf, ZMessage(
                         success=False,
                         action="NetCheck",
-                        message=f"处理IP分配时出错: {str(e)}"
-                    )
+                        message=f"处理IP分配时出错: {str(e)}")
 
                 # 如果没有分配到IP，返回失败
                 if not ip_allocated:
@@ -586,7 +593,7 @@ class HostServer(BasicServer):
         # 配置网络 =============================================
         # 跟踪已处理的网络，避免重复连接同一网络
         processed_networks = set()
-        # 断开默认bridge网络（容器创建时会自动连接）============
+            # 断开默认bridge网络（容器创建时会自动连接）============
         if flag:
             try:
                 default_net = client.networks.get('bridge')
@@ -594,6 +601,7 @@ class HostServer(BasicServer):
                 logger.info(f"容器 已断开默认bridge网络")
             except Exception as e:
                 logger.warning(f"断开默认网络失败: {str(e)}")
+                traceback.print_exc()
         for nic_name, nic_conf in vm_conf.nic_all.items():
             # 获取配置 =========================================
             nic_keys = "network_" + nic_conf.nic_type
@@ -627,6 +635,7 @@ class HostServer(BasicServer):
             except Exception as e:
                 logger.warning(f"{"连接" if flag else "删除"}"
                                f"容器网络失败: {str(e)}")
+                traceback.print_exc()
         # 返回结果 =============================================
         return ZMessage(
             success=True,
@@ -821,8 +830,10 @@ class HostServer(BasicServer):
             logger.info(f"Container {vm_name} deleted successfully")
         except NotFound:
             logger.warning(f"Container {vm_name} not found in Docker")
+            traceback.print_exc()
         except Exception as e:
             logger.error(f"删除容器失败: {str(e)}")
+            traceback.print_exc()
             return ZMessage(
                 success=False, action="VMDelete",
                 message=f"删除容器失败: {str(e)}")
@@ -831,6 +842,7 @@ class HostServer(BasicServer):
             images = client.images.list()
         except Exception as e:
             logger.warning(f"获取镜像列表失败: {str(e)}")
+            traceback.print_exc()
             images = []
         # 遍历并删除镜像 ===============================================
         deleted_images = []
@@ -860,6 +872,7 @@ class HostServer(BasicServer):
                     logger.info(f"删除镜像: {', '.join(matching_tags)} ({image.id[:12]})")
                 except Exception as img_err:
                     logger.warning(f"删除镜像 {image.id[:12]} 失败: {str(img_err)}")
+                    traceback.print_exc()
 
         if deleted_images:
             logger.info(f"共删除 {len(deleted_images)} 个镜像标签")
@@ -915,6 +928,7 @@ class HostServer(BasicServer):
                         logger.info(f"Container {vm_name} force stopped successfully")
                     except Exception as force_stop_error:
                         logger.error(f"Force stop failed for container {vm_name}: {str(force_stop_error)}")
+                        traceback.print_exc()
                         return ZMessage(
                             success=False, action="VMPowers",
                             message=f"无法停止容器 {vm_name}，当前状态: {container.status}，强制停止也失败")
@@ -963,6 +977,7 @@ class HostServer(BasicServer):
                 message=f"Container {vm_name} does not exist")
             self.logs_set(hs_result)
             logger.error(f"Container {vm_name} not found during power operation")
+            traceback.print_exc()
             return hs_result
         except Exception as e:
             error_msg = f"电源操作失败: {str(e)}"
@@ -1023,10 +1038,12 @@ class HostServer(BasicServer):
             return hs_result
 
         except NotFound:
+            traceback.print_exc()
             return ZMessage(
                 success=False, action="Password",
                 message=f"容器 {vm_name} 不存在")
         except Exception as e:
+            traceback.print_exc()
             return ZMessage(
                 success=False, action="Password",
                 message=f"设置密码失败: {str(e)}")
@@ -1114,6 +1131,7 @@ class HostServer(BasicServer):
             return hs_result
         # 处理异常 =======================================================
         except NotFound:
+            traceback.print_exc()
             return ZMessage(
                 success=False, action="VMBackup",
                 message=f"容器 {vm_name} 不存在")
@@ -1342,6 +1360,7 @@ class HostServer(BasicServer):
                     message="添加SSH代理失败")
         except Exception as e:
             logger.error(f"SSH代理配置失败: {str(e)}")
+            traceback.print_exc()
             self.web_terminal.stop_tty(tty_port)
             return ZMessage(
                 success=False,

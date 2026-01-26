@@ -1,7 +1,7 @@
-"""
-Hyper-V虚拟机管理模块
-支持Windows Hyper-V虚拟机的创建、管理、电源控制等功能
-"""
+#######################################################
+# Hyper-V虚拟机管理模块
+# 支持Windows Hyper-V虚拟机的创建、管理、电源控制等功能
+#######################################################
 
 import os
 import shutil
@@ -24,64 +24,71 @@ from MainObject.Config.VMConfig import VMConfig
 from MainObject.Config.VMBackup import VMBackup
 
 
-
 class HostServer(BasicServer):
     """Hyper-V宿主机服务类"""
 
-    # 宿主机服务 ###############################################################
+    # ===============================================================================
+    # 宿主机服务
+    # ===============================================================================
+
+    # 初始化 ########################################################################
     def __init__(self, config: HSConfig, **kwargs):
         super().__init__(config, **kwargs)
         super().__load__(**kwargs)
-
-        # 添加变量 =============================================================
+        # 添加变量 =================================================================
         # 初始化Hyper-V API连接
         self.hyperv_api = HyperVAPI(
             host=self.hs_config.server_addr,
             user=self.hs_config.server_user,
             password=self.hs_config.server_pass,
-            port=self.hs_config.server_port if hasattr(self.hs_config, 'server_port') else 5985,
+            port=self.hs_config.server_port if not self.hs_config == "" else 5985,
             use_ssl=False
         )
 
         # VNC远程控制（Hyper-V使用增强会话模式，但保留接口兼容性）
         self.vm_remote: VNCSManager | None = None
 
-    # 宿主机任务 ###############################################################
+    # ===============================================================================
+    # 宿主机管理
+    # ===============================================================================
+    # 定时任务 ######################################################################
     def Crontabs(self) -> bool:
-        """定时任务"""
-        # 专用操作 =============================================================
         try:
-            # 获取远程主机状态
+            # 专用操作 =============================================================
+            # 获取远程主机状态 =====================================================
             hw_status = self.HSStatus()
-            # 保存主机状态到数据库
+
+            # 保存主机状态到数据库 =================================================
             if hw_status:
                 from MainObject.Server.HSStatus import HSStatus
                 hs_status = HSStatus()
                 hs_status.hw_status = hw_status
                 self.host_set(hs_status)
                 logger.debug(f"[{self.hs_config.server_name}] 远程主机状态已保存")
-        except Exception as e:
-            logger.error(f"[{self.hs_config.server_name}] 获取远程主机状态失败: {str(e)}")
-        # 通用操作 =============================================================
-        return True
 
-    # 宿主机状态 ###############################################################
+            # 通用操作 =============================================================
+            return True
+        except Exception as e:
+            logger.error(f"[{self.hs_config.server_name}] 定时任务执行失败: {str(e)}")
+            traceback.print_exc()
+            return False
+
+    # 获取宿主机状态 ################################################################
     def HSStatus(self) -> HWStatus:
-        """获取宿主机状态"""
-        # 专用操作 =============================================================
         try:
-            # 连接到Hyper-V
+            # 连接到Hyper-V服务器 =====================================================
             connect_result = self.hyperv_api.connect()
             if not connect_result.success:
                 logger.error(f"无法连接到Hyper-V获取状态: {connect_result.message}")
                 return super().HSStatus()
 
-            # 获取远程主机状态
+            # 获取远程主机状态信息 =====================================================
             host_status = self.hyperv_api.get_host_status()
 
-            # 断开连接
+            # 断开Hyper-V连接 ==========================================================
             self.hyperv_api.disconnect()
 
+            # 解析并构建状态对象 =======================================================
             if host_status:
                 hw_status = HWStatus()
                 hw_status.cpu_usage = host_status.get("cpu_usage_percent", 0)
@@ -96,112 +103,146 @@ class HostServer(BasicServer):
                 )
                 return hw_status
             else:
-                # 未获取到状态，返回空状态
+                # 未获取到状态数据处理 =================================================
                 logger.warning(f"[{self.hs_config.server_name}] 未能获取到主机状态数据")
                 return HWStatus()
+
+        # 异常处理 =================================================================
         except Exception as e:
             logger.error(f"获取Hyper-V主机状态失败: {str(e)}")
+            traceback.print_exc()
 
-        # 通用操作 =============================================================
+        # 通用操作 =================================================================
         return super().HSStatus()
 
-    # 初始宿主机 ###############################################################
+    # 初始化宿主机 ##################################################################
     def HSCreate(self) -> ZMessage:
         """初始化宿主机"""
-        # 专用操作 =============================================================
-        # Hyper-V不需要初始化操作，主机已经存在
-        # 通用操作 =============================================================
-        return super().HSCreate()
+        try:
+            # 专用操作 ==============================================================
+            # Hyper-V不需要初始化操作，主机已经存在
 
-    # 还原宿主机 ###############################################################
+            # 通用操作 ==============================================================
+            return super().HSCreate()
+
+        except Exception as e:
+            logger.error(f"初始化宿主机失败: {str(e)}")
+            traceback.print_exc()
+            return ZMessage(success=False, action="HSCreate", message=str(e))
+
+    # 还原宿主机 ####################################################################
     def HSDelete(self) -> ZMessage:
         """还原宿主机"""
-        # 专用操作 =============================================================
-        # Hyper-V不需要还原操作
-        # 通用操作 =============================================================
-        return super().HSDelete()
+        try:
+            # 专用操作 ==============================================================
+            # Hyper-V不需要还原操作
 
-    # 读取宿主机 ###############################################################
+            # 通用操作 ==============================================================
+            return super().HSDelete()
+
+        except Exception as e:
+            logger.error(f"还原宿主机失败: {str(e)}")
+            traceback.print_exc()
+            return ZMessage(success=False, action="HSDelete", message=str(e))
+
+    # 加载宿主机 ####################################################################
     def HSLoader(self) -> ZMessage:
         """加载宿主机"""
-        # 专用操作 =============================================================
-        # 测试连接到Hyper-V
-        result = self.hyperv_api.connect()
-        if result.success:
-            self.hyperv_api.disconnect()
-            logger.info(f"成功连接到Hyper-V主机: {self.hs_config.server_addr}")
-        else:
-            logger.error(f"无法连接到Hyper-V主机: {result.message}")
-            return result
-        # 通用操作 =============================================================
-        return super().HSLoader()
+        try:
+            # 专用操作 ==============================================================
+            # 测试连接到Hyper-V
+            result = self.hyperv_api.connect()
+            if result.success:
+                self.hyperv_api.disconnect()
+                logger.info(f"成功连接到Hyper-V主机: {self.hs_config.server_addr}")
+            else:
+                logger.error(f"无法连接到Hyper-V主机: {result.message}")
+                return result
+            # 通用操作 ==============================================================
+            return super().HSLoader()
+        except Exception as e:
+            logger.error(f"加载宿主机失败: {str(e)}")
+            traceback.print_exc()
+            return ZMessage(success=False, action="HSLoader", message=str(e))
 
-    # 卸载宿主机 ###############################################################
+    # 卸载宿主机 ####################################################################
     def HSUnload(self) -> ZMessage:
-        """卸载宿主机"""
-        # 专用操作 =============================================================
-        # 断开Hyper-V连接
-        self.hyperv_api.disconnect()
+        try:
+            # 断开Hyper-V连接========================================================
+            self.hyperv_api.disconnect()
+            # 停止VNC服务
+            if self.vm_remote:
+                try:
+                    self.vm_remote.stop()
+                except Exception as e:
+                    logger.warning(f"停止VNC服务失败: {str(e)}")
+            # 通用操作 ==============================================================
+            return super().HSUnload()
+        except Exception as e:
+            logger.error(f"卸载宿主机失败: {str(e)}")
+            traceback.print_exc()
+            return ZMessage(success=False, action="HSUnload", message=str(e))
 
-        # 停止VNC服务
-        if self.vm_remote:
-            try:
-                self.vm_remote.stop()
-            except Exception as e:
-                logger.warning(f"停止VNC服务失败: {str(e)}")
+    # ================================================================================
+    # 虚拟机管理
+    # ================================================================================
 
-        # 通用操作 =============================================================
-        return super().HSUnload()
-
-    # 虚拟机列出 ###############################################################
+    # 获取虚拟机状态 #################################################################
     def VMStatus(self, vm_name: str = "", s_t: int = None,
                  e_t: int = None) -> dict[str, list[HWStatus]]:
         """获取虚拟机状态"""
-        # 专用操作 =============================================================
-        # Hyper-V的虚拟机状态通过API实时获取
-        # 通用操作 =============================================================
-        return super().VMStatus(vm_name, s_t, e_t)
+        try:
+            # 专用操作 ===============================================================
+            # Hyper-V的虚拟机状态通过API实时获取
 
-    # 虚拟机扫描 ###############################################################
+            # 通用操作 ===============================================================
+            return super().VMStatus(vm_name, s_t, e_t)
+
+        except Exception as e:
+            logger.error(f"获取虚拟机状态失败: {str(e)}")
+            traceback.print_exc()
+            return {}
+
+    # 扫描虚拟机 ####################################################################
     def VMDetect(self) -> ZMessage:
         """扫描虚拟机"""
         # 专用操作 =============================================================
         try:
-            # 连接到Hyper-V
+            # 连接到Hyper-V服务器 =================================================
             connect_result = self.hyperv_api.connect()
             if not connect_result.success:
                 return connect_result
 
-            # 使用主机配置的filter_name作为前缀过滤
+            # 获取过滤前缀配置 =====================================================
             filter_prefix = self.hs_config.filter_name if self.hs_config else ""
 
-            # 获取所有虚拟机列表
+            # 获取所有虚拟机列表 ===================================================
             vms_list = self.hyperv_api.list_vms(filter_prefix)
 
+            # 初始化计数器 =========================================================
             scanned_count = len(vms_list)
             added_count = 0
 
-            # 处理每个虚拟机
+            # 遍历处理每个虚拟机 ===================================================
             for vm_info in vms_list:
+                # 提取虚拟机名称 ===================================================
                 vm_name = vm_info.get("name", "")
                 if not vm_name:
                     continue
-
-                # 检查是否已存在
+                # 检查虚拟机是否已存在 =============================================
                 if vm_name in self.vm_saving:
                     continue
-
-                # 创建默认虚拟机配置
+                # 创建默认虚拟机配置对象 ===========================================
                 default_vm_config = VMConfig()
                 default_vm_config.vm_uuid = vm_name
                 default_vm_config.cpu_num = vm_info.get("cpu", 1)
                 default_vm_config.mem_num = vm_info.get("memory_mb", 1024)
 
-                # 添加到服务器的虚拟机配置中
+                # 添加到虚拟机配置字典 =============================================
                 self.vm_saving[vm_name] = default_vm_config
                 added_count += 1
 
-                # 记录日志
+                # 记录扫描日志 =====================================================
                 log_msg = ZMessage(
                     success=True,
                     action="VScanner",
@@ -215,10 +256,10 @@ class HostServer(BasicServer):
                 )
                 self.push_log(log_msg)
 
-            # 断开连接
+            # 断开Hyper-V连接 =====================================================
             self.hyperv_api.disconnect()
 
-            # 保存到数据库
+            # 保存配置到数据库 =====================================================
             if added_count > 0:
                 success = self.data_set()
                 if not success:
@@ -226,7 +267,7 @@ class HostServer(BasicServer):
                         success=False, action="VScanner",
                         message="保存扫描的虚拟机到数据库失败")
 
-            # 返回成功消息
+            # 返回扫描结果 =========================================================
             return ZMessage(
                 success=True,
                 action="VScanner",
@@ -239,52 +280,61 @@ class HostServer(BasicServer):
             )
 
         except Exception as e:
+            # 异常处理 =============================================================
+            logger.error(f"扫描虚拟机失败: {str(e)}")
+            traceback.print_exc()
             self.hyperv_api.disconnect()
             return ZMessage(success=False, action="VScanner",
                             message=f"扫描虚拟机时出错: {str(e)}")
 
-    # 创建虚拟机 ###############################################################
+    # 创建虚拟机 ####################################################################
     def VMCreate(self, vm_conf: VMConfig) -> ZMessage:
         """创建虚拟机"""
-        # 网络检查和IP分配
+        # 网络检查和IP分配 =====================================================
         vm_conf, net_result = self.NetCheck(vm_conf)
         if not net_result.success:
             return net_result
+
+        # 绑定IP地址 ===========================================================
         self.IPBinder(vm_conf, True)
 
         # 专用操作 =============================================================
         try:
-            # 连接到Hyper-V
+            # 连接到Hyper-V服务器 =================================================
             connect_result = self.hyperv_api.connect()
             if not connect_result.success:
                 return connect_result
 
-            # 创建虚拟机
+            # 创建虚拟机实例 =======================================================
             create_result = self.hyperv_api.create_vm(vm_conf, self.hs_config)
             if not create_result.success:
                 self.hyperv_api.disconnect()
                 return create_result
 
-            # 如果有系统镜像，安装系统
+            # 安装操作系统（如果指定了镜像）=========================================
             if vm_conf.os_name:
                 install_result = self.VMSetups(vm_conf)
                 if not install_result.success:
-                    # 安装失败，删除虚拟机
+                    # 安装失败时清理虚拟机 =========================================
                     self.hyperv_api.delete_vm(vm_conf.vm_uuid)
                     self.hyperv_api.disconnect()
                     return install_result
 
-            # 启动虚拟机
+            # 启动虚拟机 ===========================================================
             self.hyperv_api.power_on(vm_conf.vm_uuid)
 
-            # 断开连接
+            # 断开Hyper-V连接 =====================================================
             self.hyperv_api.disconnect()
 
             logger.info(f"虚拟机 {vm_conf.vm_uuid} 创建成功")
 
         except Exception as e:
+            # 异常处理 =============================================================
+            logger.error(f"创建虚拟机失败: {str(e)}")
+            traceback.print_exc()
             self.hyperv_api.disconnect()
-            # 创建失败时清理
+
+            # 记录失败日志 =========================================================
             hs_result = ZMessage(
                 success=False, action="VMCreate",
                 message=f"虚拟机创建失败: {str(e)}")
@@ -294,101 +344,110 @@ class HostServer(BasicServer):
         # 通用操作 =============================================================
         return super().VMCreate(vm_conf)
 
-    # 安装虚拟机 ###############################################################
+    # 安装虚拟机系统 ################################################################
     def VMSetups(self, vm_conf: VMConfig) -> ZMessage:
         """安装虚拟机系统"""
         # 专用操作 =============================================================
         try:
-            # 获取镜像文件路径
+            # 构建镜像文件完整路径 =================================================
             image_file = os.path.join(self.hs_config.images_path, vm_conf.os_name)
+
+            # 检查镜像文件是否存在 =================================================
             if not os.path.exists(image_file):
                 return ZMessage(
                     success=False, action="VInstall",
                     message=f"镜像文件不存在: {image_file}")
 
-            # 判断是ISO还是磁盘镜像
+            # 获取文件扩展名判断镜像类型 ===========================================
             file_ext = os.path.splitext(vm_conf.os_name)[1].lower()
 
+            # 处理ISO镜像 ==========================================================
             if file_ext in ['.iso']:
-                # ISO镜像，挂载到虚拟机
+                # 获取ISO路径 ======================================================
                 iso_path = image_file
 
-                # 挂载ISO
+                # 挂载ISO到虚拟机 ==================================================
                 attach_result = self.hyperv_api.attach_iso(vm_conf.vm_uuid, iso_path)
                 if not attach_result.success:
                     return attach_result
 
                 logger.info(f"ISO镜像 {vm_conf.os_name} 已挂载到虚拟机 {vm_conf.vm_uuid}")
 
+            # 处理磁盘镜像 =========================================================
             elif file_ext in ['.vhdx', '.vhd']:
-                # 磁盘镜像，复制到虚拟机目录
+                # 构建虚拟机磁盘目标路径 ===========================================
                 vm_path = os.path.join(self.hs_config.system_path, vm_conf.vm_uuid)
                 vm_disk_path = os.path.join(vm_path, "Virtual Hard Disks", f"{vm_conf.vm_uuid}.vhdx")
 
-                # 确保目录存在
+                # 创建目标目录 =====================================================
                 os.makedirs(os.path.dirname(vm_disk_path), exist_ok=True)
 
-                # 复制磁盘镜像
+                # 复制磁盘镜像文件 =================================================
                 shutil.copy(image_file, vm_disk_path)
                 logger.info(f"磁盘镜像已复制到: {vm_disk_path}")
 
+            # 返回安装成功 =========================================================
             return ZMessage(success=True, action="VInstall",
                             message="系统安装完成")
 
         except Exception as e:
+            # 异常处理 =============================================================
             logger.error(f"安装虚拟机失败: {str(e)}")
+            traceback.print_exc()
             return ZMessage(success=False, action="VInstall",
                             message=f"安装失败: {str(e)}")
 
-    # 配置虚拟机 ###############################################################
+    # 更新虚拟机配置 ################################################################
     def VMUpdate(self, vm_conf: VMConfig, vm_last: VMConfig) -> ZMessage:
         """更新虚拟机配置"""
-        # 网络检查
+        # 网络检查和IP分配 =====================================================
         vm_conf, net_result = self.NetCheck(vm_conf)
         if not net_result.success:
             return net_result
+
+        # 绑定IP地址 ===========================================================
         self.IPBinder(vm_conf, True)
 
         # 专用操作 =============================================================
         try:
-            # 连接到Hyper-V
+            # 连接到Hyper-V服务器 =================================================
             connect_result = self.hyperv_api.connect()
             if not connect_result.success:
                 return connect_result
 
-            # 检查虚拟机是否存在
+            # 检查虚拟机是否存在 ===================================================
             if vm_conf.vm_uuid not in self.vm_saving:
                 self.hyperv_api.disconnect()
                 return ZMessage(
                     success=False, action="VMUpdate",
                     message=f"虚拟机 {vm_conf.vm_uuid} 不存在")
 
-            # 更新虚拟机配置存储
+            # 更新虚拟机配置存储 ===================================================
             self.vm_saving[vm_conf.vm_uuid] = vm_conf
 
-            # 关闭虚拟机（Hyper-V需要关机才能修改配置）
+            # 关闭虚拟机以便修改配置 ===============================================
             self.hyperv_api.power_off(vm_conf.vm_uuid, force=True)
 
-            # 重装系统
+            # 检查是否需要重装系统 =================================================
             if vm_conf.os_name != vm_last.os_name and vm_last.os_name != "":
                 install_result = self.VMSetups(vm_conf)
                 if not install_result.success:
                     self.hyperv_api.disconnect()
                     return install_result
 
-            # 更新CPU和内存配置
+            # 更新CPU和内存配置 ====================================================
             if vm_conf.cpu_num != vm_last.cpu_num or vm_conf.mem_num != vm_last.mem_num:
                 update_result = self.hyperv_api.update_vm_config(vm_conf.vm_uuid, vm_conf)
                 if not update_result.success:
                     self.hyperv_api.disconnect()
                     return update_result
 
-            # 更新硬盘（如果需要扩容）
+            # 检查是否需要扩容硬盘 =================================================
             if vm_conf.hdd_num > vm_last.hdd_num:
                 # TODO: 实现磁盘扩容
                 logger.warning("Hyper-V磁盘扩容功能待实现")
 
-            # 更新网卡
+            # 更新网络配置 =========================================================
             network_result = self.IPUpdate(vm_conf, vm_last)
             if not network_result.success:
                 self.hyperv_api.disconnect()
@@ -396,7 +455,7 @@ class HostServer(BasicServer):
                     success=False, action="VMUpdate",
                     message=f"虚拟机 {vm_conf.vm_uuid} 网络配置更新失败: {network_result.message}")
 
-            # 启动虚拟机
+            # 启动虚拟机 ===========================================================
             start_result = self.hyperv_api.power_on(vm_conf.vm_uuid)
             if not start_result.success:
                 self.hyperv_api.disconnect()
@@ -404,10 +463,13 @@ class HostServer(BasicServer):
                     success=False, action="VMUpdate",
                     message=f"虚拟机 {vm_conf.vm_uuid} 启动失败: {start_result.message}")
 
-            # 断开连接
+            # 断开Hyper-V连接 =====================================================
             self.hyperv_api.disconnect()
 
         except Exception as e:
+            # 异常处理 =============================================================
+            logger.error(f"更新虚拟机配置失败: {str(e)}")
+            traceback.print_exc()
             self.hyperv_api.disconnect()
             return ZMessage(
                 success=False, action="VMUpdate",
@@ -416,11 +478,12 @@ class HostServer(BasicServer):
         # 通用操作 =============================================================
         return super().VMUpdate(vm_conf, vm_last)
 
-    # 删除虚拟机 ###############################################################
+    # 删除虚拟机 ####################################################################
     def VMDelete(self, vm_name: str, rm_back=True) -> ZMessage:
         """删除虚拟机"""
         # 专用操作 =============================================================
         try:
+            # 查询虚拟机配置 =======================================================
             vm_conf = self.VMSelect(vm_name)
             if vm_conf is None:
                 return ZMessage(
@@ -428,24 +491,28 @@ class HostServer(BasicServer):
                     action="VMDelete",
                     message=f"虚拟机 {vm_name} 不存在")
 
-            # 连接到Hyper-V
+            # 连接到Hyper-V服务器 =================================================
             connect_result = self.hyperv_api.connect()
             if not connect_result.success:
                 return connect_result
 
-            # 删除网络绑定
+            # 解除网络IP绑定 =======================================================
             self.IPBinder(vm_conf, False)
 
-            # 删除虚拟机
+            # 删除虚拟机及其文件 ===================================================
             delete_result = self.hyperv_api.delete_vm(vm_name, remove_files=True)
 
-            # 断开连接
+            # 断开Hyper-V连接 =====================================================
             self.hyperv_api.disconnect()
 
+            # 检查删除结果 =========================================================
             if not delete_result.success:
                 return delete_result
 
         except Exception as e:
+            # 异常处理 =============================================================
+            logger.error(f"删除虚拟机失败: {str(e)}")
+            traceback.print_exc()
             self.hyperv_api.disconnect()
             return ZMessage(
                 success=False, action="VMDelete",
@@ -455,39 +522,51 @@ class HostServer(BasicServer):
         super().VMDelete(vm_name, rm_back)
         return ZMessage(success=True, action="VMDelete", message="虚拟机删除成功")
 
-    # 虚拟机电源 ###############################################################
+    # 虚拟机电源管理 ################################################################
     def VMPowers(self, vm_name: str, power: VMPowers) -> ZMessage:
         """虚拟机电源管理"""
         # 专用操作 =============================================================
         try:
-            # 连接到Hyper-V
+            # 连接到Hyper-V服务器 =================================================
             connect_result = self.hyperv_api.connect()
             if not connect_result.success:
                 return connect_result
 
-            # 执行电源操作
+            # 根据电源操作类型执行相应命令 =========================================
             if power == VMPowers.S_START:
+                # 启动虚拟机 =======================================================
                 hs_result = self.hyperv_api.power_on(vm_name)
             elif power == VMPowers.H_CLOSE:
+                # 强制关闭虚拟机 ===================================================
                 hs_result = self.hyperv_api.power_off(vm_name, force=True)
             elif power == VMPowers.A_PAUSE:
+                # 暂停虚拟机 =======================================================
                 hs_result = self.hyperv_api.suspend(vm_name)
             elif power == VMPowers.A_WAKED:
+                # 恢复虚拟机 =======================================================
                 hs_result = self.hyperv_api.resume(vm_name)
             elif power == VMPowers.H_RESET or power == VMPowers.S_RESET:
+                # 重启虚拟机 =======================================================
                 hs_result = self.hyperv_api.reset(vm_name)
             else:
+                # 不支持的电源操作 =================================================
                 hs_result = ZMessage(
                     success=False, action="VMPowers",
                     message=f"不支持的电源操作: {power}")
 
-            # 断开连接
+            # 断开Hyper-V连接 =====================================================
             self.hyperv_api.disconnect()
 
+            # 记录操作日志 =========================================================
             self.logs_set(hs_result)
 
         except Exception as e:
+            # 异常处理 =============================================================
+            logger.error(f"虚拟机电源操作失败: {str(e)}")
+            traceback.print_exc()
             self.hyperv_api.disconnect()
+
+            # 记录失败日志 =========================================================
             hs_result = ZMessage(
                 success=False, action="VMPowers",
                 message=f"电源操作失败: {str(e)}")
@@ -497,41 +576,91 @@ class HostServer(BasicServer):
         super().VMPowers(vm_name, power)
         return hs_result
 
-    # 设置虚拟机密码 ###########################################################
+    # 设置虚拟机密码 ################################################################
     def VMPasswd(self, vm_name: str, os_pass: str) -> ZMessage:
         """设置虚拟机密码"""
-        # 专用操作 =============================================================
-        # Hyper-V通过guest tools设置密码，这里使用父类的实现
-        # 通用操作 =============================================================
-        return super().VMPasswd(vm_name, os_pass)
+        try:
+            # 检查虚拟机是否存在 ===================================================
+            if vm_name not in self.vm_saving:
+                logger.error(f"虚拟机 {vm_name} 不存在")
+                return ZMessage(success=False, action="VMPasswd", message=f"虚拟机 {vm_name} 不存在")
 
-    # 备份虚拟机 ###############################################################
+            # 连接到Hyper-V服务器 =================================================
+            hyper_v = HyperVAPI(
+                host=self.hs_config.hs_host,
+                user=self.hs_config.hs_user,
+                password=self.hs_config.hs_pass
+            )
+            
+            conn_result = hyper_v.connect()
+            if not conn_result.success:
+                logger.error(f"连接Hyper-V失败: {conn_result.message}")
+                return ZMessage(success=False, action="VMPasswd", message=conn_result.message)
+
+            # 获取虚拟机配置中的用户名 =============================================
+            vm_config = self.vm_saving[vm_name]
+            username = getattr(vm_config, 'os_user', 'Administrator')  # 默认Administrator
+            
+            # 设置虚拟机密码 =======================================================
+            result = hyper_v.set_vm_password(vm_name, username, os_pass)
+            
+            # 断开Hyper-V连接 =====================================================
+            hyper_v.disconnect()
+            
+            # 检查设置结果 =========================================================
+            if result.success:
+                logger.info(f"虚拟机 {vm_name} 密码设置成功")
+                
+                # 更新配置中的密码 =================================================
+                self.vm_saving[vm_name].os_pass = os_pass
+                
+                # 保存配置到数据库 =================================================
+                self.vm_saving.save()
+                
+                # 通用操作 =========================================================
+                return super().VMPasswd(vm_name, os_pass)
+            else:
+                logger.error(f"设置虚拟机密码失败: {result.message}")
+                return ZMessage(success=False, action="VMPasswd", message=result.message)
+
+        except Exception as e:
+            logger.error(f"设置虚拟机密码失败: {str(e)}")
+            traceback.print_exc()
+            return ZMessage(success=False, action="VMPasswd", message=str(e))
+
+    # ============================================================================== #
+    # 备份恢复
+    # ============================================================================== #
+
+    # 备份虚拟机 ####################################################################
     def VMBackup(self, vm_name: str, vm_tips: str) -> ZMessage:
         """备份虚拟机（创建快照）"""
         # 专用操作 =============================================================
         try:
+            # 生成备份时间戳和名称 =================================================
             bak_time = datetime.datetime.now()
             bak_name = vm_name + "-" + bak_time.strftime("%Y%m%d%H%M%S")
 
-            # 连接到Hyper-V
+            # 连接到Hyper-V服务器 =================================================
             connect_result = self.hyperv_api.connect()
             if not connect_result.success:
                 return connect_result
 
-            # 创建快照作为备份
+            # 创建虚拟机快照 =======================================================
             snapshot_result = self.hyperv_api.create_snapshot(
                 vm_name,
                 bak_name,
                 vm_tips
             )
 
-            # 断开连接
+            # 断开Hyper-V连接 =====================================================
             self.hyperv_api.disconnect()
 
+            # 检查快照创建结果 =====================================================
             if not snapshot_result.success:
                 return snapshot_result
 
-            # 记录备份信息
+            # 记录备份信息到配置 ===================================================
             if vm_name in self.vm_saving:
                 self.vm_saving[vm_name].backups.append(
                     VMBackup(
@@ -540,233 +669,126 @@ class HostServer(BasicServer):
                         backup_tips=vm_tips
                     )
                 )
+                # 保存配置到数据库 =================================================
                 self.data_set()
 
+            # 返回备份成功 =========================================================
             return ZMessage(success=True, action="VMBackup",
                             message=f"虚拟机备份成功: {bak_name}")
 
         except Exception as e:
+            # 异常处理 =============================================================
+            logger.error(f"备份虚拟机失败: {str(e)}")
+            traceback.print_exc()
             self.hyperv_api.disconnect()
             return ZMessage(success=False, action="VMBackup",
                             message=f"备份失败: {str(e)}")
 
-    # 恢复虚拟机 ###############################################################
+    # 恢复虚拟机 ####################################################################
     def Restores(self, vm_name: str, vm_back: str) -> ZMessage:
         """恢复虚拟机（恢复快照）"""
         # 专用操作 =============================================================
         try:
-            # 连接到Hyper-V
+            # 连接到Hyper-V服务器 =================================================
             connect_result = self.hyperv_api.connect()
             if not connect_result.success:
                 return connect_result
 
-            # 恢复快照
+            # 恢复到指定快照 =======================================================
             restore_result = self.hyperv_api.revert_snapshot(vm_name, vm_back)
 
-            # 断开连接
+            # 断开Hyper-V连接 =====================================================
             self.hyperv_api.disconnect()
 
+            # 检查恢复结果 =========================================================
             if not restore_result.success:
                 return restore_result
 
+            # 返回恢复成功 =========================================================
             return ZMessage(success=True, action="Restores",
                             message=f"虚拟机恢复成功: {vm_back}")
 
         except Exception as e:
+            # 异常处理 =============================================================
+            logger.error(f"恢复虚拟机失败: {str(e)}")
+            traceback.print_exc()
             self.hyperv_api.disconnect()
             return ZMessage(success=False, action="Restores",
                             message=f"恢复失败: {str(e)}")
 
-    # VM镜像挂载 ###############################################################
-    def HDDMount(self, vm_name: str, vm_imgs: SDConfig, in_flag=True) -> ZMessage:
-        """挂载/卸载虚拟硬盘"""
-        # 专用操作 =============================================================
-        try:
-            if vm_name not in self.vm_saving:
-                return ZMessage(
-                    success=False, action="HDDMount", message="虚拟机不存在")
-
-            old_conf = deepcopy(self.vm_saving[vm_name])
-
-            # 连接到Hyper-V
-            connect_result = self.hyperv_api.connect()
-            if not connect_result.success:
-                return connect_result
-
-            # 关闭虚拟机
-            self.hyperv_api.power_off(vm_name, force=True)
-
-            if in_flag:  # 挂载磁盘
-                # 添加磁盘
-                add_result = self.hyperv_api.add_disk(
-                    vm_name,
-                    vm_imgs.hdd_size,
-                    vm_imgs.hdd_name
-                )
-                if not add_result.success:
-                    self.hyperv_api.disconnect()
-                    return add_result
-
-                vm_imgs.hdd_flag = 1
-                self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name] = vm_imgs
-            else:  # 卸载磁盘
-                if vm_imgs.hdd_name not in self.vm_saving[vm_name].hdd_all:
-                    self.hyperv_api.power_on(vm_name)
-                    self.hyperv_api.disconnect()
-                    return ZMessage(
-                        success=False, action="HDDMount", message="磁盘不存在")
-
-                # TODO: 实现磁盘卸载
-                self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name].hdd_flag = 0
-
-            # 启动虚拟机
-            self.hyperv_api.power_on(vm_name)
-
-            # 断开连接
-            self.hyperv_api.disconnect()
-
-            # 保存配置
-            self.VMUpdate(self.vm_saving[vm_name], old_conf)
-            self.data_set()
-
-            action_text = "挂载" if in_flag else "卸载"
-            return ZMessage(
-                success=True,
-                action="HDDMount",
-                message=f"磁盘{action_text}成功")
-
-        except Exception as e:
-            self.hyperv_api.disconnect()
-            return ZMessage(
-                success=False, action="HDDMount",
-                message=f"磁盘操作失败: {str(e)}")
-
-    # ISO镜像挂载 ##############################################################
-    def ISOMount(self, vm_name: str, vm_imgs: IMConfig, in_flag=True) -> ZMessage:
-        """挂载/卸载ISO镜像"""
-        # 专用操作 =============================================================
-        try:
-            if vm_name not in self.vm_saving:
-                return ZMessage(
-                    success=False, action="ISOMount", message="虚拟机不存在")
-
-            old_conf = deepcopy(self.vm_saving[vm_name])
-
-            # 连接到Hyper-V
-            connect_result = self.hyperv_api.connect()
-            if not connect_result.success:
-                return connect_result
-
-            logger.info(f"准备{'挂载' if in_flag else '卸载'}ISO: {vm_imgs.iso_name}")
-
-            # 关闭虚拟机
-            self.hyperv_api.power_off(vm_name, force=True)
-
-            if in_flag:  # 挂载ISO
-                # ISO文件路径
-                iso_path = os.path.join(self.hs_config.dvdrom_path, vm_imgs.iso_file)  # 使用dvdrom_path存储光盘镜像
-
-                if not os.path.exists(iso_path):
-                    self.hyperv_api.power_on(vm_name)
-                    self.hyperv_api.disconnect()
-                    return ZMessage(
-                        success=False, action="ISOMount", message="ISO文件不存在")
-
-                # 挂载ISO
-                attach_result = self.hyperv_api.attach_iso(vm_name, iso_path)
-                if not attach_result.success:
-                    self.hyperv_api.power_on(vm_name)
-                    self.hyperv_api.disconnect()
-                    return attach_result
-
-                # 检查挂载名称是否已存在
-                if vm_imgs.iso_name in self.vm_saving[vm_name].iso_all:
-                    self.hyperv_api.power_on(vm_name)
-                    self.hyperv_api.disconnect()
-                    return ZMessage(
-                        success=False, action="ISOMount", message="挂载名称已存在")
-
-                self.vm_saving[vm_name].iso_all[vm_imgs.iso_name] = vm_imgs
-                logger.info(f"ISO挂载成功: {vm_imgs.iso_name} -> {vm_imgs.iso_file}")
-            else:  # 卸载ISO
-                if vm_imgs.iso_name not in self.vm_saving[vm_name].iso_all:
-                    self.hyperv_api.power_on(vm_name)
-                    self.hyperv_api.disconnect()
-                    return ZMessage(
-                        success=False, action="ISOMount", message="ISO镜像不存在")
-
-                # 卸载ISO
-                detach_result = self.hyperv_api.detach_iso(vm_name)
-                if not detach_result.success:
-                    logger.warning(f"ISO卸载警告: {detach_result.message}")
-
-                del self.vm_saving[vm_name].iso_all[vm_imgs.iso_name]
-                logger.info(f"ISO卸载成功: {vm_imgs.iso_name}")
-
-            # 启动虚拟机
-            self.hyperv_api.power_on(vm_name)
-
-            # 断开连接
-            self.hyperv_api.disconnect()
-
-            # 保存配置
-            self.VMUpdate(self.vm_saving[vm_name], old_conf)
-            self.data_set()
-
-            action_text = "挂载" if in_flag else "卸载"
-            return ZMessage(
-                success=True,
-                action="ISOMount",
-                message=f"ISO镜像{action_text}成功")
-
-        except Exception as e:
-            self.hyperv_api.disconnect()
-            return ZMessage(
-                success=False, action="ISOMount",
-                message=f"ISO操作失败: {str(e)}")
-
-    # 加载备份 #################################################################
+    # 加载备份列表 ##################################################################
     def LDBackup(self, vm_back: str = "") -> ZMessage:
         """加载备份列表（从快照）"""
-        # 专用操作 =============================================================
         try:
-            # 连接到Hyper-V
+            # 专用操作 =============================================================
+            # 连接到Hyper-V服务器 =================================================
             connect_result = self.hyperv_api.connect()
             if not connect_result.success:
                 return connect_result
 
-            # 清空现有备份记录
+            # 清空现有备份记录 =====================================================
             for vm_name in self.vm_saving:
                 self.vm_saving[vm_name].backups = []
 
+            # 初始化计数器 =========================================================
             bal_nums = 0
 
-            # 遍历所有虚拟机，获取快照信息
-            # TODO: 实现从Hyper-V获取快照列表的功能
-            # 目前Hyper-V API需要扩展以支持列出快照
+            # 遍历所有虚拟机获取快照 ===============================================
+            for vm_name in self.vm_saving:
+                try:
+                    # 获取虚拟机快照列表 ===========================================
+                    snapshots_result = self.hyperv_api.list_snapshots(vm_name)
 
-            # 断开连接
+                    # 解析快照列表 =================================================
+                    if snapshots_result.success and snapshots_result.results:
+                        snapshots = snapshots_result.results.get('snapshots', [])
+
+                        # 遍历每个快照 =============================================
+                        for snapshot in snapshots:
+                            snapshot_name = snapshot.get('name', '')
+                            snapshot_time = snapshot.get('created_time')
+
+                            # 添加快照到备份列表 =======================================
+                            if snapshot_name:
+                                self.vm_saving[vm_name].backups.append(
+                                    VMBackup(
+                                        backup_name=snapshot_name,
+                                        backup_time=snapshot_time if snapshot_time else datetime.datetime.now(),
+                                        backup_tips=snapshot.get('notes', '')
+                                    )
+                                )
+                                bal_nums += 1
+                except Exception as e:
+                    # 单个虚拟机快照获取失败处理 ===================================
+                    logger.warning(f"获取虚拟机 {vm_name} 快照失败: {str(e)}")
+                    continue
+
+            # 断开Hyper-V连接 ======================================================
             self.hyperv_api.disconnect()
 
-            # 保存配置
+            # 保存配置到数据库 =====================================================
             self.data_set()
 
+            # 返回加载结果 =========================================================
             return ZMessage(
                 success=True,
                 action="LDBackup",
                 message=f"{bal_nums}个备份快照已加载")
 
         except Exception as e:
+            # 异常处理 =============================================================
+            logger.error(f"加载备份失败: {str(e)}")
+            traceback.print_exc()
             self.hyperv_api.disconnect()
             return ZMessage(
                 success=False, action="LDBackup",
                 message=f"加载备份失败: {str(e)}")
 
-    # 移除备份 #################################################################
+    # 删除备份 ######################################################################
     def RMBackup(self, vm_name: str, vm_back: str = "") -> ZMessage:
         """移除备份（删除快照）"""
-        # 专用操作 =============================================================
         try:
+            # 专用操作 =============================================================
             # 从备份名称中提取虚拟机名称
             parts = vm_back.split("-")
             if len(parts) < 2:
@@ -803,70 +825,333 @@ class HostServer(BasicServer):
                 message="备份快照已删除")
 
         except Exception as e:
+            logger.error(f"删除备份失败: {str(e)}")
+            traceback.print_exc()
             self.hyperv_api.disconnect()
             return ZMessage(
                 success=False, action="RMBackup",
                 message=f"删除备份失败: {str(e)}")
 
-    # 移除磁盘 #################################################################
-    def RMMounts(self, vm_name: str, vm_imgs: str) -> ZMessage:
-        """移除虚拟磁盘"""
+    # ============================================================================== #
+    # 存储管理
+    # ============================================================================== #
+
+    # 挂载虚拟硬盘 ##################################################################
+    def HDDMount(self, vm_name: str, vm_imgs: SDConfig, in_flag=True) -> ZMessage:
+        """挂载/卸载虚拟硬盘"""
         # 专用操作 =============================================================
         try:
+            # 检查虚拟机是否存在 ===================================================
+            if vm_name not in self.vm_saving:
+                return ZMessage(
+                    success=False, action="HDDMount", message="虚拟机不存在")
+
+            # 备份原始配置 =========================================================
+            old_conf = deepcopy(self.vm_saving[vm_name])
+
+            # 连接到Hyper-V服务器 =================================================
+            connect_result = self.hyperv_api.connect()
+            if not connect_result.success:
+                return connect_result
+
+            # 关闭虚拟机以便操作磁盘 ===============================================
+            self.hyperv_api.power_off(vm_name, force=True)
+
+            # 执行挂载或卸载操作 ===================================================
+            if in_flag:
+                # 挂载磁盘操作 =====================================================
+                add_result = self.hyperv_api.add_disk(
+                    vm_name,
+                    vm_imgs.hdd_size,
+                    vm_imgs.hdd_name
+                )
+                if not add_result.success:
+                    self.hyperv_api.disconnect()
+                    return add_result
+
+                # 更新磁盘配置 =====================================================
+                vm_imgs.hdd_flag = 1
+                self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name] = vm_imgs
+            else:
+                # 卸载磁盘操作 =====================================================
+                if vm_imgs.hdd_name not in self.vm_saving[vm_name].hdd_all:
+                    self.hyperv_api.power_on(vm_name)
+                    self.hyperv_api.disconnect()
+                    return ZMessage(
+                        success=False, action="HDDMount", message="磁盘不存在")
+
+                # 从虚拟机中移除磁盘 ===============================================
+                remove_result = self.hyperv_api.remove_disk(
+                    vm_name,
+                    vm_imgs.hdd_name
+                )
+                if not remove_result.success:
+                    self.hyperv_api.power_on(vm_name)
+                    self.hyperv_api.disconnect()
+                    return remove_result
+
+                # 更新磁盘配置状态 =================================================
+                self.vm_saving[vm_name].hdd_all[vm_imgs.hdd_name].hdd_flag = 0
+
+            # 启动虚拟机 ===========================================================
+            self.hyperv_api.power_on(vm_name)
+
+            # 断开Hyper-V连接 =====================================================
+            self.hyperv_api.disconnect()
+
+            # 保存配置到数据库 =====================================================
+            self.VMUpdate(self.vm_saving[vm_name], old_conf)
+            self.data_set()
+
+            # 返回操作结果 =========================================================
+            action_text = "挂载" if in_flag else "卸载"
+            return ZMessage(
+                success=True,
+                action="HDDMount",
+                message=f"磁盘{action_text}成功")
+
+        except Exception as e:
+            # 异常处理 =============================================================
+            logger.error(f"磁盘操作失败: {str(e)}")
+            traceback.print_exc()
+            self.hyperv_api.disconnect()
+            return ZMessage(
+                success=False, action="HDDMount",
+                message=f"磁盘操作失败: {str(e)}")
+
+    # 挂载ISO镜像 ###################################################################
+    def ISOMount(self, vm_name: str, vm_imgs: IMConfig, in_flag=True) -> ZMessage:
+        """挂载/卸载ISO镜像"""
+        # 专用操作 ==================================================================
+        try:
+            # 检查虚拟机是否存在 ====================================================
+            if vm_name not in self.vm_saving:
+                return ZMessage(
+                    success=False, action="ISOMount", message="虚拟机不存在")
+
+            # 备份原始配置 ==========================================================
+            old_conf = deepcopy(self.vm_saving[vm_name])
+
+            # 连接到Hyper-V服务器 ===================================================
+            connect_result = self.hyperv_api.connect()
+            if not connect_result.success:
+                return connect_result
+
+            # 记录操作日志 ==========================================================
+            logger.info(f"准备{'挂载' if in_flag else '卸载'}ISO: {vm_imgs.iso_name}")
+
+            # 关闭虚拟机以便操作ISO =================================================
+            self.hyperv_api.power_off(vm_name, force=True)
+
+            # 执行挂载或卸载操作 ====================================================
+            if in_flag:
+                # 挂载ISO操作 =======================================================
+                # 构建ISO文件路径 ===================================================
+                iso_path = os.path.join(self.hs_config.dvdrom_path, vm_imgs.iso_file)
+
+                # 检查ISO文件是否存在 ===============================================
+                if not os.path.exists(iso_path):
+                    self.hyperv_api.power_on(vm_name)
+                    self.hyperv_api.disconnect()
+                    return ZMessage(
+                        success=False, action="ISOMount", message="ISO文件不存在")
+
+                # 挂载ISO到虚拟机 ===================================================
+                attach_result = self.hyperv_api.attach_iso(vm_name, iso_path)
+                if not attach_result.success:
+                    self.hyperv_api.power_on(vm_name)
+                    self.hyperv_api.disconnect()
+                    return attach_result
+
+                # 检查挂载名称是否已存在 ============================================
+                if vm_imgs.iso_name in self.vm_saving[vm_name].iso_all:
+                    self.hyperv_api.power_on(vm_name)
+                    self.hyperv_api.disconnect()
+                    return ZMessage(
+                        success=False, action="ISOMount", message="挂载名称已存在")
+
+                # 保存ISO配置 =======================================================
+                self.vm_saving[vm_name].iso_all[vm_imgs.iso_name] = vm_imgs
+                logger.info(f"ISO挂载成功: {vm_imgs.iso_name} -> {vm_imgs.iso_file}")
+            else:
+                # 卸载ISO操作 =======================================================
+                # 检查ISO是否存在 ===================================================
+                if vm_imgs.iso_name not in self.vm_saving[vm_name].iso_all:
+                    self.hyperv_api.power_on(vm_name)
+                    self.hyperv_api.disconnect()
+                    return ZMessage(
+                        success=False, action="ISOMount", message="ISO镜像不存在")
+
+                # 卸载ISO ===========================================================
+                detach_result = self.hyperv_api.detach_iso(vm_name)
+                if not detach_result.success:
+                    logger.warning(f"ISO卸载警告: {detach_result.message}")
+
+                # 删除ISO配置 =======================================================
+                del self.vm_saving[vm_name].iso_all[vm_imgs.iso_name]
+                logger.info(f"ISO卸载成功: {vm_imgs.iso_name}")
+
+            # 启动虚拟机 ============================================================
+            self.hyperv_api.power_on(vm_name)
+
+            # 断开Hyper-V连接 =======================================================
+            self.hyperv_api.disconnect()
+
+            # 保存配置到数据库 ======================================================
+            self.VMUpdate(self.vm_saving[vm_name], old_conf)
+            self.data_set()
+
+            # 返回操作结果 ==========================================================
+            action_text = "挂载" if in_flag else "卸载"
+            return ZMessage(
+                success=True,
+                action="ISOMount",
+                message=f"ISO镜像{action_text}成功")
+
+        except Exception as e:
+            # 异常处理 ==============================================================
+            logger.error(f"ISO操作失败: {str(e)}")
+            traceback.print_exc()
+            self.hyperv_api.disconnect()
+            return ZMessage(
+                success=False, action="ISOMount",
+                message=f"ISO操作失败: {str(e)}")
+
+    # 移除磁盘 ######################################################################
+    def RMMounts(self, vm_name: str, vm_imgs: str) -> ZMessage:
+        """
+        删除虚拟机磁盘
+        
+        Args:
+            vm_name: 虚拟机名称
+            vm_imgs: 磁盘名称
+            
+        Returns:
+            ZMessage: 操作结果消息
+        """
+        try:
+            # 检查虚拟机是否存在 =====================================================
             if vm_name not in self.vm_saving:
                 return ZMessage(
                     success=False, action="RMMounts", message="虚拟机不存在")
+            
+            # 检查磁盘是否存在 ======================================================
             if vm_imgs not in self.vm_saving[vm_name].hdd_all:
                 return ZMessage(
                     success=False, action="RMMounts", message="虚拟盘不存在")
 
-            # 获取虚拟磁盘数据
+            # 获取虚拟磁盘数据 ======================================================
             hd_data = self.vm_saving[vm_name].hdd_all[vm_imgs]
+            
+            # 记录操作日志 ==========================================================
+            logger.info(f"开始删除虚拟机 {vm_name} 的磁盘: {vm_imgs}")
 
-            # 卸载虚拟磁盘
+            # 卸载虚拟磁盘 ==========================================================
             if hd_data.hdd_flag == 1:
+                logger.info(f"磁盘 {vm_imgs} 已挂载，先执行卸载操作")
                 unmount_result = self.HDDMount(vm_name, hd_data, False)
                 if not unmount_result.success:
+                    logger.error(f"磁盘卸载失败: {unmount_result.message}")
                     return unmount_result
 
-            # 从配置中移除
+            # 构建磁盘文件路径 ======================================================
+            disk_path = hd_data.hdd_path
+            if not os.path.isabs(disk_path):
+                # 如果是相对路径，构建完整路径
+                vm_dir = os.path.join(self.hs_config.vm_path, vm_name)
+                disk_path = os.path.join(vm_dir, disk_path)
+            
+            # 删除物理磁盘文件 ======================================================
+            if os.path.exists(disk_path):
+                try:
+                    logger.info(f"删除磁盘文件: {disk_path}")
+                    os.remove(disk_path)
+                    logger.info(f"磁盘文件删除成功: {disk_path}")
+                except Exception as file_err:
+                    logger.warning(f"删除磁盘文件失败: {str(file_err)}")
+                    # 文件删除失败不影响配置删除，继续执行
+            else:
+                logger.warning(f"磁盘文件不存在，跳过删除: {disk_path}")
+
+            # 从配置中移除磁盘 ======================================================
             self.vm_saving[vm_name].hdd_all.pop(vm_imgs)
+            logger.info(f"从配置中移除磁盘: {vm_imgs}")
+            
+            # 保存配置到数据库 ======================================================
             self.data_set()
 
-            # TODO: 从Hyper-V中删除磁盘文件
-
+            # 返回成功结果 ==========================================================
             return ZMessage(
                 success=True, action="RMMounts",
                 message="磁盘删除成功")
 
         except Exception as e:
+            # 异常处理 ==============================================================
+            logger.error(f"删除磁盘失败: {str(e)}")
+            traceback.print_exc()
             return ZMessage(
                 success=False, action="RMMounts",
                 message=f"删除磁盘失败: {str(e)}")
 
-    # 查找显卡 #################################################################
+    # 查找显卡 ######################################################################
     def GPUShows(self) -> dict[str, str]:
-        """查找可用显卡"""
-        # 专用操作 =============================================================
-        # Hyper-V的GPU直通需要特殊配置，这里返回空字典
-        # TODO: 实现Hyper-V GPU查询
-        # 通用操作 =============================================================
-        return {}
-
-    # 虚拟机截图 #################################################################
-    def VMScreen(self, vm_name: str = "") -> str:
-        """获取虚拟机截图
-        
-        :param vm_name: 虚拟机名称
-        :return: base64编码的截图字符串，失败则返回空字符串
         """
+        查询GPU设备列表
+        
+        Returns:
+            dict[str, str]: GPU设备字典，键为GPU名称，值为GPU状态
+        """
+        try:
+            # 连接到Hyper-V服务器 ==============================================
+            connect_result = self.hyperv_api.connect()
+            if not connect_result.success:
+                logger.error(f"[{self.hs_config.server_name}] 无法连接到Hyper-V查询GPU: {connect_result.message}")
+                return {}
+
+            # 查询GPU设备 =======================================================
+            gpu_data = self.hyperv_api.get_gpu_devices()
+            
+            # 断开Hyper-V连接 ===================================================
+            self.hyperv_api.disconnect()
+            
+            # 解析GPU数据并构建返回字典 =========================================
+            gpu_dict = {}
+            if gpu_data and "gpus" in gpu_data:
+                for idx, gpu in enumerate(gpu_data["gpus"]):
+                    gpu_name = gpu.get("Name", f"GPU_{idx}")
+                    gpu_type = gpu.get("Type", "Unknown")
+                    
+                    if gpu_type == "Partitionable":
+                        # GPU分区虚拟化
+                        available = gpu.get("Available", 0)
+                        total = gpu.get("Total", 0)
+                        status = f"可用分区: {available}/{total}"
+                    elif gpu_type == "DDA":
+                        # 离散设备分配
+                        status = gpu.get("Status", "Unknown")
+                    else:
+                        status = "Unknown"
+                    
+                    gpu_dict[gpu_name] = status
+                    logger.info(f"[{self.hs_config.server_name}] 发现GPU: {gpu_name} - {status}")
+            
+            # 返回GPU设备字典 ===================================================
+            return gpu_dict
+
+        except Exception as e:
+            # 异常处理 ==========================================================
+            logger.error(f"[{self.hs_config.server_name}] 查询GPU设备失败: {str(e)}")
+            logger.error(traceback.format_exc())
+            return {}
+
+    # 虚拟机截图 ####################################################################
+    def VMScreen(self, vm_name: str = "") -> str:
         try:
             # 连接到Hyper-V
             connect_result = self.hyperv_api.connect()
             if not connect_result.success:
                 logger.error(f"[{self.hs_config.server_name}] 无法连接到Hyper-V获取截图: {connect_result.message}")
                 return ""
-
             # 使用PowerShell获取虚拟机截图
             # 1. 确保虚拟机正在运行
             vm_status = self.hyperv_api.get_vm_status(vm_name)
@@ -874,38 +1159,45 @@ class HostServer(BasicServer):
                 self.hyperv_api.disconnect()
                 logger.warning(f"[{self.hs_config.server_name}] 虚拟机 {vm_name} 未运行，无法获取截图")
                 return ""
-
             # 2. 生成临时文件路径
             import tempfile
             import os
+            import glob
             temp_dir = tempfile.gettempdir()
-            screenshot_path = os.path.join(temp_dir, f"{vm_name}_screenshot.png")
-            
+
             # 3. 执行PowerShell命令获取截图
-            powershell_command = f"Save-VMScreenshot -Name '{vm_name}' -Path '{temp_dir}' -ComputerName '{self.hs_config.server_addr}'"
+            powershell_command = f"Save-VMScreenshot -Name '{vm_name}' -Path '{temp_dir}' -FileType PNG"
+            if self.hs_config.server_addr not in ["localhost", "127.0.0.1", ""]:
+                powershell_command += f" -ComputerName '{self.hs_config.server_addr}'"
+
             screenshot_result = self.hyperv_api._run_powershell(powershell_command)
-            
             self.hyperv_api.disconnect()
-            
             if not screenshot_result.success:
                 logger.error(f"[{self.hs_config.server_name}] 获取虚拟机截图失败: {screenshot_result.message}")
                 return ""
+            # 4. 查找生成的截图文件（Save-VMScreenshot会自动生成带时间戳的文件名）
+            screenshot_pattern = os.path.join(temp_dir, f"{vm_name}_*.png")
+            screenshot_files = glob.glob(screenshot_pattern)
 
-            # 4. 读取截图文件并转换为base64
+            if not screenshot_files:
+                logger.error(f"[{self.hs_config.server_name}] 未找到截图文件: {screenshot_pattern}")
+                return ""
+            # 获取最新的截图文件
+            screenshot_path = max(screenshot_files, key=os.path.getctime)
+            # 5. 读取截图文件并转换为base64
             if os.path.exists(screenshot_path):
                 with open(screenshot_path, "rb") as f:
                     import base64
                     screenshot_base64 = base64.b64encode(f.read()).decode('utf-8')
-                
-                # 5. 删除临时文件
+
+                # 6. 删除临时文件
                 os.remove(screenshot_path)
-                
+
                 logger.info(f"[{self.hs_config.server_name}] 成功获取虚拟机 {vm_name} 截图")
                 return screenshot_base64
             else:
                 logger.error(f"[{self.hs_config.server_name}] 截图文件不存在: {screenshot_path}")
                 return ""
-                
         except Exception as e:
             logger.error(f"[{self.hs_config.server_name}] 获取虚拟机截图时出错: {str(e)}")
             try:
@@ -914,7 +1206,7 @@ class HostServer(BasicServer):
                 pass
             return ""
 
-    # 虚拟机控制台 #############################################################
+    # 虚拟机控制台 ##################################################################
     def VMRemote(self, vm_uuid: str, ip_addr: str = "127.0.0.1") -> ZMessage:
         """获取虚拟机远程连接URL"""
         try:
@@ -1012,9 +1304,7 @@ class HostServer(BasicServer):
                 message=f"获取远程连接URL失败: {str(e)}"
             )
 
-    # 更新网络配置 ###############################################################
-    # Hyper-V专用的网络配置更新方法
-    ################################################################################
+    # 更新网络配置 ##################################################################
     def IPUpdate(self, vm_conf: VMConfig, vm_last: VMConfig) -> ZMessage:
         """更新Hyper-V虚拟机网络配置"""
         try:

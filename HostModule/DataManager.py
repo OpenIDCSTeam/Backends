@@ -27,8 +27,10 @@ class DataManager:
 
     def get_db_sqlite(self) -> sqlite3.Connection:
         """获取数据库连接"""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30.0)  # 添加30秒超时
         conn.row_factory = sqlite3.Row  # 启用字典式访问
+        # 启用WAL模式以提高并发性能
+        conn.execute("PRAGMA journal_mode=WAL")
         return conn
 
     def set_db_sqlite(self):
@@ -658,102 +660,25 @@ class DataManager:
             conn.close()
 
     # ==================== 全局代理配置操作 ====================
-    def set_web_proxy(self, web_proxies: list) -> bool:
-        """保存全局代理配置"""
-        conn = self.get_db_sqlite()
-        try:
-            # 清除旧配置
-            conn.execute("DELETE FROM web_proxy")
-
-            # 插入新配置
-            sql = """
-            INSERT INTO web_proxy (lan_port, lan_addr, web_addr, web_tips, is_https)
-            VALUES (?, ?, ?, ?, ?)
-            """
-            for proxy in web_proxies:
-                if hasattr(proxy, '__save__'):
-                    proxy_data = proxy.__save__()
-                elif hasattr(proxy, '__save__'):
-                    proxy_data = proxy.__save__()
-                else:
-                    proxy_data = proxy
-
-                conn.execute(sql, (
-                    proxy_data.get('lan_port', 0),
-                    proxy_data.get('lan_addr', ''),
-                    proxy_data.get('web_addr', ''),
-                    proxy_data.get('web_tips', ''),
-                    1 if proxy_data.get('is_https', False) else 0
-                ))
-
-            conn.commit()
-            return True
-        except Exception as e:
-            logger.error(f"保存全局代理配置错误: {e}")
-            conn.rollback()
-            return False
-        finally:
-            conn.close()
-
-    def get_web_proxy(self) -> list:
-        """获取全局代理配置"""
-        conn = self.get_db_sqlite()
-        try:
-            cursor = conn.execute("""
-                SELECT lan_port, lan_addr, web_addr, web_tips, is_https
-                FROM web_proxy
-                ORDER BY id
-            """)
-            results = []
-            for row in cursor.fetchall():
-                results.append({
-                    'lan_port': row['lan_port'],
-                    'lan_addr': row['lan_addr'],
-                    'web_addr': row['web_addr'],
-                    'web_tips': row['web_tips'],
-                    'is_https': bool(row['is_https'])
-                })
-            return results
-        finally:
-            conn.close()
-
-    def add_web_proxy(self, proxy_data: dict) -> bool:
-        """添加单个全局代理配置"""
-        conn = self.get_db_sqlite()
-        try:
-            sql = """
-            INSERT INTO web_proxy (lan_port, lan_addr, web_addr, web_tips, is_https)
-            VALUES (?, ?, ?, ?, ?)
-            """
-            conn.execute(sql, (
-                proxy_data.get('lan_port', 0),
-                proxy_data.get('lan_addr', ''),
-                proxy_data.get('web_addr', ''),
-                proxy_data.get('web_tips', ''),
-                1 if proxy_data.get('is_https', False) else 0
-            ))
-            conn.commit()
-            return True
-        except Exception as e:
-            logger.error(f"添加全局代理配置错误: {e}")
-            conn.rollback()
-            return False
-        finally:
-            conn.close()
-
-    def del_web_proxy(self, web_addr: str) -> bool:
-        """删除全局代理配置"""
-        conn = self.get_db_sqlite()
-        try:
-            conn.execute("DELETE FROM web_proxy WHERE web_addr = ?", (web_addr,))
-            conn.commit()
-            return True
-        except Exception as e:
-            logger.error(f"删除全局代理配置错误: {e}")
-            conn.rollback()
-            return False
-        finally:
-            conn.close()
+    # def set_web_proxy(self, web_proxies: list) -> bool:
+    #     """保存全局代理配置（已废弃，代理配置现在存储在虚拟机配置的web_all字段中）"""
+    #     logger.warning("set_web_proxy已废弃，代理配置现在由虚拟机配置统一管理")
+    #     return True
+    #
+    # def get_web_proxy(self) -> list:
+    #     """获取全局代理配置（已废弃，代理配置现在存储在虚拟机配置的web_all字段中）"""
+    #     logger.warning("get_web_proxy已废弃，代理配置现在从虚拟机配置中获取")
+    #     return []
+    #
+    # def add_web_proxy(self, proxy_data: dict) -> bool:
+    #     """添加单个全局代理配置（已废弃，代理配置现在存储在虚拟机配置的web_all字段中）"""
+    #     logger.warning("add_web_proxy已废弃，请使用虚拟机配置的web_all字段添加代理")
+    #     return True
+    #
+    # def del_web_proxy(self, web_addr: str) -> bool:
+    #     """删除全局代理配置（已废弃，代理配置现在存储在虚拟机配置的web_all字段中）"""
+    #     logger.warning("del_web_proxy已废弃，请使用虚拟机配置的web_all字段删除代理")
+    #     return True
 
     # ==================== 日志记录操作 ====================
     def add_hs_logger(self, hs_name: str, logs: ZMessage) -> bool:

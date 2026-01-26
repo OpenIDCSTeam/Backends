@@ -4,6 +4,7 @@
 
 import json
 import subprocess
+import traceback
 import winrm
 from typing import Optional, Dict, List, Any
 from loguru import logger
@@ -517,6 +518,37 @@ class HyperVAPI:
             logger.error(f"添加磁盘失败: {str(e)}")
             return ZMessage(success=False, action="AddDisk", message=str(e))
 
+    # 移除磁盘 =====================================================================
+    def remove_disk(self, vm_name: str, disk_name: str) -> ZMessage:
+        """从虚拟机中移除指定的磁盘"""
+        try:
+            # 获取虚拟机路径 =======================================================
+            vm_info = self.get_vm_info(vm_name)
+            if not vm_info:
+                return ZMessage(success=False, action="RemoveDisk", message="无法获取虚拟机信息")
+
+            vm_path = vm_info.get('Path', '')
+            vhd_path = f"{vm_path}\\Virtual Hard Disks\\{disk_name}.vhdx"
+
+            # 从虚拟机中移除磁盘 ===================================================
+            command = f"""
+            Get-VMHardDiskDrive -VMName '{vm_name}' | Where-Object {{$_.Path -eq '{vhd_path}'}} | Remove-VMHardDiskDrive
+            """
+
+            result = self._run_powershell(command)
+
+            if result.success:
+                logger.info(f"虚拟机 {vm_name} 移除磁盘 {disk_name} 成功")
+                return ZMessage(success=True, action="RemoveDisk", message="磁盘移除成功")
+            else:
+                return ZMessage(success=False, action="RemoveDisk", message=result.message)
+
+        except Exception as e:
+            # 异常处理 =============================================================
+            logger.error(f"移除磁盘失败: {str(e)}")
+            traceback.print_exc()
+            return ZMessage(success=False, action="RemoveDisk", message=str(e))
+
     # 挂载ISO #####################################################################
     def attach_iso(self, vm_name: str, iso_path: str) -> ZMessage:
         try:
@@ -678,3 +710,291 @@ class HyperVAPI:
         except Exception as e:
             logger.error(f"获取主机状态失败: {str(e)}")
             return None
+
+    # 磁盘扩容 #####################################################################
+    # :param vm_name: 虚拟机名称
+    # :param disk_path: 磁盘文件路径
+    # :param new_size_gb: 新的磁盘大小（GB）
+    # :return: 操作结果
+    ################################################################################
+    def resize_disk(self, vm_name: str, disk_path: str, new_size_gb: int) -> ZMessage:
+        try:
+            # 检查磁盘是否存在 =====================================================
+            command = f"""
+            if (Test-Path '{disk_path}') {{
+                $vhd = Get-VHD -Path '{disk_path}'
+                $currentSizeGB = [math]::Round($vhd.Size / 1GB, 2)
+                Write-Output "CurrentSize:$currentSizeGB"
+            }} else {{
+                Write-Error "磁盘文件不存在"
+            }}
+            """
+            
+            result = self._run_powershell(command)
+            if not result.success:
+                return ZMessage(success=False, action="ResizeDisk", message="磁盘文件不存在")
+
+            # 执行磁盘扩容 =========================================================
+            command = f"Resize-VHD -Path '{disk_path}' -SizeBytes {new_size_gb}GB"
+            result = self._run_powershell(command)
+
+            if result.success:
+                logger.info(f"虚拟机 {vm_name} 磁盘扩容成功: {disk_path} -> {new_size_gb}GB")
+                return ZMessage(success=True, action="ResizeDisk", message="磁盘扩容成功")
+            else:
+                return ZMessage(success=False, action="ResizeDisk", message=result.message)
+
+        except Exception as e:
+            logger.error(f"磁盘扩容失败: {str(e)}")
+            logger.error(traceback.format_exc())
+            return ZMessage(success=False, action="ResizeDisk", message=str(e))
+
+    # 卸载虚拟硬盘 #################################################################
+    # :param vm_name: 虚拟机名称
+    # :param disk_path: 磁盘文件路径
+    # :return: 操作结果
+    ################################################################################
+    def detach_disk(self, vm_name: str, disk_path: str) -> ZMessage:
+        try:
+            # 查找并移除指定路径的磁盘 =============================================
+            command = f"""
+            $disk = Get-VMHardDiskDrive -VMName '{vm_name}' | Where-Object {{$_.Path -eq '{disk_path}'}}
+            if ($disk) {{
+                Remove-VMHardDiskDrive -VMName '{vm_name}' -ControllerType $disk.ControllerType -ControllerNumber $disk.ControllerNumber -ControllerLocation $disk.ControllerLocation
+                Write-Output "磁盘卸载成功"
+            }} else {{
+                Write-Error "未找到指定磁盘"
+            }}
+            """
+            
+            result = self._run_powershell(command)
+
+            if result.success:
+                logger.info(f"虚拟机 {vm_name} 磁盘卸载成功: {disk_path}")
+                return ZMessage(success=True, action="DetachDisk", message="磁盘卸载成功")
+            else:
+                return ZMessage(success=False, action="DetachDisk", message=result.message)
+
+        except Exception as e:
+            logger.error(f"卸载磁盘失败: {str(e)}")
+            logger.error(traceback.format_exc())
+            return ZMessage(success=False, action="DetachDisk", message=str(e))
+
+    # 查询GPU设备 ##################################################################
+    # :return: GPU设备列表
+    ################################################################################
+    def get_gpu_devices(self) -> Dict[str, Any]:
+        try:
+            # 查询GPU分区适配器（用于GPU虚拟化） ==================================
+            command = """
+            $gpus = @()
+            
+            # 查询物理GPU设备
+            $physicalGPUs = Get-VMHostPartitionableGpu -ErrorAction SilentlyContinue
+            if ($physicalGPUs) {
+                foreach ($gpu in $physicalGPUs) {
+                    $gpus += @{
+                        Name = $gpu.Name
+                        Type = "Partitionable"
+                        Available = $gpu.PartitionCount - $gpu.PartitionsInUse
+                        Total = $gpu.PartitionCount
+                    }
+                }
+            }
+            
+            # 查询DDA（离散设备分配）GPU
+            $ddaGPUs = Get-PnpDevice -Class Display -ErrorAction SilentlyContinue
+            if ($ddaGPUs) {
+                foreach ($gpu in $ddaGPUs) {
+                    $gpus += @{
+                        Name = $gpu.FriendlyName
+                        Type = "DDA"
+                        Status = $gpu.Status
+                        InstanceId = $gpu.InstanceId
+                    }
+                }
+            }
+            
+            @{gpus = $gpus} | ConvertTo-Json -Depth 3
+            """
+            
+            result = self._run_powershell(command, parse_json=True)
+
+            if result.success and result.results:
+                logger.info("GPU设备查询成功")
+                return result.results
+            else:
+                logger.warning("未找到GPU设备或不支持GPU虚拟化")
+                return {"gpus": []}
+
+        except Exception as e:
+            logger.error(f"查询GPU设备失败: {str(e)}")
+            logger.error(traceback.format_exc())
+            return {"gpus": []}
+
+    # 检查磁盘信息 #################################################################
+    # :param disk_path: 磁盘文件路径
+    # :return: 磁盘信息字典
+    ################################################################################
+    def get_disk_info(self, disk_path: str) -> Optional[Dict[str, Any]]:
+        try:
+            # 获取VHD/VHDX文件信息 =================================================
+            command = f"""
+            if (Test-Path '{disk_path}') {{
+                $vhd = Get-VHD -Path '{disk_path}'
+                @{{
+                    Path = $vhd.Path
+                    VhdFormat = $vhd.VhdFormat
+                    VhdType = $vhd.VhdType
+                    FileSize = $vhd.FileSize
+                    Size = $vhd.Size
+                    MinimumSize = $vhd.MinimumSize
+                    Attached = $vhd.Attached
+                    DiskNumber = $vhd.DiskNumber
+                    FragmentationPercentage = $vhd.FragmentationPercentage
+                }} | ConvertTo-Json
+            }} else {{
+                Write-Error "磁盘文件不存在"
+            }}
+            """
+            
+            result = self._run_powershell(command, parse_json=True)
+
+            if result.success and result.results:
+                logger.info(f"磁盘信息查询成功: {disk_path}")
+                return result.results
+            else:
+                logger.warning(f"磁盘文件不存在或查询失败: {disk_path}")
+                return None
+
+        except Exception as e:
+            logger.error(f"检查磁盘信息失败: {str(e)}")
+            logger.error(traceback.format_exc())
+            return None
+
+    # 移动磁盘文件 #################################################################
+    # :param old_path: 原磁盘路径
+    # :param new_path: 新磁盘路径
+    # :return: 操作结果
+    ################################################################################
+    def move_disk_file(self, old_path: str, new_path: str) -> ZMessage:
+        try:
+            # 检查源文件是否存在 ===================================================
+            command = f"""
+            if (Test-Path '{old_path}') {{
+                # 确保目标目录存在
+                $targetDir = Split-Path '{new_path}' -Parent
+                if (-not (Test-Path $targetDir)) {{
+                    New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+                }}
+                
+                # 移动文件
+                Move-Item -Path '{old_path}' -Destination '{new_path}' -Force
+                Write-Output "磁盘文件移动成功"
+            }} else {{
+                Write-Error "源磁盘文件不存在"
+            }}
+            """
+            
+            result = self._run_powershell(command)
+
+            if result.success:
+                logger.info(f"磁盘文件移动成功: {old_path} -> {new_path}")
+                return ZMessage(success=True, action="MoveDisk", message="磁盘文件移动成功")
+            else:
+                return ZMessage(success=False, action="MoveDisk", message=result.message)
+
+        except Exception as e:
+            logger.error(f"移动磁盘文件失败: {str(e)}")
+            logger.error(traceback.format_exc())
+            return ZMessage(success=False, action="MoveDisk", message=str(e))
+
+    # 删除磁盘文件 #################################################################
+    # :param disk_path: 磁盘文件路径
+    # :return: 操作结果
+    ################################################################################
+    def delete_disk_file(self, disk_path: str) -> ZMessage:
+        try:
+            # 删除磁盘文件 =========================================================
+            command = f"""
+            if (Test-Path '{disk_path}') {{
+                Remove-Item -Path '{disk_path}' -Force
+                Write-Output "磁盘文件删除成功"
+            }} else {{
+                Write-Output "磁盘文件不存在，无需删除"
+            }}
+            """
+            
+            result = self._run_powershell(command)
+
+            if result.success:
+                logger.info(f"磁盘文件删除成功: {disk_path}")
+                return ZMessage(success=True, action="DeleteDisk", message="磁盘文件删除成功")
+            else:
+                return ZMessage(success=False, action="DeleteDisk", message=result.message)
+
+        except Exception as e:
+            logger.error(f"删除磁盘文件失败: {str(e)}")
+            logger.error(traceback.format_exc())
+            return ZMessage(success=False, action="DeleteDisk", message=str(e))
+
+    # 设置虚拟机密码 ###############################################################
+    # :param vm_name: 虚拟机名称
+    # :param username: 用户名（默认Administrator）
+    # :param password: 新密码
+    # :return: 操作结果
+    ################################################################################
+    def set_vm_password(self, vm_name: str, username: str, password: str) -> ZMessage:
+        try:
+            # 检查虚拟机是否运行 ===================================================
+            vm_info = self.get_vm_info(vm_name)
+            if not vm_info:
+                return ZMessage(success=False, action="SetPassword", message=f"虚拟机 {vm_name} 不存在")
+            
+            if vm_info.get('State') != 'Running':
+                return ZMessage(success=False, action="SetPassword", message=f"虚拟机 {vm_name} 未运行，无法设置密码")
+
+            # 使用PowerShell Direct设置密码 ========================================
+            # PowerShell Direct允许在虚拟机内执行命令，无需网络连接
+            command = f"""
+            $VMName = '{vm_name}'
+            $Username = '{username}'
+            $Password = '{password}'
+            
+            try {{
+                # 创建凭据对象（使用虚拟机当前凭据）
+                $SecurePassword = ConvertTo-SecureString $Password -AsPlainText -Force
+                
+                # 使用Invoke-Command在虚拟机内执行密码修改命令
+                $ScriptBlock = {{
+                    param($User, $Pass)
+                    $SecPass = ConvertTo-SecureString $Pass -AsPlainText -Force
+                    $UserAccount = Get-LocalUser -Name $User -ErrorAction SilentlyContinue
+                    if ($UserAccount) {{
+                        $UserAccount | Set-LocalUser -Password $SecPass
+                        Write-Output "密码设置成功"
+                    }} else {{
+                        Write-Output "用户不存在: $User"
+                    }}
+                }}
+                
+                # 尝试使用PowerShell Direct
+                Invoke-Command -VMName $VMName -ScriptBlock $ScriptBlock -ArgumentList $Username, $Password -ErrorAction Stop
+                
+            }} catch {{
+                Write-Error $_.Exception.Message
+            }}
+            """
+            
+            result = self._run_powershell(command)
+
+            if result.success and "密码设置成功" in result.message:
+                logger.info(f"虚拟机 {vm_name} 密码设置成功")
+                return ZMessage(success=True, action="SetPassword", message="密码设置成功")
+            else:
+                return ZMessage(success=False, action="SetPassword", message=result.message)
+
+        except Exception as e:
+            logger.error(f"设置虚拟机密码失败: {str(e)}")
+            logger.error(traceback.format_exc())
+            return ZMessage(success=False, action="SetPassword", message=str(e))

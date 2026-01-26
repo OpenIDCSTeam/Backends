@@ -604,12 +604,14 @@ function DockManage() {
       }
 
       if (editMode === 'add') {
+        // 先关闭模态框
+        setModalVisible(false)
+        // 再显示创建中消息
         const hide = message.loading('正在创建虚拟机...', 0)
         const result = await api.post(`/api/client/create/${hostName}`, vmData)
         hide()
         if (result.code === 200) {
           message.success('虚拟机创建成功')
-          setModalVisible(false)
           loadVMs()
         } else {
           message.error(result.msg || '创建失败')
@@ -774,10 +776,10 @@ function DockManage() {
     const macAddr = firstNic.mac_addr || '-'
 
     return (
-      <Col xs={24} sm={12} md={8} lg={6} xl={4} key={uuid}>
+      <Col xs={24} sm={24} md={12} lg={8} xl={6} xxl={4} key={uuid}>
         <Card
           hoverable
-          style={{ height: '100%' }}
+          style={{ height: '100%', minWidth: 450 }}
           styles={{ body: { padding: 16 } }}
         >
           <div style={{ marginBottom: 16 }}>
@@ -920,10 +922,20 @@ function DockManage() {
 
   // 从复合键中提取主机名和原始UUID
   const extractHostAndUuid = (key: string) => {
-    const parts = key.split('-')
-    if (parts.length < 2) return { hostName: hostName, uuid: key }
-    const host = parts[0]
-    const uuid = parts.slice(1).join('-')
+    // 如果当前页面指定了主机名，直接使用它
+    if (hostName) {
+      return { hostName: hostName, uuid: key }
+    }
+    
+    // 否则从复合键中提取（格式：host-uuid）
+    // 只按第一个 - 分割，避免 UUID 中的 - 被错误处理
+    const firstDashIndex = key.indexOf('-')
+    if (firstDashIndex === -1) {
+      return { hostName: hostName || '', uuid: key }
+    }
+    
+    const host = key.substring(0, firstDashIndex)
+    const uuid = key.substring(firstDashIndex + 1)
     return { hostName: host, uuid: uuid }
   }
 
