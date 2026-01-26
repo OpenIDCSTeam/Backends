@@ -851,6 +851,10 @@ class BasicServer:
             return all_status
         return {}
 
+    # 虚拟机截图 ####################################################################
+    def VMScreen(self, vm_name: str = "") -> str:
+        return ""
+
     # 删除虚拟机 ####################################################################
     def VMDelete(self, vm_name: str, rm_back=True) -> ZMessage:
         vm_saving = os.path.join(self.hs_config.system_path, vm_name)
@@ -890,9 +894,6 @@ class BasicServer:
         return self.VMUpdate(ap_config, vm_config)
 
     # 备份虚拟机 ####################################################################
-    # :params vm_name: 虚拟机UUID
-    # :params vm_tips: 备份的说明
-    # ###############################################################################
     def VMBackup(self, vm_name: str, vm_tips: str) -> ZMessage:
         bak_time = datetime.datetime.now()
         bak_name = vm_name + "-" + bak_time.strftime("%Y%m%d%H%M%S") + ".7z"
@@ -929,9 +930,6 @@ class BasicServer:
             return ZMessage(success=False, action="VMBackup", message=str(e))
 
     # 恢复虚拟机 ####################################################################
-    # :params vm_name: 虚拟机UUID
-    # :params vm_back: 备份文件名
-    # ###############################################################################
     def Restores(self, vm_name: str, vm_back: str) -> ZMessage:
         org_path = os.path.join(self.hs_config.system_path, vm_name)
         zip_path = os.path.join(self.hs_config.backup_path, vm_back)
@@ -960,10 +958,6 @@ class BasicServer:
             return ZMessage(success=False, action="Restores", message=str(e))
 
     # VM镜像挂载 ####################################################################
-    # :params vm_name: 虚拟机UUID
-    # :params vm_imgs: 镜像的配置
-    # :params in_flag: 挂载或卸载
-    # ###############################################################################
     def HDDMount(self, vm_name: str, vm_imgs: SDConfig, in_flag=True) -> ZMessage:
         if vm_name not in self.vm_saving:
             return ZMessage(
@@ -990,10 +984,6 @@ class BasicServer:
             message=f"磁盘{action_text}成功")
 
     # ISO镜像挂载 ###################################################################
-    # :params vm_name: 虚拟机UUID
-    # :params vm_imgs: 镜像的配置
-    # :params in_flag: 挂载或卸载
-    # ###############################################################################
     def ISOMount(self, vm_name: str, vm_imgs: IMConfig, in_flag=True) -> ZMessage:
         if vm_name not in self.vm_saving:
             return ZMessage(

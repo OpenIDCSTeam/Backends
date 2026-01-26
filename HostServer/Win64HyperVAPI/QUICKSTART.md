@@ -47,7 +47,7 @@ config = HSConfig(
     server_addr="localhost",  # 本地管理
     server_user="",
     server_pass="",
-    system_path="C:\\Hyper-V\\VMs",
+    system_path="C:\\Hyper-V\\DockManage",
     images_path="C:\\Hyper-V\\Images",
     backup_path="C:\\Hyper-V\\Backups"
 )

@@ -18,7 +18,7 @@ msgstr ""
 
 # HostServer.py
 msgid "登录"
-msgstr "Login"
+msgstr "UserLogins"
 
 msgid "用户名和密码不能为空"
 msgstr "Username and password cannot be empty"
@@ -33,7 +33,7 @@ msgid "请先验证邮箱后再登录"
 msgstr "Please verify your email address before logging in"
 
 msgid "登录成功"
-msgstr "Login successful"
+msgstr "UserLogins successful"
 
 msgid "Admin用户已被禁用"
 msgstr "Admin user has been disabled"
@@ -42,10 +42,10 @@ msgid "Token错误"
 msgstr "Token error"
 
 msgid "登录失败"
-msgstr "Login failed"
+msgstr "UserLogins failed"
 
 msgid "仪表盘"
-msgstr "Dashboard"
+msgstr "Dashboards"
 
 msgid "主机管理"
 msgstr "Host Management"
@@ -60,7 +60,7 @@ msgid "虚拟机管理"
 msgstr "VM Management"
 
 msgid "系统设置"
-msgstr "System Settings"
+msgstr "System CoreConfig"
 
 msgid "反向代理"
 msgstr "Proxy Management"
@@ -68,7 +68,7 @@ msgstr "Proxy Management"
 
 
 msgid "个人设置"
-msgstr "Personal Settings"
+msgstr "Personal CoreConfig"
 
 msgid "用户名、邮箱和密码不能为空"
 msgstr "Username, email, and password cannot be empty"
@@ -254,7 +254,7 @@ msgid "获取失败"
 msgstr "Retrieval failed"
 
 msgid "无效的请求数据"
-msgstr "Invalid request data"
+msgstr "Invalid axio data"
 
 msgid "创建用户失败，请重试"
 msgstr "Failed to create user, please try again"
@@ -635,16 +635,16 @@ msgid "未知错误"
 msgstr "Unknown error"
 
 msgid "登录失败"
-msgstr "Login failed"
+msgstr "UserLogins failed"
 
 msgid "响应不是有效的JSON格式"
 msgstr "Response is not valid JSON format"
 
 msgid "登录失败，状态码"
-msgstr "Login failed, status code"
+msgstr "UserLogins failed, status code"
 
 msgid "登录异常"
-msgstr "Login exception"
+msgstr "UserLogins exception"
 
 msgid "请先登录"
 msgstr "Please login first"
@@ -764,7 +764,7 @@ msgid "❌ ARP绑定删除失败"
 msgstr "❌ Failed to delete ARP binding"
 
 msgid "登录成功"
-msgstr "Login successful"
+msgstr "UserLogins successful"
 
 msgid "静态IP添加成功"
 msgstr "Static IP added successfully"
@@ -828,7 +828,7 @@ msgid "重置中..."
 msgstr "Resetting..."
 
 msgid "仪表盘"
-msgstr "Dashboard"
+msgstr "Dashboards"
 
 msgid "系统概览与快速操作"
 msgstr "System Overview and Quick Actions"
@@ -849,7 +849,7 @@ msgid "添加新的虚拟化主机"
 msgstr "Add new virtualization host"
 
 msgid "系统设置"
-msgstr "System Settings"
+msgstr "System CoreConfig"
 
 msgid "管理Token和系统配置"
 msgstr "Manage Token and system configuration"
@@ -864,7 +864,7 @@ msgid "提示"
 msgstr "Tip"
 
 msgid "通过主机管理页面可以管理主机和虚拟机。支持使用API+Token进行自动化管理。"
-msgstr "You can manage hosts and VMs through the host management page. Supports automated management via API+Token."
+msgstr "You can manage hosts and DockManage through the host management page. Supports automated management via API+Token."
 
 msgid "CPU核心"
 msgstr "CPU Cores"
@@ -894,7 +894,7 @@ msgid "下行带宽"
 msgstr "Download Bandwidth"
 
 msgid "我的虚拟机"
-msgstr "My VMs"
+msgstr "My DockManage"
 
 msgid "运行中"
 msgstr "Running"
@@ -957,7 +957,7 @@ msgid "强制重启"
 msgstr "Force Restart"
 
 msgid "暂无虚拟机"
-msgstr "No VMs available"
+msgstr "No DockManage available"
 
 msgid "请联系管理员为您分配权限"
 msgstr "Please contact administrator to assign permissions"
@@ -981,7 +981,7 @@ msgid "加载失败"
 msgstr "Load failed"
 
 msgid "获取日志成功"
-msgstr "Logs retrieved successfully"
+msgstr "LogsManage retrieved successfully"
 
 msgid "获取日志失败"
 msgstr "Failed to retrieve logs"
@@ -990,7 +990,7 @@ msgid "主机名称不能为空"
 msgstr "Host name cannot be empty"
 
 msgid "获取任务成功"
-msgstr "Tasks retrieved successfully"
+msgstr "TaskManage retrieved successfully"
 
 msgid "获取任务失败"
 msgstr "Failed to retrieve tasks"
@@ -1612,13 +1612,13 @@ msgid "密码重置请求"
 msgstr "Password Reset Request"
 
 msgid "我们收到了您的密码重置请求。"
-msgstr "We received your password reset request."
+msgstr "We received your password reset axio."
 
 msgid "请点击下面的链接重置您的密码："
 msgstr "Please click the link below to reset your password:"
 
 msgid "如果您没有请求重置密码，请忽略此邮件。"
-msgstr "If you did not request a password reset, please ignore this email."
+msgstr "If you did not axio a password reset, please ignore this email."
 
 msgid "密码重置邮件已发送到 "
 msgstr "Password reset email sent to "
@@ -1639,7 +1639,7 @@ msgid "邮箱变更验证"
 msgstr "Email Change Verification"
 
 msgid "我们收到了您的邮箱变更请求。"
-msgstr "We received your email change request."
+msgstr "We received your email change axio."
 
 msgid "请点击下面的链接验证您的新邮箱地址："
 msgstr "Please click the link below to verify your new email address:"
@@ -1648,7 +1648,7 @@ msgid "验证成功后，您的账号邮箱将更新为此邮箱地址。"
 msgstr "After successful verification, your account email will be updated to this email address."
 
 msgid "如果您没有请求变更邮箱，请忽略此邮件。"
-msgstr "If you did not request to change your email, please ignore this email."
+msgstr "If you did not axio to change your email, please ignore this email."
 
 msgid "邮箱变更验证邮件已发送到 "
 msgstr "Email change verification email sent to "
@@ -1709,7 +1709,7 @@ msgid "保存主机状态错误"
 msgstr "Save host status error"
 
 msgid "发现需要删除的虚拟机"
-msgstr "Found VMs that need to be deleted"
+msgstr "Found DockManage that need to be deleted"
 
 msgid "已删除"
 msgstr "Deleted"
@@ -2211,19 +2211,19 @@ msgid "发现并添加虚拟机"
 msgstr "Discovered and added VM"
 
 msgid "保存扫描的虚拟机到数据库失败"
-msgstr "Failed to save scanned VMs to database"
+msgstr "Failed to save scanned DockManage to database"
 
 msgid "扫描完成。共扫描到"
 msgstr "Scan completed. Total scanned"
 
 msgid "台虚拟机，新增"
-msgstr "VMs, added"
+msgstr "DockManage, added"
 
 msgid "台虚拟机配置。"
 msgstr "VM configurations."
 
 msgid "扫描虚拟机时出错"
-msgstr "Error while scanning VMs"
+msgstr "Error while scanning DockManage"
 
 msgid "安装系统失败"
 msgstr "System installation failed"
@@ -2323,7 +2323,7 @@ msgid "的IP地址"
 msgstr "IP addresses"
 
 msgid "已被其他虚拟机使用"
-msgstr "already used by other VMs"
+msgstr "already used by other DockManage"
 
 msgid "的网络类型"
 msgstr "network type"
@@ -2753,20 +2753,20 @@ msgstr "Failed to get Proxmox host status"
 msgid "发现并添加虚拟机"
 msgstr "Discovered and added VM"
 
-msgid "Failed to save scanned VMs to database"
-msgstr "Failed to save scanned VMs to database"
+msgid "Failed to save scanned DockManage to database"
+msgstr "Failed to save scanned DockManage to database"
 
 msgid "扫描完成。共扫描到"
 msgstr "Scan completed. Total scanned"
 
 msgid "个虚拟机，新增"
-msgstr "VMs, added"
+msgstr "DockManage, added"
 
 msgid "个虚拟机配置。"
 msgstr "VM configurations."
 
 msgid "扫描虚拟机时出错"
-msgstr "Error while scanning VMs"
+msgstr "Error while scanning DockManage"
 
 msgid "创建成功"
 msgstr "Created successfully"
@@ -2930,19 +2930,19 @@ msgid "发现并添加虚拟机"
 msgstr "Discovered and added VM"
 
 msgid "保存扫描的虚拟机到数据库失败"
-msgstr "Failed to save scanned VMs to database"
+msgstr "Failed to save scanned DockManage to database"
 
 msgid "扫描完成。共扫描到"
 msgstr "Scan completed. Total scanned"
 
 msgid "台虚拟机，新增"
-msgstr "VMs, added"
+msgstr "DockManage, added"
 
 msgid "台虚拟机配置。"
 msgstr "VM configurations."
 
 msgid "扫描虚拟机时出错"
-msgstr "Error while scanning VMs"
+msgstr "Error while scanning DockManage"
 
 msgid "虚拟机创建失败"
 msgstr "VM creation failed"
@@ -3839,10 +3839,10 @@ msgid "虚拟化管理平台"
 msgstr "Virtualization Management Platform"
 
 msgid "用户登录"
-msgstr "User Login"
+msgstr "User UserLogins"
 
 msgid "Token登录"
-msgstr "Token Login"
+msgstr "Token UserLogins"
 
 msgid "访问Token"
 msgstr "Access Token"
@@ -3851,10 +3851,10 @@ msgid "请输入访问Token"
 msgstr "Please enter access Token"
 
 msgid "登 录"
-msgstr "Login"
+msgstr "UserLogins"
 
 msgid "还没有账号？立即注册"
-msgstr "Don't have an account? Register now"
+msgstr "Don't have an account? UserPostin now"
 
 msgid "忘记密码？"
 msgstr "Forgot password?"
@@ -3890,7 +3890,7 @@ msgid "启动服务时会在控制台显示访问Token"
 msgstr "Access Token will be displayed in the console when starting the service"
 
 msgid "登录失败，请重试"
-msgstr "Login failed, please try again"
+msgstr "UserLogins failed, please try again"
 
 # 前端 - 注册页面
 msgid "用户注册"
@@ -3909,10 +3909,10 @@ msgid "请再次输入密码"
 msgstr "Please enter password again"
 
 msgid "注 册"
-msgstr "Register"
+msgstr "UserPostin"
 
 msgid "已有账号？立即登录"
-msgstr "Already have an account? Login now"
+msgstr "Already have an account? UserLogins now"
 
 msgid "两次输入的密码不一致"
 msgstr "Passwords entered twice do not match"
@@ -3943,7 +3943,7 @@ msgid "密码强度"
 msgstr "Password Strength"
 
 msgid "返回登录"
-msgstr "Back to Login"
+msgstr "Back to UserLogins"
 
 msgid "如果您遇到问题，请联系管理员"
 msgstr "If you encounter issues, please contact administrator"
@@ -3966,7 +3966,7 @@ msgstr "Strong"
 
 # 前端 - 个人设置页面
 msgid "个人设置"
-msgstr "Personal Settings"
+msgstr "Personal CoreConfig"
 
 msgid "管理您的个人信息和账户设置"
 msgstr "Manage your personal information and account settings"
@@ -4056,7 +4056,7 @@ msgid "已禁用"
 msgstr "Disabled"
 
 msgid "分配的主机"
-msgstr "Assigned Hosts"
+msgstr "Assigned HostManage"
 
 msgid "加载中..."
 msgstr "Loading..."
@@ -4117,7 +4117,7 @@ msgstr "Failed to load user information"
 
 # 前端 - 系统设置页面
 msgid "系统设置"
-msgstr "System Settings"
+msgstr "System CoreConfig"
 
 msgid "管理访问Token和系统配置"
 msgstr "Manage access Token and system configuration"
@@ -4150,7 +4150,7 @@ msgid "认证方式"
 msgstr "Authentication Method"
 
 msgid "在请求头中添加："
-msgstr "Add to request header:"
+msgstr "Add to axio header:"
 
 msgid "主要接口"
 msgstr "Main Interfaces"
@@ -4201,7 +4201,7 @@ msgid "虚拟机数量"
 msgstr "VM Count"
 
 msgid "用户注册设置"
-msgstr "User Registration Settings"
+msgstr "User Registration CoreConfig"
 
 msgid "开放注册"
 msgstr "Open Registration"
@@ -4255,7 +4255,7 @@ msgid "允许删除虚拟机"
 msgstr "Allow VM Deletion"
 
 msgid "保存设置"
-msgstr "Save Settings"
+msgstr "Save CoreConfig"
 
 msgid "邮件服务配置"
 msgstr "Email Service Configuration"
@@ -4627,13 +4627,13 @@ msgid "备注"
 msgstr "Notes"
 
 msgid "主机总数"
-msgstr "Total Hosts"
+msgstr "Total HostManage"
 
 msgid "退出"
 msgstr "Logout"
 
 msgid "虚拟机总数"
-msgstr "Total VMs"
+msgstr "Total DockManage"
 
 msgid "系统状态"
 msgstr "System Status"
@@ -4651,10 +4651,10 @@ msgid "页面可以管理主机和虚拟机。支持使用API+Token进行自动�
 msgstr "This page allows you to manage hosts and virtual machines. Supports automated management using API + Token."
 
 msgid "管理主机"
-msgstr "Manage Hosts"
+msgstr "Manage HostManage"
 
 msgid "扫描虚拟机"
-msgstr "Scan VMs"
+msgstr "Scan DockManage"
 
 msgid "返回主机列表"
 msgstr "Back to Host List"
@@ -5143,7 +5143,7 @@ msgid "主机数"
 msgstr "Host Count"
 
 msgid "所有主机"
-msgstr "All Hosts"
+msgstr "All HostManage"
 
 msgid "所有协议"
 msgstr "All Protocols"

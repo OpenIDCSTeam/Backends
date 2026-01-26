@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { message, Modal, Select } from 'antd'
-import api from '@/services/api'
+import api from '@/utils/apis.ts'
 
 /**
  * 任务数据接口
@@ -18,20 +18,13 @@ interface Task {
   created_at?: string
   timestamp?: string
   error_message?: string
-  [key: string]: any
-}
-
-/**
- * 主机数据接口
- */
-interface Host {
-  [key: string]: any
+  [key: string]: unknown
 }
 
 /**
  * 任务管理页面
  */
-function Tasks() {
+function TaskManage() {
   // 状态管理
   const [tasks, setTasks] = useState<Task[]>([]) // 所有任务列表
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]) // 过滤后的任务列表
@@ -93,6 +86,7 @@ function Tasks() {
   useEffect(() => {
     loadHosts()
     loadTasks()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   /**
@@ -100,13 +94,14 @@ function Tasks() {
    */
   useEffect(() => {
     loadTasks()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedHost])
 
   /**
    * 自动刷新
    */
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null
+    let interval: ReturnType<typeof setInterval> | null = null
     if (autoRefresh) {
       interval = setInterval(() => {
         loadTasks()
@@ -115,6 +110,7 @@ function Tasks() {
     return () => {
       if (interval) clearInterval(interval)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRefresh, selectedHost])
 
   /**
@@ -167,7 +163,7 @@ function Tasks() {
     }
     tasks.forEach(task => {
       const status = (task.status || 'pending').toLowerCase()
-      if (stats.hasOwnProperty(status)) {
+      if (Object.prototype.hasOwnProperty.call(stats, status)) {
         stats[status as keyof typeof stats]++
       }
     })
@@ -472,4 +468,4 @@ function Tasks() {
   )
 }
 
-export default Tasks
+export default TaskManage

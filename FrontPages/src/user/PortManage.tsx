@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Typography, Table, Spin, Button, message, Tag, Modal, Form, Input, Select, InputNumber, Space } from 'antd';
+import { Card, Typography, Table, Button, message, Tag, Modal, Form, Input, Select, InputNumber, Space } from 'antd';
 import { ReloadOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import api from '@/services/api';
+import api from '@/utils/apis.ts';
 import { NATRule } from '@/types';
 
 const { Title } = Typography;
@@ -12,7 +12,7 @@ interface UserNATRule extends NATRule {
   rule_index: number; // 确保包含 rule_index
 }
 
-const UserNAT: React.FC = () => {
+const PortManage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [rules, setRules] = useState<UserNATRule[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -83,10 +83,9 @@ const UserNAT: React.FC = () => {
              await Promise.all(vms.map(async (vm: any) => {
                  const vmUuid = vm.config?.vm_uuid || vm.uuid;
                  try {
-                     const natRes = await api.getNATRules(hostName, vmUuid);
-                     if (natRes.code === 200 && natRes.data) {
-                         // @ts-ignore
-                         natRes.data.forEach((r: NATRule, index: number) => {
+                    const natRes = await api.getNATRules(hostName, vmUuid);
+                    if (natRes.code === 200 && natRes.data) {
+                        natRes.data.forEach((r: NATRule, index: number) => {
                              allRules.push({
                                  ...r,
                                  hostName,
@@ -149,6 +148,7 @@ const UserNAT: React.FC = () => {
         lan_addr: '' // 默认空，由后端处理
       };
       
+      // @ts-expect-error - API接口类型定义与实际使用的数据结构不完全匹配
       const res = await api.addNATRule(values.hostName, values.vmUuid, data);
       if (res.code === 200) {
         message.success('添加成功');
@@ -263,4 +263,4 @@ const UserNAT: React.FC = () => {
   );
 };
 
-export default UserNAT;
+export default PortManage;

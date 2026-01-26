@@ -9,47 +9,14 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined
 } from '@ant-design/icons'
-import api from '@/services/api'
-
-/**
- * 用户信息接口
- */
-interface UserProfile {
-  username: string
-  email: string
-  created_at: string
-  can_create_vm: boolean
-  can_modify_vm: boolean
-  can_delete_vm: boolean
-  is_admin: boolean
-  is_active: boolean
-  email_verified: boolean
-  assigned_hosts: string[]
-  used_cpu: number
-  quota_cpu: number
-  used_ram: number
-  quota_ram: number
-  used_ssd: number
-  quota_ssd: number
-  used_gpu?: number
-  quota_gpu?: number
-  used_traffic: number
-  quota_traffic: number
-  used_bandwidth_up: number
-  quota_bandwidth_up: number
-  used_bandwidth_down: number
-  quota_bandwidth_down: number
-  used_nat_ports: number
-  quota_nat_ports: number
-  used_web_proxy: number
-  quota_web_proxy: number
-}
+import api from '@/utils/apis.ts'
+import type { User } from '@/types'
 
 /**
  * 个人设置页面
  */
-function Profile() {
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
+function UserConfig() {
+  const [userProfile, setUserProfile] = useState<User | null>(null)
   const [loading, setLoading] = useState(false)
   const [emailForm] = Form.useForm()
   const [passwordForm] = Form.useForm()
@@ -67,7 +34,7 @@ function Profile() {
   const loadUserProfile = async () => {
     try {
       const response = await api.getCurrentUser()
-      if (response.code === 200) {
+      if (response.code === 200 && response.data) {
         setUserProfile(response.data)
       }
     } catch (error) {
@@ -378,12 +345,12 @@ function Profile() {
                 <div className="flex items-center justify-between text-sm mb-1">
                   <span className="text-gray-600">内存</span>
                   <span className="text-gray-800 font-medium">
-                    {(userProfile.used_ram / 1024).toFixed(1)}/{(userProfile.quota_ram / 1024).toFixed(1)} GB
+                    {((userProfile.used_ram || 0) / 1024).toFixed(1)}/{((userProfile.quota_ram || 0) / 1024).toFixed(1)} GB
                   </span>
                 </div>
                 <Progress 
-                  percent={calculatePercent(userProfile.used_ram, userProfile.quota_ram)} 
-                  strokeColor={getProgressColor(calculatePercent(userProfile.used_ram, userProfile.quota_ram))}
+                  percent={calculatePercent(userProfile.used_ram || 0, userProfile.quota_ram || 0)} 
+                  strokeColor={getProgressColor(calculatePercent(userProfile.used_ram || 0, userProfile.quota_ram || 0))}
                   showInfo={false}
                 />
               </div>
@@ -393,12 +360,12 @@ function Profile() {
                 <div className="flex items-center justify-between text-sm mb-1">
                   <span className="text-gray-600">磁盘</span>
                   <span className="text-gray-800 font-medium">
-                    {(userProfile.used_ssd / 1024).toFixed(1)}/{(userProfile.quota_ssd / 1024).toFixed(1)} GB
+                    {((userProfile.used_ssd || 0) / 1024).toFixed(1)}/{((userProfile.quota_ssd || 0) / 1024).toFixed(1)} GB
                   </span>
                 </div>
                 <Progress 
-                  percent={calculatePercent(userProfile.used_ssd, userProfile.quota_ssd)} 
-                  strokeColor={getProgressColor(calculatePercent(userProfile.used_ssd, userProfile.quota_ssd))}
+                  percent={calculatePercent(userProfile.used_ssd || 0, userProfile.quota_ssd || 0)} 
+                  strokeColor={getProgressColor(calculatePercent(userProfile.used_ssd || 0, userProfile.quota_ssd || 0))}
                   showInfo={false}
                 />
               </div>
@@ -425,12 +392,12 @@ function Profile() {
                 <div className="flex items-center justify-between text-sm mb-1">
                   <span className="text-gray-600">流量</span>
                   <span className="text-gray-800 font-medium">
-                    {(userProfile.used_traffic / 1024).toFixed(1)}/{(userProfile.quota_traffic / 1024).toFixed(1)} GB
+                    {((userProfile.used_traffic || 0) / 1024).toFixed(1)}/{((userProfile.quota_traffic || 0) / 1024).toFixed(1)} GB
                   </span>
                 </div>
                 <Progress 
-                  percent={calculatePercent(userProfile.used_traffic, userProfile.quota_traffic)} 
-                  strokeColor={getProgressColor(calculatePercent(userProfile.used_traffic, userProfile.quota_traffic))}
+                  percent={calculatePercent(userProfile.used_traffic || 0, userProfile.quota_traffic || 0)} 
+                  strokeColor={getProgressColor(calculatePercent(userProfile.used_traffic || 0, userProfile.quota_traffic || 0))}
                   showInfo={false}
                 />
               </div>
@@ -440,12 +407,12 @@ function Profile() {
                 <div className="flex items-center justify-between text-sm mb-1">
                   <span className="text-gray-600">上行带宽</span>
                   <span className="text-gray-800 font-medium">
-                    {userProfile.used_bandwidth_up}/{userProfile.quota_bandwidth_up} Mbps
+                    {userProfile.used_bandwidth_up || 0}/{userProfile.quota_bandwidth_up || 0} Mbps
                   </span>
                 </div>
                 <Progress 
-                  percent={calculatePercent(userProfile.used_bandwidth_up, userProfile.quota_bandwidth_up)} 
-                  strokeColor={getProgressColor(calculatePercent(userProfile.used_bandwidth_up, userProfile.quota_bandwidth_up))}
+                  percent={calculatePercent(userProfile.used_bandwidth_up || 0, userProfile.quota_bandwidth_up || 0)} 
+                  strokeColor={getProgressColor(calculatePercent(userProfile.used_bandwidth_up || 0, userProfile.quota_bandwidth_up || 0))}
                   showInfo={false}
                 />
               </div>
@@ -455,12 +422,12 @@ function Profile() {
                 <div className="flex items-center justify-between text-sm mb-1">
                   <span className="text-gray-600">下行带宽</span>
                   <span className="text-gray-800 font-medium">
-                    {userProfile.used_bandwidth_down}/{userProfile.quota_bandwidth_down} Mbps
+                    {userProfile.used_bandwidth_down || 0}/{userProfile.quota_bandwidth_down || 0} Mbps
                   </span>
                 </div>
                 <Progress 
-                  percent={calculatePercent(userProfile.used_bandwidth_down, userProfile.quota_bandwidth_down)} 
-                  strokeColor={getProgressColor(calculatePercent(userProfile.used_bandwidth_down, userProfile.quota_bandwidth_down))}
+                  percent={calculatePercent(userProfile.used_bandwidth_down || 0, userProfile.quota_bandwidth_down || 0)} 
+                  strokeColor={getProgressColor(calculatePercent(userProfile.used_bandwidth_down || 0, userProfile.quota_bandwidth_down || 0))}
                   showInfo={false}
                 />
               </div>
@@ -470,12 +437,12 @@ function Profile() {
                 <div className="flex items-center justify-between text-sm mb-1">
                   <span className="text-gray-600">NAT配额</span>
                   <span className="text-gray-800 font-medium">
-                    {userProfile.used_nat_ports}/{userProfile.quota_nat_ports} 个
+                    {userProfile.used_nat_ports || 0}/{userProfile.quota_nat_ports || 0} 个
                   </span>
                 </div>
                 <Progress 
-                  percent={calculatePercent(userProfile.used_nat_ports, userProfile.quota_nat_ports)} 
-                  strokeColor={getProgressColor(calculatePercent(userProfile.used_nat_ports, userProfile.quota_nat_ports))}
+                  percent={calculatePercent(userProfile.used_nat_ports || 0, userProfile.quota_nat_ports || 0)} 
+                  strokeColor={getProgressColor(calculatePercent(userProfile.used_nat_ports || 0, userProfile.quota_nat_ports || 0))}
                   showInfo={false}
                 />
               </div>
@@ -485,12 +452,12 @@ function Profile() {
                 <div className="flex items-center justify-between text-sm mb-1">
                   <span className="text-gray-600">WEB配额</span>
                   <span className="text-gray-800 font-medium">
-                    {userProfile.used_web_proxy}/{userProfile.quota_web_proxy} 个
+                    {userProfile.used_web_proxy || 0}/{userProfile.quota_web_proxy || 0} 个
                   </span>
                 </div>
                 <Progress 
-                  percent={calculatePercent(userProfile.used_web_proxy, userProfile.quota_web_proxy)} 
-                  strokeColor={getProgressColor(calculatePercent(userProfile.used_web_proxy, userProfile.quota_web_proxy))}
+                  percent={calculatePercent(userProfile.used_web_proxy || 0, userProfile.quota_web_proxy || 0)} 
+                  strokeColor={getProgressColor(calculatePercent(userProfile.used_web_proxy || 0, userProfile.quota_web_proxy || 0))}
                   showInfo={false}
                 />
               </div>
@@ -502,4 +469,4 @@ function Profile() {
   )
 }
 
-export default Profile
+export default UserConfig

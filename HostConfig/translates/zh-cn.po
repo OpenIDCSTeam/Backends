@@ -2836,7 +2836,7 @@ msgstr "获取Proxmox主机状态失败"
 msgid "发现并添加虚拟机"
 msgstr "发现并添加虚拟机"
 
-msgid "Failed to save scanned VMs to database"
+msgid "Failed to save scanned DockManage to database"
 msgstr "保存扫描的虚拟机到数据库失败"
 
 msgid "扫描完成。共扫描到"

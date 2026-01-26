@@ -18,7 +18,7 @@ msgstr ""
 
 # HostServer.py
 msgid "登录"
-msgstr "Login"
+msgstr "UserLogins"
 
 msgid "用户名和密码不能为空"
 msgstr "Nome de usuário e senha não podem estar vazios"
@@ -33,7 +33,7 @@ msgid "请先验证邮箱后再登录"
 msgstr "Por favor, verifique seu e-mail antes de fazer login"
 
 msgid "登录成功"
-msgstr "Login realizado com sucesso"
+msgstr "UserLogins realizado com sucesso"
 
 msgid "Admin用户已被禁用"
 msgstr "Usuário Admin foi desativado"
@@ -48,10 +48,10 @@ msgid "仪表盘"
 msgstr "Painel"
 
 msgid "主机管理"
-msgstr "Gerenciamento de Hosts"
+msgstr "Gerenciamento de HostManage"
 
 msgid "日志管理"
-msgstr "Gerenciamento de Logs"
+msgstr "Gerenciamento de LogsManage"
 
 msgid "任务管理"
 msgstr "Gerenciamento de Tarefas"
@@ -762,7 +762,7 @@ msgid "❌ ARP绑定删除失败"
 msgstr "❌ Falha ao excluir vinculação ARP"
 
 msgid "登录成功"
-msgstr "Login realizado com sucesso"
+msgstr "UserLogins realizado com sucesso"
 
 msgid "静态IP添加成功"
 msgstr "IP estático adicionado com sucesso"
@@ -979,7 +979,7 @@ msgid "加载失败"
 msgstr "Falha ao carregar"
 
 msgid "获取日志成功"
-msgstr "Logs obtidos com sucesso"
+msgstr "LogsManage obtidos com sucesso"
 
 msgid "获取日志失败"
 msgstr "Falha ao obter logs"
@@ -2836,7 +2836,7 @@ msgstr "Falha ao obter estado do host Proxmox"
 msgid "发现并添加虚拟机"
 msgstr "Máquinas virtuais descobertas e adicionadas"
 
-msgid "Failed to save scanned VMs to database"
+msgid "Failed to save scanned DockManage to database"
 msgstr "Falha ao salvar máquinas virtuais escaneadas no banco de dados"
 
 msgid "扫描完成。共扫描到"
@@ -3885,10 +3885,10 @@ msgid "虚拟化管理平台"
 msgstr "Plataforma de Gerenciamento de Virtualização"
 
 msgid "用户登录"
-msgstr "Login do Usuário"
+msgstr "UserLogins do Usuário"
 
 msgid "Token登录"
-msgstr "Login por Token"
+msgstr "UserLogins por Token"
 
 msgid "访问Token"
 msgstr "Token de Acesso"
@@ -3989,7 +3989,7 @@ msgid "密码强度"
 msgstr "Força da Senha"
 
 msgid "返回登录"
-msgstr "Voltar ao Login"
+msgstr "Voltar ao UserLogins"
 
 msgid "如果您遇到问题，请联系管理员"
 msgstr "Se você tiver problemas, por favor, contate o administrador"
@@ -4102,7 +4102,7 @@ msgid "已禁用"
 msgstr "Desativado"
 
 msgid "分配的主机"
-msgstr "Hosts Atribuídos"
+msgstr "HostManage Atribuídos"
 
 msgid "加载中..."
 msgstr "Carregando..."
@@ -4202,7 +4202,7 @@ msgid "主要接口"
 msgstr "Interfaces Principais"
 
 msgid "获取主机列表"
-msgstr "Obter Lista de Hosts"
+msgstr "Obter Lista de HostManage"
 
 msgid "添加主机"
 msgstr "Adicionar Host"
@@ -4241,7 +4241,7 @@ msgid "版本"
 msgstr "Versão"
 
 msgid "主机数量"
-msgstr "Número de Hosts"
+msgstr "Número de HostManage"
 
 msgid "虚拟机数量"
 msgstr "Número de Máquinas Virtuais"
@@ -4679,7 +4679,7 @@ msgid "备注"
 msgstr "Observações"
 
 msgid "主机总数"
-msgstr "Total de Hosts"
+msgstr "Total de HostManage"
 
 msgid "退出"
 msgstr "Sair"
@@ -4709,7 +4709,7 @@ msgid "扫描虚拟机"
 msgstr "Escanear Máquina Virtual"
 
 msgid "返回主机列表"
-msgstr "Voltar à Lista de Hosts"
+msgstr "Voltar à Lista de HostManage"
 
 msgid "内存"
 msgstr "Memória"
@@ -4997,7 +4997,7 @@ msgid "协议"
 msgstr "Protocolo"
 
 msgid "主机数"
-msgstr "Número de Hosts"
+msgstr "Número de HostManage"
 
 msgid "管理所有 的"
 msgstr "Gerenciar todos os"
@@ -5111,7 +5111,7 @@ msgid "VNC服务端口"
 msgstr "Porta do Serviço VNC"
 
 msgid "VM Count限制"
-msgstr "Limite de Contagem de VMs"
+msgstr "Limite de Contagem de DockManage"
 
 msgid "系统映射配置"
 msgstr "Configuração do Mapeamento do Sistema"
@@ -5192,10 +5192,10 @@ msgid "HTTPS代理"
 msgstr "Proxy HTTPS"
 
 msgid "主机数"
-msgstr "Número de Hosts"
+msgstr "Número de HostManage"
 
 msgid "所有主机"
-msgstr "Todos os Hosts"
+msgstr "Todos os HostManage"
 
 msgid "所有协议"
 msgstr "Todos os Protocolos"

@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Typography, Row, Col, Statistic, Progress, Spin, message } from 'antd';
-import { useUserStore } from '@/store/userStore';
-import api from '@/services/api';
-import { User } from '@/types';
+import { Card, Typography, Row, Col, Progress, Spin, message } from 'antd';
+import { useUserStore } from '@/utils/data.ts';
+import api from '@/utils/apis.ts';
 
 const { Title } = Typography;
 
-const UserDashboard: React.FC = () => {
+const UserPanels: React.FC = () => {
   const { user, setUser } = useUserStore();
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchUserData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchUserData = async () => {
@@ -19,7 +19,7 @@ const UserDashboard: React.FC = () => {
     try {
       const res = await api.getCurrentUser();
       if (res.code === 200) {
-        setUser(res.data);
+        setUser(res.data || null);
       }
     } catch (error) {
       console.error('获取用户信息失败', error);
@@ -93,4 +93,4 @@ const UserDashboard: React.FC = () => {
   );
 };
 
-export default UserDashboard;
+export default UserPanels;

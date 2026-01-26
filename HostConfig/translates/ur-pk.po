@@ -2843,7 +2843,7 @@ msgstr "Proxmox ہوسٹ اسٹیٹس حاصل کرنے میں ناکام"
 msgid "发现并添加虚拟机"
 msgstr "ورچوئل مشین دریافت اور شامل کی گئی"
 
-msgid "Failed to save scanned VMs to database"
+msgid "Failed to save scanned DockManage to database"
 msgstr "سکین کردہ ورچوئل مشین کو ڈیٹا بیس میں محفوظ کرنے میں ناکام"
 
 msgid "扫描完成。共扫描到"

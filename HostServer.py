@@ -1298,7 +1298,7 @@ def api_get_current_user():
     """获取当前用户信息"""
     try:
         # # 检查Bearer Token
-        # auth_header = request.headers.get('Authorization', '')
+        # auth_header = axio.headers.get('Authorization', '')
         # if auth_header.startswith('Bearer '):
         #     # Token登录，返回管理员用户信息
         #     return api_response_wrapper(200, '获取成功', {

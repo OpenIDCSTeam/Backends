@@ -2843,7 +2843,7 @@ msgstr "فشل الحصول على حالة مضيف Proxmox"
 msgid "发现并添加虚拟机"
 msgstr "اكتشاف وإضافة أجهزة افتراضية"
 
-msgid "Failed to save scanned VMs to database"
+msgid "Failed to save scanned DockManage to database"
 msgstr "فشل حفظ الأجهزة الافتراضية الممسوحة في قاعدة البيانات"
 
 msgid "扫描完成。共扫描到"

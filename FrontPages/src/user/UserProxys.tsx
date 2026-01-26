@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Typography, Table, Spin, Button, message, Tag } from 'antd';
-import { ReloadOutlined, GlobalOutlined } from '@ant-design/icons';
-import api from '@/services/api';
-import { VM, ProxyConfig } from '@/types';
+import { Card, Typography, Table, Button, message, Tag } from 'antd';
+import { ReloadOutlined } from '@ant-design/icons';
+import api from '@/utils/apis.ts';
+import {ProxyConfig } from '@/types';
 
 const { Title } = Typography;
 
@@ -11,7 +11,7 @@ interface UserProxy extends ProxyConfig {
   vmUuid: string;
 }
 
-const UserWebProxys: React.FC = () => {
+const UserProxys: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [proxies, setProxies] = useState<UserProxy[]>([]);
 
@@ -45,10 +45,9 @@ const UserWebProxys: React.FC = () => {
                  // 只有当 web_num > 0 时才去请求 (虽然 web_num 可能是配额，不是已用数量，但如果有配额就有可能有配置)
                  // 更准确的是直接请求
                  try {
-                     const proxyRes = await api.getProxyConfigs(hostName, vmUuid);
-                     if (proxyRes.code === 200 && proxyRes.data) {
-                         // @ts-ignore
-                         proxyRes.data.forEach((p: ProxyConfig) => {
+                    const proxyRes = await api.getProxyConfigs(hostName, vmUuid);
+                    if (proxyRes.code === 200 && proxyRes.data) {
+                        proxyRes.data.forEach((p: ProxyConfig) => {
                              allProxies.push({
                                  ...p,
                                  hostName,
@@ -142,4 +141,4 @@ const UserWebProxys: React.FC = () => {
   );
 };
 
-export default UserWebProxys;
+export default UserProxys;

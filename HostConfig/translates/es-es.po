@@ -2836,7 +2836,7 @@ msgstr "Error al obtener estado del host Proxmox"
 msgid "发现并添加虚拟机"
 msgstr "Máquinas virtuales descubiertas y agregadas"
 
-msgid "Failed to save scanned VMs to database"
+msgid "Failed to save scanned DockManage to database"
 msgstr "Error al guardar máquinas virtuales escaneadas en la base de datos"
 
 msgid "扫描完成。共扫描到"
@@ -4102,7 +4102,7 @@ msgid "已禁用"
 msgstr "Deshabilitado"
 
 msgid "分配的主机"
-msgstr "Hosts asignados"
+msgstr "HostManage asignados"
 
 msgid "加载中..."
 msgstr "Cargando..."

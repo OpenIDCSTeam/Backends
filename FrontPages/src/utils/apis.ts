@@ -1,4 +1,4 @@
-import { http } from '@/utils/request';
+import { http } from '@/utils/axio.ts';
 import type {
   ApiResponse,
   User,
@@ -299,7 +299,7 @@ export const deleteIPAddress = (hsName: string, vmUuid: string, nicName: string)
  * 获取虚拟机IP配额
  * @deprecated Use getCurrentUser() instead
  */
-export const getVMIPQuota = (hsName: string, vmUuid: string): Promise<ApiResponse<any>> => {
+export const getVMIPQuota = (): Promise<ApiResponse<any>> => {
   return http.get('/api/users/current');
 };
 
@@ -308,6 +308,13 @@ export const getVMIPQuota = (hsName: string, vmUuid: string): Promise<ApiRespons
  */
 export const getVMMonitorData = (hsName: string, vmUuid: string, range: number): Promise<ApiResponse<any>> => {
   return http.get(`/api/client/status/${hsName}/${vmUuid}?limit=${range}`);
+};
+
+/**
+ * 获取虚拟机截图
+ */
+export const getVMScreenshot = (hsName: string, vmUuid: string): Promise<ApiResponse<{ screenshot: string }>> => {
+  return http.get(`/api/client/screenshot/${hsName}/${vmUuid}`);
 };
 
 /**
@@ -544,6 +551,32 @@ export const deleteUser = (userId: number): Promise<ApiResponse> => {
   return http.delete(`/api/users/${userId}`);
 };
 
+/**
+ * 修改用户邮箱
+ */
+export const changeEmail = (newEmail: string): Promise<ApiResponse> => {
+  return http.post('/api/users/change-email', { new_email: newEmail });
+};
+
+/**
+ * 修改用户密码
+ */
+export const changePassword = (newPassword: string, confirmPassword: string): Promise<ApiResponse> => {
+  return http.post('/api/users/change-password', { new_password: newPassword, confirm_password: confirmPassword });
+};
+
+// ============================================================================
+// 任务管理API
+// ============================================================================
+
+/**
+ * 获取任务列表
+ */
+export const getTasks = (hsName: string, limit?: number): Promise<ApiResponse<any[]>> => {
+  const params = limit ? { limit } : {};
+  return http.get(`/api/tasks/${hsName}`, { params });
+};
+
 // ============================================================================
 // 备份管理API
 // ============================================================================
@@ -567,6 +600,34 @@ export const getSystemSettings = (): Promise<ApiResponse<any>> => {
  */
 export const saveSystemSettings = (data: any): Promise<ApiResponse> => {
   return http.post('/api/system/settings', data);
+};
+
+/**
+ * 保存系统配置
+ */
+export const saveSystemConfig = (): Promise<ApiResponse> => {
+  return http.post('/api/system/config/save');
+};
+
+/**
+ * 加载系统配置
+ */
+export const loadSystemConfig = (): Promise<ApiResponse> => {
+  return http.post('/api/system/config/load');
+};
+
+/**
+ * 更新系统设置
+ */
+export const updateSystemSettings = (data: any): Promise<ApiResponse> => {
+  return http.put('/api/system/settings', data);
+};
+
+/**
+ * 发送测试邮件
+ */
+export const sendTestEmail = (data: { recipient: string; subject?: string; body?: string }): Promise<ApiResponse> => {
+  return http.post('/api/system/test-email', data);
 };
 
 
@@ -638,6 +699,7 @@ export default {
   deleteIPAddress,
   getVMIPQuota,
   getVMMonitorData,
+  getVMScreenshot,
   getVMHDDs,
   addHDD,
   deleteHDD,
@@ -671,9 +733,20 @@ export default {
   createUser,
   updateUser,
   deleteUser,
+  changeEmail,
+  changePassword,
+  
+  // 任务管理
+  getTasks,
   
   // 备份管理
   scanBackups,
+  
+  // 系统配置
+  saveSystemConfig,
+  loadSystemConfig,
+  updateSystemSettings,
+  sendTestEmail,
   
   // HTTP方法（用于自定义请求）
   ...http,

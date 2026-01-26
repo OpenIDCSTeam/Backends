@@ -2220,7 +2220,7 @@ msgstr "Proxmox-এ সংযোগ করে স্ট্যাটাস প্
 msgid "获取Proxmox主机状态失败"
 msgstr "Proxmox হোস্ট স্ট্যাটাস প্রাপ্তি ব্যর্থ"
 
-msgid "Failed to save scanned VMs to database"
+msgid "Failed to save scanned DockManage to database"
 msgstr "স্ক্যান করা ভার্চুয়াল মেশিন ডাটাবেসে সংরক্ষণ ব্যর্থ"
 
 msgid "iKuai路由器绑定失败"

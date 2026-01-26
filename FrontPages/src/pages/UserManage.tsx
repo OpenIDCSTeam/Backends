@@ -1,46 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Table, Button, Space, Tag, Modal, Form, Input, Checkbox, InputNumber, message, Popconfirm, Divider, Row, Col } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, UserOutlined } from '@ant-design/icons'
-import api from '@/services/api'
+import api from '@/utils/apis.ts'
 import type { ColumnsType } from 'antd/es/table'
-
-/**
- * 用户数据接口
- */
-interface User {
-  id: number
-  username: string
-  email: string
-  is_admin: boolean
-  is_active: boolean
-  can_create_vm: boolean
-  can_modify_vm: boolean
-  can_delete_vm: boolean
-  quota_cpu: number
-  quota_ram: number
-  quota_ssd: number
-  quota_gpu: number
-  quota_nat_ports: number
-  quota_nat_ips: number
-  quota_web_proxy: number
-  quota_pub_ips: number
-  quota_bandwidth_up: number
-  quota_bandwidth_down: number
-  quota_traffic: number
-  used_cpu?: number
-  used_ram?: number
-  used_ssd?: number
-  used_gpu?: number
-  used_nat_ports?: number
-  used_nat_ips?: number
-  used_web_proxy?: number
-  used_pub_ips?: number
-  used_bandwidth_up?: number
-  used_bandwidth_down?: number
-  used_traffic?: number
-  gpu_ids?: string
-  assigned_hosts?: string[]
-}
+import type { User } from '@/types'
 
 /**
  * 主机数据接口
@@ -53,7 +16,7 @@ interface Host {
 /**
  * 用户管理页面
  */
-function Users() {
+function UserManage() {
   const [users, setUsers] = useState<User[]>([])
   const [hosts, setHosts] = useState<Host[]>([])
   const [loading, setLoading] = useState(false)
@@ -69,7 +32,8 @@ function Users() {
       setLoading(true)
       const response = await api.getUsers()
       if (response.code === 200) {
-        setUsers(response.data || [])
+        // response.data 是 PaginatedResponse<User> 类型，需要访问 items 属性
+        setUsers(response.data?.items || [])
       }
     } catch (error) {
       message.error('加载用户列表失败')
@@ -84,12 +48,12 @@ function Users() {
   const loadHosts = async () => {
     try {
       const response = await api.getServerDetail()
-      if (response.code === 200) {
+      if (response.code === 200 && response.data) {
         // 将对象转换为数组
         if (typeof response.data === 'object' && !Array.isArray(response.data)) {
           const hostsArray = Object.keys(response.data).map(hostName => ({
             hs_name: hostName,
-            ...response.data[hostName]
+            ...response.data![hostName]
           }))
           setHosts(hostsArray)
         } else if (Array.isArray(response.data)) {
@@ -574,4 +538,4 @@ function Users() {
   )
 }
 
-export default Users
+export default UserManage

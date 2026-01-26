@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Form, Input, Button, Alert } from 'antd'
 import { UserOutlined, LockOutlined, MailOutlined, UserAddOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
-import api from '@/services/api'
+import api from '@/utils/apis.ts'
 
 /**
  * 注册表单数据接口
@@ -18,7 +18,7 @@ interface RegisterForm {
  * 注册页面组件
  * 与WebDesigns/register.html保持一致的布局和样式
  */
-function Register() {
+function UserPostin() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>('')
@@ -222,4 +222,4 @@ function Register() {
   )
 }
 
-export default Register
+export default UserPostin

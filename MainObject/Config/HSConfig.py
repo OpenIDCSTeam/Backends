@@ -8,10 +8,10 @@ class HSConfig:
         self.server_addr: str = ""  # 服务器地址
         self.server_user: str = ""  # 服务器用户
         self.server_pass: str = ""  # 服务器密码
-        self.server_port: int = 22  # 服务访问端口（ESXi: web端口，LXC/Docker: api端口，VMware: restapi端口）
+        self.server_port: int = 22  # 服务器端口
         self.filter_name: str = ""  # 过滤器名称
-        self.images_path: str = ""  # 系统镜像存储池（vmdk等）
-        self.dvdrom_path: str = ""  # 光盘镜像存储池（ISO文件）
+        self.images_path: str = ""  # 系统存储池
+        self.dvdrom_path: str = ""  # 光盘存储池
         self.system_path: str = ""  # 系统存储池
         self.backup_path: str = ""  # 备份存储池
         self.extern_path: str = ""  # 数据存储池
@@ -31,7 +31,6 @@ class HSConfig:
         self.system_maps: dict[str, list] = {}  # 系统映射: 显示名称->[文件名(xxx.iso),最低大小]
         self.images_maps: dict[str, str] = {}  # 镜像映射: 显示名称->文件名(xxx.iso)
         self.ipaddr_maps: dict[str, dict] = {}
-
         self.ipaddr_dnss: list = ["119.29.29.29", "223.5.5.5"]
         # 加载传入的参数 =======================
         if config is not None:

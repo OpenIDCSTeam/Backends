@@ -278,7 +278,7 @@ class HostServer(BasicServer):
                 if not success:
                     return ZMessage(
                         success=False, action="VScanner",
-                        message="Failed to save scanned VMs to database")
+                        message="Failed to save scanned DockManage to database")
 
             return ZMessage(
                 success=True,

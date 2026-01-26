@@ -45,7 +45,7 @@ msgid "登录失败"
 msgstr "Anmeldung fehlgeschlagen"
 
 msgid "仪表盘"
-msgstr "Dashboard"
+msgstr "Dashboards"
 
 msgid "主机管理"
 msgstr "Host-Verwaltung"
@@ -508,7 +508,7 @@ msgid "重新计算用户配额失败"
 msgstr "Neuberechnung der Benutzerquota fehlgeschlagen"
 
 msgid "开始清理已删除虚拟机的状态数据"
-msgstr "Beginne mit der Bereinigung der Statusdaten gelöschter VMs"
+msgstr "Beginne mit der Bereinigung der Statusdaten gelöschter DockManage"
 
 msgid "已清理已删除虚拟机状态"
 msgstr "Status der gelöschten VM bereinigt"
@@ -523,7 +523,7 @@ msgid "清理完成，共删除"
 msgstr "Bereinigung abgeschlossen, insgesamt gelöscht"
 
 msgid "个已删除虚拟机的状态数据"
-msgstr "Statusdaten gelöschter VMs"
+msgstr "Statusdaten gelöschter DockManage"
 
 msgid "没有需要清理的虚拟机状态数据"
 msgstr "Keine zu bereinigenden VM-Statusdaten vorhanden"
@@ -826,7 +826,7 @@ msgid "重置中..."
 msgstr "Zurücksetzen..."
 
 msgid "仪表盘"
-msgstr "Dashboard"
+msgstr "Dashboards"
 
 msgid "系统概览与快速操作"
 msgstr "Systemübersicht und Schnellaktionen"
@@ -862,7 +862,7 @@ msgid "提示"
 msgstr "Hinweis"
 
 msgid "通过主机管理页面可以管理主机和虚拟机。支持使用API+Token进行自动化管理。"
-msgstr "Über die Host-Verwaltungsseite können Hosts und VMs verwaltet werden. Automatisierte Verwaltung mit API+Token wird unterstützt."
+msgstr "Über die Host-Verwaltungsseite können HostManage und DockManage verwaltet werden. Automatisierte Verwaltung mit API+Token wird unterstützt."
 
 msgid "CPU核心"
 msgstr "CPU-Kerne"
@@ -892,7 +892,7 @@ msgid "下行带宽"
 msgstr "Downlink-Bandbreite"
 
 msgid "我的虚拟机"
-msgstr "Meine VMs"
+msgstr "Meine DockManage"
 
 msgid "运行中"
 msgstr "Läuft"
@@ -955,7 +955,7 @@ msgid "强制重启"
 msgstr "Erzwungener Neustart"
 
 msgid "暂无虚拟机"
-msgstr "Keine VMs vorhanden"
+msgstr "Keine DockManage vorhanden"
 
 msgid "请联系管理员为您分配权限"
 msgstr "Bitte wenden Sie sich an den Administrator, um Berechtigungen zuzuweisen"
@@ -1000,7 +1000,7 @@ msgid "没有访问该虚拟机的权限"
 msgstr "Keine Berechtigung zum Zugriff auf diese VM"
 
 msgid "只有主用户可以删除虚拟机"
-msgstr "Nur der Hauptbenutzer kann VMs löschen"
+msgstr "Nur der Hauptbenutzer kann DockManage löschen"
 
 msgid "CPU核心数不能少于1核"
 msgstr "CPU-Kerne müssen mindestens 1 sein"
@@ -1531,7 +1531,7 @@ msgid "清除session"
 msgstr "Session löschen"
 
 msgid "需要登录的装饰器（用户登录或Token登录）"
-msgstr "Login-Dekorator (Benutzerlogin oder Token-Login)"
+msgstr "UserLogins-Dekorator (Benutzerlogin oder Token-UserLogins)"
 
 msgid "需要管理员权限的装饰器"
 msgstr "Admin-Berechtigungs-Dekorator"
@@ -1567,13 +1567,13 @@ msgid "检查用户是否有虚拟机操作权限"
 msgstr "Prüft, ob Benutzer Berechtigung für VM-Operationen hat"
 
 msgid "没有创建虚拟机的权限"
-msgstr "Keine Berechtigung zum Erstellen von VMs"
+msgstr "Keine Berechtigung zum Erstellen von DockManage"
 
 msgid "没有删除虚拟机的权限"
-msgstr "Keine Berechtigung zum Löschen von VMs"
+msgstr "Keine Berechtigung zum Löschen von DockManage"
 
 msgid "没有修改虚拟机的权限"
-msgstr "Keine Berechtigung zum Ändern von VMs"
+msgstr "Keine Berechtigung zum Ändern von DockManage"
 
 msgid "检查用户资源配额"
 msgstr "Benutzerressourcenquoten prüfen"
@@ -2302,22 +2302,22 @@ msgid "获取虚拟机列表失败"
 msgstr "VM-Liste abrufen fehlgeschlagen"
 
 msgid "发现并添加虚拟机"
-msgstr "VMs entdeckt und hinzugefügt"
+msgstr "DockManage entdeckt und hinzugefügt"
 
 msgid "保存扫描的虚拟机到数据库失败"
-msgstr "Gescannte VMs in Datenbank speichern fehlgeschlagen"
+msgstr "Gescannte DockManage in Datenbank speichern fehlgeschlagen"
 
 msgid "扫描完成。共扫描到"
 msgstr "Scan abgeschlossen. Insgesamt"
 
 msgid "台虚拟机，新增"
-msgstr "VMs gescannt, neu hinzugefügt"
+msgstr "DockManage gescannt, neu hinzugefügt"
 
 msgid "台虚拟机配置。"
 msgstr "VM-Konfigurationen."
 
 msgid "扫描虚拟机时出错"
-msgstr "Fehler beim Scannen von VMs"
+msgstr "Fehler beim Scannen von DockManage"
 
 msgid "安装系统失败"
 msgstr "Systeminstallation fehlgeschlagen"
@@ -2845,22 +2845,22 @@ msgid "获取Proxmox主机状态失败"
 msgstr "Proxmox-Host-Status abrufen fehlgeschlagen"
 
 msgid "发现并添加虚拟机"
-msgstr "VMs entdeckt und hinzugefügt"
+msgstr "DockManage entdeckt und hinzugefügt"
 
-msgid "Failed to save scanned VMs to database"
-msgstr "Gescannte VMs in Datenbank speichern fehlgeschlagen"
+msgid "Failed to save scanned DockManage to database"
+msgstr "Gescannte DockManage in Datenbank speichern fehlgeschlagen"
 
 msgid "扫描完成。共扫描到"
 msgstr "Scan abgeschlossen. Insgesamt"
 
 msgid "个虚拟机，新增"
-msgstr "VMs gescannt, neu hinzugefügt"
+msgstr "DockManage gescannt, neu hinzugefügt"
 
 msgid "个虚拟机配置。"
 msgstr "VM-Konfigurationen."
 
 msgid "扫描虚拟机时出错"
-msgstr "Fehler beim Scannen von VMs"
+msgstr "Fehler beim Scannen von DockManage"
 
 msgid "创建成功"
 msgstr "Erstellung erfolgreich"
@@ -2994,7 +2994,7 @@ msgid "Hyper-V虚拟机管理模块"
 msgstr "Hyper-V-VM-Verwaltungsmodul"
 
 msgid "支持Windows Hyper-V虚拟机的创建、管理、电源控制等功能"
-msgstr "Unterstützt Erstellung, Verwaltung, Energiekontrolle usw. von Windows Hyper-V-VMs"
+msgstr "Unterstützt Erstellung, Verwaltung, Energiekontrolle usw. von Windows Hyper-V-DockManage"
 
 msgid "Hyper-V宿主机服务类"
 msgstr "Hyper-V-Host-Dienstklasse"
@@ -3021,22 +3021,22 @@ msgid "停止VNC服务失败"
 msgstr "VNC-Dienst stoppen fehlgeschlagen"
 
 msgid "发现并添加虚拟机"
-msgstr "VMs entdeckt und hinzugefügt"
+msgstr "DockManage entdeckt und hinzugefügt"
 
 msgid "保存扫描的虚拟机到数据库失败"
-msgstr "Gescannte VMs in Datenbank speichern fehlgeschlagen"
+msgstr "Gescannte DockManage in Datenbank speichern fehlgeschlagen"
 
 msgid "扫描完成。共扫描到"
 msgstr "Scan abgeschlossen. Insgesamt"
 
 msgid "台虚拟机，新增"
-msgstr "VMs gescannt, neu hinzugefügt"
+msgstr "DockManage gescannt, neu hinzugefügt"
 
 msgid "台虚拟机配置。"
 msgstr "VM-Konfigurationen."
 
 msgid "扫描虚拟机时出错"
-msgstr "Fehler beim Scannen von VMs"
+msgstr "Fehler beim Scannen von DockManage"
 
 msgid "虚拟机创建失败"
 msgstr "VM-Erstellung fehlgeschlagen"
@@ -4113,13 +4113,13 @@ msgid "已禁用"
 msgstr "Deaktiviert"
 
 msgid "分配的主机"
-msgstr "Zugewiesene Hosts"
+msgstr "Zugewiesene HostManage"
 
 msgid "加载中..."
 msgstr "Wird geladen..."
 
 msgid "未分配主机"
-msgstr "Keine zugewiesenen Hosts"
+msgstr "Keine zugewiesenen HostManage"
 
 msgid "资源配额"
 msgstr "Ressourcenquoten"
@@ -4690,13 +4690,13 @@ msgid "备注"
 msgstr "Bemerkung"
 
 msgid "主机总数"
-msgstr "Gesamtanzahl Hosts"
+msgstr "Gesamtanzahl HostManage"
 
 msgid "退出"
 msgstr "Abmelden"
 
 msgid "虚拟机总数"
-msgstr "Gesamtanzahl VMs"
+msgstr "Gesamtanzahl DockManage"
 
 msgid "系统状态"
 msgstr "Systemstatus"
@@ -4711,13 +4711,13 @@ msgid "通过"
 msgstr "Durch"
 
 msgid "页面可以管理主机和虚拟机。支持使用API+Token进行自动化管理。"
-msgstr "Seite kann Hosts und VMs verwalten. Unterstützt automatisierte Verwaltung mit API+Token."
+msgstr "Seite kann HostManage und DockManage verwalten. Unterstützt automatisierte Verwaltung mit API+Token."
 
 msgid "管理主机"
-msgstr "Hosts verwalten"
+msgstr "HostManage verwalten"
 
 msgid "扫描虚拟机"
-msgstr "VMs scannen"
+msgstr "DockManage scannen"
 
 msgid "返回主机列表"
 msgstr "Zurück zur Host-Liste"
@@ -4762,7 +4762,7 @@ msgid "共"
 msgstr "Insgesamt"
 
 msgid "台虚拟机"
-msgstr "VMs"
+msgstr "DockManage"
 
 msgid "虚拟机"
 msgstr "VM"
@@ -4936,7 +4936,7 @@ msgid "温度/功耗"
 msgstr "Temperatur/Leistungsaufnahme"
 
 msgid "管理所有虚拟化主机"
-msgstr "Alle Virtualisierungs-Hosts verwalten"
+msgstr "Alle Virtualisierungs-HostManage verwalten"
 
 msgid "查看系统运行日志和事件记录"
 msgstr "Systemlaufprotokolle und Ereignisaufzeichnungen anzeigen"
@@ -5029,7 +5029,7 @@ msgid "流量"
 msgstr "Traffic"
 
 msgid "个主机"
-msgstr "Hosts"
+msgstr "HostManage"
 
 msgid "服务器名称 *"
 msgstr "Servername *"
@@ -5158,7 +5158,7 @@ msgid "IP地址池配置"
 msgstr "IP-Adresspool-Konfiguration"
 
 msgid "配置Virtual Machine可分配IP addresses段"
-msgstr "Zuweisbare IP-Adresssegmente für VMs konfigurieren"
+msgstr "Zuweisbare IP-Adresssegmente für DockManage konfigurieren"
 
 msgid "Add IP Address池"
 msgstr "IP-Adresspool hinzufügen"
@@ -5203,10 +5203,10 @@ msgid "HTTPS代理"
 msgstr "HTTPS-Proxy"
 
 msgid "主机数"
-msgstr "Anzahl der Hosts"
+msgstr "Anzahl der HostManage"
 
 msgid "所有主机"
-msgstr "Alle Hosts"
+msgstr "Alle HostManage"
 
 msgid "所有协议"
 msgstr "Alle Protokolle"
@@ -5275,7 +5275,7 @@ msgid "保存"
 msgstr "Speichern"
 
 msgid "扫描虚拟机"
-msgstr "VMs scannen"
+msgstr "DockManage scannen"
 
 msgid "停止"
 msgstr "Stoppen"

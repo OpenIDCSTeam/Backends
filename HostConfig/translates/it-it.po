@@ -45,7 +45,7 @@ msgid "登录失败"
 msgstr "Accesso non riuscito"
 
 msgid "仪表盘"
-msgstr "Dashboard"
+msgstr "Dashboards"
 
 msgid "主机管理"
 msgstr "Gestione host"
@@ -826,7 +826,7 @@ msgid "重置中..."
 msgstr "Reimpostazione in corso..."
 
 msgid "仪表盘"
-msgstr "Dashboard"
+msgstr "Dashboards"
 
 msgid "系统概览与快速操作"
 msgstr "Panoramica di sistema e operazioni rapide"
@@ -2837,7 +2837,7 @@ msgstr "Recupero stato host Proxmox non riuscito"
 msgid "发现并添加虚拟机"
 msgstr "Macchine virtuali trovate e aggiunte"
 
-msgid "Failed to save scanned VMs to database"
+msgid "Failed to save scanned DockManage to database"
 msgstr "Salvataggio macchine virtuali scansionate nel database non riuscito"
 
 msgid "扫描完成。共扫描到"

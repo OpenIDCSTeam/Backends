@@ -2192,9 +2192,10 @@
         }
 
         // 3. 合并详情和状态数据
+        // API返回的数据结构已变更为扁平化结构，不再嵌套在config中
         vmData = {
-            uuid: detailResult.data.uuid,
-            config: detailResult.data.config,
+            uuid: detailResult.data.vm_uuid || detailResult.data.uuid,
+            config: detailResult.data,
             status: statusResult.data // 状态API直接返回状态数组
         };
 
@@ -2297,7 +2298,7 @@
         $('#vmOsPass').attr('type', 'password');
 
         // 更新VNC密码
-        const vncPass = config.vc_pass || '';
+        const vncPass = config.vnc_pass || config.vc_pass || '';
         $('#vmVncPass').data('password', vncPass); // 存储实际VNC密码
         // 如果没有密码，显示8位星号；如果有密码，也显示8位星号（隐藏状态）
         $('#vmVncPass').val('********');
@@ -2356,7 +2357,7 @@
             .addClass(getProgressBarColor(netPer));
 
         // 更新资源配置 - 下行带宽
-        const speedD = config.speed_d || 0;
+        const speedD = config.speed_down || config.speed_d || 0;
         const netDUsage = firstStatus.network_d || 0;
         const netDPer = speedD > 0 ? Math.round(netDUsage / speedD * 100) : 0;
         $('#vmSpeedD').text(speedD + ' Mbps');
@@ -3380,11 +3381,11 @@
             const dnsStr = Array.isArray(nic.dns_addr) ? nic.dns_addr.join(', ') : '';
             html += '<tr class="hover:bg-gray-50">';
             html += `<td class="px-4 py-3 text-sm font-medium text-gray-900">${nic.nic_name || '-'}</td>`;
-            html += `<td class="px-4 py-3 text-sm font-mono text-gray-600">${nic.mac_addr || '-'}</td>`;
-            html += `<td class="px-4 py-3 text-sm font-mono text-gray-600">${nic.ip4_addr || '-'}</td>`;
-            html += `<td class="px-4 py-3 text-sm font-mono text-gray-600">${nic.ip6_addr || '-'}</td>`;
-            html += `<td class="px-4 py-3 text-sm font-mono text-gray-600">${nic.nic_gate || '-'}</td>`;
-            html += `<td class="px-4 py-3 text-sm font-mono text-gray-600">${nic.nic_mask || '-'}</td>`;
+            html += `<td class="px-4 py-3 text-sm font-mono text-gray-600">${nic.mac_address || nic.mac_addr || '-'}</td>`;
+            html += `<td class="px-4 py-3 text-sm font-mono text-gray-600">${nic.ip_address || nic.ip4_addr || '-'}</td>`;
+            html += `<td class="px-4 py-3 text-sm font-mono text-gray-600">${nic.ip6_address || nic.ip6_addr || '-'}</td>`;
+            html += `<td class="px-4 py-3 text-sm font-mono text-gray-600">${nic.gateway || nic.nic_gate || '-'}</td>`;
+            html += `<td class="px-4 py-3 text-sm font-mono text-gray-600">${nic.subnet_mask || nic.nic_mask || '-'}</td>`;
             html += `<td class="px-4 py-3 text-sm text-gray-600">${dnsStr || '-'}</td>`;
             html += '<td class="px-4 py-3 text-sm">';
             html += `<button onclick="showEditIPModal('${nic.nic_name}')" class="text-blue-600 hover:text-blue-800 mr-2" title="编辑">`;

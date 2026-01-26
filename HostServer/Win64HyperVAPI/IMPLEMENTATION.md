@@ -157,7 +157,7 @@ config = HSConfig(
     server_addr="192.168.1.100",
     server_user="Administrator",
     server_pass="Password123",
-    system_path="C:\\Hyper-V\\VMs"
+    system_path="C:\\Hyper-V\\DockManage"
 )
 
 # 2. 初始化主机

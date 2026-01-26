@@ -77,21 +77,21 @@ start.bat
 FrontPages/
 ├── src/
 │   ├── services/          # API服务层
-│   │   └── api.ts         # 所有API接口封装
+│   │   └── apis.ts         # 所有API接口封装
 │   ├── types/             # TypeScript类型定义
 │   │   └── index.ts       # 数据类型定义
 │   ├── store/             # Zustand状态管理
-│   │   └── userStore.ts   # 用户状态管理
+│   │   └── data.ts   # 用户状态管理
 │   ├── utils/             # 工具函数
-│   │   └── request.ts     # Axios配置和拦截器
+│   │   └── axio.ts     # Axios配置和拦截器
 │   ├── pages/             # 页面组件
-│   │   ├── Login.tsx      # 登录页面
-│   │   ├── Register.tsx   # 注册页面
-│   │   ├── Dashboard.tsx  # 仪表盘
-│   │   ├── Hosts.tsx      # 主机管理
-│   │   ├── VMs.tsx        # 虚拟机列表
-│   │   ├── VMDetail.tsx   # 虚拟机详情
-│   │   └── Users.tsx      # 用户管理
+│   │   ├── UserLogins.tsx      # 登录页面
+│   │   ├── UserPostin.tsx   # 注册页面
+│   │   ├── Dashboards.tsx  # 仪表盘
+│   │   ├── HostManage.tsx      # 主机管理
+│   │   ├── DockManage.tsx        # 虚拟机列表
+│   │   ├── DockDetail.tsx   # 虚拟机详情
+│   │   └── UserManage.tsx      # 用户管理
 │   ├── layouts/           # 布局组件
 │   │   └── MainLayout.tsx # 主布局（侧边栏+顶栏）
 │   ├── components/        # 通用组件

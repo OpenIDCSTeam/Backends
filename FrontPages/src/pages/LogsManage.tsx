@@ -11,7 +11,7 @@ import {
   BugOutlined,
   EyeOutlined
 } from '@ant-design/icons'
-import api from '@/services/api'
+import api from '@/utils/apis.ts'
 
 /**
  * 日志数据接口
@@ -29,16 +29,9 @@ interface Log {
 }
 
 /**
- * 主机信息接口
- */
-interface HostInfo {
-  [key: string]: any
-}
-
-/**
  * 日志查看页面
  */
-function Logs() {
+function LogsManage() {
   // 状态管理
   const [logs, setLogs] = useState<Log[]>([]) // 所有日志
   const [filteredLogs, setFilteredLogs] = useState<Log[]>([]) // 过滤后的日志
@@ -85,7 +78,7 @@ function Logs() {
         params.hs_name = filters.host
       }
       
-      const result = await api.getLoggerDetail(params)
+      const result = await api.getLoggerDetail()
       if (result && result.code === 200) {
         const logData = result.data || []
         setLogs(logData)
@@ -222,21 +215,24 @@ function Logs() {
   useEffect(() => {
     loadHosts()
     loadLogs()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // 监听筛选条件变化
   useEffect(() => {
     loadLogs()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.host, filters.limit])
 
   // 监听日志级别筛选
   useEffect(() => {
     filterLogs(logs, filters.level)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.level])
 
   // 自动刷新
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null
+    let interval: ReturnType<typeof setInterval> | null = null
     if (autoRefresh) {
       interval = setInterval(() => {
         loadLogs()
@@ -245,6 +241,7 @@ function Logs() {
     return () => {
       if (interval) clearInterval(interval)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRefresh, filters])
 
   return (
@@ -454,4 +451,4 @@ function Logs() {
   )
 }
 
-export default Logs
+export default LogsManage

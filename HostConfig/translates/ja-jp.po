@@ -2837,7 +2837,7 @@ msgstr "Proxmoxホスト状態の取得に失敗しました"
 msgid "发现并添加虚拟机"
 msgstr "仮想マシンを発見し追加"
 
-msgid "Failed to save scanned VMs to database"
+msgid "Failed to save scanned DockManage to database"
 msgstr "スキャンされた仮想マシンのデータベース保存に失敗しました"
 
 msgid "扫描完成。共扫描到"

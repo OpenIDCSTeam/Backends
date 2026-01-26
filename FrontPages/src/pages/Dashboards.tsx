@@ -20,10 +20,11 @@ import {
   UploadOutlined,
   DownloadOutlined,
   DatabaseOutlined,
+  MinusCircleOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
-import api from '@/services/api'
-import { useUserStore } from '@/store/userStore'
+import api from '@/utils/apis.ts'
+import { useUserStore } from '@/utils/data.ts'
 
 /**
  * 系统统计数据接口
@@ -108,7 +109,7 @@ interface VMInfo {
 /**
  * Dashboard仪表盘页面组件
  */
-function Dashboard() {
+function Dashboards() {
   const navigate = useNavigate()
   const { user } = useUserStore()
   const isAdmin = user?.is_admin || false
@@ -202,7 +203,7 @@ function Dashboard() {
    */
   const loadUserVMs = async (assignedHosts: string[]) => {
     try {
-      let allVMs: VMInfo[] = []
+      const allVMs: VMInfo[] = []
       let runningCount = 0
 
       // 从每个主机获取虚拟机
@@ -253,6 +254,7 @@ function Dashboard() {
     return () => {
       clearInterval(interval)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin])
 
   /**
@@ -1191,4 +1193,4 @@ function Dashboard() {
   )
 }
 
-export default Dashboard
+export default Dashboards

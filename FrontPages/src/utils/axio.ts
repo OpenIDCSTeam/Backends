@@ -3,7 +3,7 @@ import { message } from 'antd';
 import type { ApiResponse } from '@/types';
 
 // 创建axios实例
-const request: AxiosInstance = axios.create({
+const axio: AxiosInstance = axios.create({
   baseURL: '', // 不设置baseURL，直接使用完整路径（/api会被Vite代理处理）
   timeout: 30000, // 请求超时时间30秒
   headers: {
@@ -12,7 +12,7 @@ const request: AxiosInstance = axios.create({
 });
 
 // 请求拦截器
-request.interceptors.request.use(
+axio.interceptors.request.use(
   (config) => {
     // 从localStorage获取token并添加到请求头
     const token = localStorage.getItem('token');
@@ -28,7 +28,7 @@ request.interceptors.request.use(
 );
 
 // 响应拦截器
-request.interceptors.response.use(
+axio.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
     const res = response.data;
 
@@ -101,32 +101,32 @@ request.interceptors.response.use(
 );
 
 // 导出请求方法
-export default request;
+export default axio;
 
 // 封装常用的请求方法
 export const http = {
   // GET请求
   get: <T = any>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> => {
-    return request.get<ApiResponse<T>>(url, config).then(res => res.data);
+    return axio.get<ApiResponse<T>>(url, config).then(res => res.data);
   },
 
   // POST请求
   post: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> => {
-    return request.post<ApiResponse<T>>(url, data, config).then(res => res.data);
+    return axio.post<ApiResponse<T>>(url, data, config).then(res => res.data);
   },
 
   // PUT请求
   put: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> => {
-    return request.put<ApiResponse<T>>(url, data, config).then(res => res.data);
+    return axio.put<ApiResponse<T>>(url, data, config).then(res => res.data);
   },
 
   // DELETE请求
   delete: <T = any>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> => {
-    return request.delete<ApiResponse<T>>(url, config).then(res => res.data);
+    return axio.delete<ApiResponse<T>>(url, config).then(res => res.data);
   },
 
   // PATCH请求
   patch: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> => {
-    return request.patch<ApiResponse<T>>(url, data, config).then(res => res.data);
+    return axio.patch<ApiResponse<T>>(url, data, config).then(res => res.data);
   },
 };

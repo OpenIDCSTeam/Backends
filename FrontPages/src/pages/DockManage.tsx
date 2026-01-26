@@ -20,7 +20,7 @@ import {
   Tooltip,
   Checkbox,
   Alert,
-  Typography
+  Typography,
 } from 'antd'
 import {
   PlusOutlined,
@@ -38,7 +38,8 @@ import {
   ThunderboltOutlined,
   InfoCircleOutlined
 } from '@ant-design/icons'
-import api from '@/services/api'
+import api, { getHosts } from '@/utils/apis.ts'
+import { useUserStore } from '@/utils/data.ts'
 
 const { Text } = Typography
 
@@ -131,9 +132,10 @@ interface UserQuota {
 /**
  * 虚拟机列表页面
  */
-function VMs() {
+function DockManage() {
   const navigate = useNavigate()
   const { hostName } = useParams<{ hostName: string }>()
+  useUserStore() // 保持store连接
   const [vms, setVMs] = useState<Record<string, VM>>({})
   const [loading, setLoading] = useState(false)
   const [modalVisible, setModalVisible] = useState(false)
@@ -143,14 +145,11 @@ function VMs() {
   const [hostConfig, setHostConfig] = useState<HostConfig | null>(null)
   const [userQuota, setUserQuota] = useState<UserQuota | null>(null)
   const [form] = Form.useForm()
-  const [nicList, setNicList] = useState<Array<{ key: number; name: string }>>([])
+  const [nicList, setNicList] = useState<Array<{ key: number; name: string; type: string }>>([])
   const [nicCounter, setNicCounter] = useState(0)
   const [selectedOsMinDisk, setSelectedOsMinDisk] = useState(0)
+  
 
-  // 删除确认模态框状态
-  const [deleteModalVisible, setDeleteModalVisible] = useState(false)
-  const [deleteConfirmInput, setDeleteConfirmInput] = useState('')
-  const [deleteTargetUuid, setDeleteTargetUuid] = useState('')
 
   // 编辑保存确认模态框状态
   const [saveConfirmModalVisible, setSaveConfirmModalVisible] = useState(false)
@@ -201,13 +200,62 @@ function VMs() {
    * 加载虚拟机列表
    */
   const loadVMs = async () => {
-    if (!hostName) return
     try {
       setLoading(true)
-      const result = await api.get(`/api/client/detail/${hostName}`)
-      if (result.code === 200) {
-        setVMs(result.data || {})
+      let allVMs: Record<string, VM> = {}
+      const pathname = window.location.pathname
+      
+      if (hostName) {
+        // 指定了主机：获取该主机的虚拟机
+        const result = await api.get(`/api/client/detail/${hostName}`)
+        if (result.code === 200) {
+          allVMs = result.data || {}
+        }
+      } else if (pathname.startsWith('/user/')) {
+        // 用户视图：获取当前用户的虚拟机
+        // 注意：这里暂时返回所有虚拟机，因为我们没有虚拟机的所有者信息
+        // 后续可以根据实际情况修改为获取当前用户的虚拟机
+        const hostsRes = await getHosts()
+        if (hostsRes.code === 200 && hostsRes.data) {
+          const hosts = Object.keys(hostsRes.data)
+          
+          await Promise.all(hosts.map(async (host) => {
+            try {
+              const vmsRes = await api.get(`/api/client/detail/${host}`)
+              if (vmsRes.code === 200 && vmsRes.data) {
+                // 将所有主机的虚拟机合并，使用 `${host}-${uuid}` 作为唯一键
+                Object.entries(vmsRes.data).forEach(([uuid, vm]) => {
+                  allVMs[`${host}-${uuid}`] = vm as VM
+                })
+              }
+            } catch (err) {
+              console.error(`获取主机 ${host} 的虚拟机失败`, err)
+            }
+          }))
+        }
+      } else {
+        // 系统视图：获取所有主机的虚拟机
+        const hostsRes = await getHosts()
+        if (hostsRes.code === 200 && hostsRes.data) {
+          const hosts = Object.keys(hostsRes.data)
+          
+          await Promise.all(hosts.map(async (host) => {
+            try {
+              const vmsRes = await api.get(`/api/client/detail/${host}`)
+              if (vmsRes.code === 200 && vmsRes.data) {
+                // 将所有主机的虚拟机合并，使用 `${host}-${uuid}` 作为唯一键
+                Object.entries(vmsRes.data).forEach(([uuid, vm]) => {
+                  allVMs[`${host}-${uuid}`] = vm as VM
+                })
+              }
+            } catch (err) {
+              console.error(`获取主机 ${host} 的虚拟机失败`, err)
+            }
+          }))
+        }
       }
+      
+      setVMs(allVMs)
     } catch (error) {
       message.error('加载虚拟机列表失败')
     } finally {
@@ -240,6 +288,7 @@ function VMs() {
     loadHostInfo()
     loadUserQuota()
     loadVMs()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hostName])
 
   /**
@@ -382,10 +431,11 @@ function VMs() {
   /**
    * 打开编辑虚拟机对话框
    */
-  const handleOpenEdit = async (uuid: string) => {
-    if (!hostName) return
+  const handleOpenEdit = async (uuid: string, targetHostName?: string) => {
+    const currentHostName = targetHostName || hostName
+    if (!currentHostName) return
     try {
-      const result = await api.get(`/api/client/detail/${hostName}/${uuid}`)
+      const result = await api.get(`/api/client/detail/${currentHostName}/${uuid}`)
       if (result.code === 200) {
         const vm = result.data
         const config = vm.config || {}
@@ -433,18 +483,19 @@ function VMs() {
         const nics = Object.entries(nicAll).map(([name, nicConfig], index) => ({
           key: index,
           name,
-          type: nicConfig.nic_type
+          type: (nicConfig as NicConfig).nic_type
         }))
-        setNicList(nics)
+        setNicList(nics as Array<{ key: number; name: string; type: string }>)
         setNicCounter(nics.length)
         
         // 设置网卡表单值
         Object.entries(nicAll).forEach(([name, nicConfig], index) => {
+          const typedNicConfig = nicConfig as NicConfig
           form.setFieldsValue({
             [`nic_name_${index}`]: name,
-            [`nic_type_${index}`]: nicConfig.nic_type,
-            [`nic_ip_${index}`]: nicConfig.ip4_addr,
-            [`nic_ip6_${index}`]: nicConfig.ip6_addr,
+            [`nic_type_${index}`]: typedNicConfig.nic_type,
+            [`nic_ip_${index}`]: typedNicConfig.ip4_addr,
+            [`nic_ip6_${index}`]: typedNicConfig.ip6_addr,
           })
         })
         
@@ -588,11 +639,15 @@ function VMs() {
     }
   }
 
+  // 保存当前操作的主机名
+  const [currentHostName, setCurrentHostName] = useState<string>('')
+
   /**
    * 打开电源操作对话框
    */
-  const handleOpenPower = (uuid: string) => {
+  const handleOpenPower = (uuid: string, targetHostName?: string) => {
     setCurrentVmUuid(uuid)
+    setCurrentHostName(targetHostName || hostName || '')
     setPowerModalVisible(true)
   }
 
@@ -600,7 +655,7 @@ function VMs() {
    * 执行电源操作
    */
   const handlePowerAction = async (action: string) => {
-    if (!hostName || !currentVmUuid) return
+    if (!currentHostName || !currentVmUuid) return
     
     setPowerModalVisible(false)
     
@@ -616,7 +671,7 @@ function VMs() {
     
     try {
       const hide = message.loading(`正在${actionMap[action]}虚拟机...`, 0)
-      const result = await api.post(`/api/client/powers/${hostName}/${currentVmUuid}`, { action })
+      const result = await api.post(`/api/client/powers/${currentHostName}/${currentVmUuid}`, { action })
       hide()
       if (result.code === 200) {
         message.success(`${actionMap[action]}操作成功`)
@@ -632,7 +687,8 @@ function VMs() {
   /**
    * 删除虚拟机
    */
-  const handleDelete = (uuid: string) => {
+  const handleDelete = (uuid: string, targetHostName?: string) => {
+    const currentHostName = targetHostName || hostName
     Modal.confirm({
       title: '确认删除',
       content: (
@@ -645,10 +701,10 @@ function VMs() {
       okType: 'danger',
       cancelText: '取消',
       onOk: async () => {
-        if (!hostName) return
+        if (!currentHostName) return
         try {
           const hide = message.loading('正在删除虚拟机...', 0)
-          const result = await api.delete(`/api/client/delete/${hostName}/${uuid}`)
+          const result = await api.delete(`/api/client/delete/${currentHostName}/${uuid}`)
           hide()
           if (result.code === 200) {
             message.success('虚拟机已删除')
@@ -666,11 +722,12 @@ function VMs() {
   /**
    * 打开VNC控制台
    */
-  const handleOpenVnc = async (uuid: string) => {
-    if (!hostName) return
+  const handleOpenVnc = async (uuid: string, targetHostName?: string) => {
+    const currentHostName = targetHostName || hostName
+    if (!currentHostName) return
     try {
       const hide = message.loading('正在获取VNC控制台地址...', 0)
-      const result = await api.get(`/api/client/remote/${hostName}/${uuid}`)
+      const result = await api.get(`/api/client/remote/${currentHostName}/${uuid}`)
       hide()
       if (result.code === 200 && result.data) {
         window.open(result.data, `vnc_${uuid}`, 'width=1024,height=768')
@@ -703,7 +760,7 @@ function VMs() {
   /**
    * 渲染虚拟机卡片
    */
-  const renderVMCard = (uuid: string, vm: VM) => {
+  const renderVMCard = (uuid: string, vm: VM, hostName?: string) => {
     const config = vm.config || {}
     const statusList = vm.status || []
     const firstStatus = statusList.length > 0 ? statusList[0] : { ac_status: 'UNKNOWN' }
@@ -717,7 +774,7 @@ function VMs() {
     const macAddr = firstNic.mac_addr || '-'
 
     return (
-      <Col xs={24} lg={12} key={uuid}>
+      <Col xs={24} sm={12} md={8} lg={6} xl={4} key={uuid}>
         <Card
           hoverable
           style={{ height: '100%' }}
@@ -747,6 +804,11 @@ function VMs() {
               </div>
               <Tag color={statusInfo.color}>{statusInfo.text}</Tag>
             </div>
+            {hostName && (
+              <div style={{ marginTop: 8 }}>
+                <Tag color="blue">{hostName}</Tag>
+              </div>
+            )}
           </div>
 
           {/* 基础资源信息 */}
@@ -822,21 +884,21 @@ function VMs() {
                 <Button
                   size="small"
                   icon={<DesktopOutlined />}
-                  onClick={() => handleOpenVnc(uuid)}
+                  onClick={() => handleOpenVnc(uuid, hostName)}
                 />
               </Tooltip>
               <Tooltip title="电源管理">
                 <Button
                   size="small"
                   icon={<PoweroffOutlined />}
-                  onClick={() => handleOpenPower(uuid)}
+                  onClick={() => handleOpenPower(uuid, hostName)}
                 />
               </Tooltip>
               <Tooltip title="编辑">
                 <Button
                   size="small"
                   icon={<EditOutlined />}
-                  onClick={() => handleOpenEdit(uuid)}
+                  onClick={() => handleOpenEdit(uuid, hostName)}
                 />
               </Tooltip>
               <Tooltip title="删除">
@@ -844,7 +906,7 @@ function VMs() {
                   size="small"
                   danger
                   icon={<DeleteOutlined />}
-                  onClick={() => handleDelete(uuid)}
+                  onClick={() => handleDelete(uuid, hostName)}
                 />
               </Tooltip>
             </Space>
@@ -856,6 +918,15 @@ function VMs() {
 
   const vmCount = Object.keys(vms).length
 
+  // 从复合键中提取主机名和原始UUID
+  const extractHostAndUuid = (key: string) => {
+    const parts = key.split('-')
+    if (parts.length < 2) return { hostName: hostName, uuid: key }
+    const host = parts[0]
+    const uuid = parts.slice(1).join('-')
+    return { hostName: host, uuid: uuid }
+  }
+
   return (
     <div>
       {/* 面包屑导航 */}
@@ -866,7 +937,7 @@ function VMs() {
             title: <Link to="/hosts">主机管理</Link>,
           },
           {
-            title: hostName,
+            title: hostName || '所有主机',
           },
         ]}
       />
@@ -878,21 +949,23 @@ function VMs() {
           虚拟机管理
         </h1>
         <p style={{ color: '#666', margin: '8px 0 0 0' }}>
-          管理主机 <strong>{hostName}</strong> 下的所有虚拟机
+          管理主机 <strong>{hostName || '所有主机'}</strong> 下的所有虚拟机
         </p>
+        
+
       </div>
 
       {/* 操作栏 */}
       <Card style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
           <Space wrap>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate} disabled={!hostName}>
               创建虚拟机
             </Button>
             <Button icon={<ReloadOutlined />} onClick={loadVMs}>
               刷新
             </Button>
-            <Button icon={<RadarChartOutlined />} onClick={handleScan}>
+            <Button icon={<RadarChartOutlined />} onClick={handleScan} disabled={!hostName}>
               扫描虚拟机
             </Button>
             <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/hosts')}>
@@ -917,14 +990,17 @@ function VMs() {
             description="暂无虚拟机"
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           >
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate} disabled={!hostName}>
               创建第一台虚拟机
             </Button>
           </Empty>
         </Card>
       ) : (
         <Row gutter={[16, 16]}>
-          {Object.entries(vms).map(([uuid, vm]) => renderVMCard(uuid, vm))}
+          {Object.entries(vms).map(([key, vm]) => {
+            const { uuid: _uuid, hostName: vmHostName } = extractHostAndUuid(key)
+            return renderVMCard(_uuid, vm, vmHostName)
+          })}
         </Row>
       )}
 
@@ -1328,4 +1404,4 @@ function VMs() {
   )
 }
 
-export default VMs
+export default DockManage

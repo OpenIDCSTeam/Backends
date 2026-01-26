@@ -2839,7 +2839,7 @@ msgstr "取得Proxmox主機狀態失敗"
 msgid "发现并添加虚拟机"
 msgstr "發現並新增虛擬機"
 
-msgid "Failed to save scanned VMs to database"
+msgid "Failed to save scanned DockManage to database"
 msgstr "儲存掃描的虛擬機到資料庫失敗"
 
 msgid "扫描完成。共扫描到"

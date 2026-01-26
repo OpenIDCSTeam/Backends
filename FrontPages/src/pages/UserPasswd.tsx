@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { Form, Input, Button, message, Progress } from 'antd'
 import { LockOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons'
-import api from '@/services/api'
+import api from '@/utils/apis.ts'
 
 /**
  * 重置密码页面组件
  */
-function ResetPassword() {
+function UserPasswd() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [loading, setLoading] = useState(false)
@@ -260,4 +260,4 @@ function ResetPassword() {
   )
 }
 
-export default ResetPassword
+export default UserPasswd

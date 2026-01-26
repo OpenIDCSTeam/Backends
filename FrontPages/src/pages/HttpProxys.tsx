@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Table, Button, Space, Tag, Modal, Form, Input, InputNumber, message, Select, Card, Row, Col, Checkbox } from 'antd'
 import { PlusOutlined, DeleteOutlined, EditOutlined, ReloadOutlined, GlobalOutlined, LockOutlined, UnlockOutlined, CloudServerOutlined } from '@ant-design/icons'
-import api from '@/services/api'
+import api from '@/utils/apis.ts'
 import type { ColumnsType } from 'antd/es/table'
 
 /**
@@ -38,7 +38,7 @@ interface VM {
 /**
  * Web反向代理管理页面
  */
-function WebProxys() {
+function HttpProxys() {
   // 状态管理
   const [proxys, setProxys] = useState<WebProxy[]>([])
   const [filteredProxys, setFilteredProxys] = useState<WebProxy[]>([])
@@ -662,4 +662,4 @@ function WebProxys() {
   )
 }
 
-export default WebProxys
+export default HttpProxys

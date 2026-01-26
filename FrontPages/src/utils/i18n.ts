@@ -353,7 +353,7 @@ function translateElement(element: Element, forceRetranslate = false): void {
 
   const textNodes: Node[] = [];
   let node: Node | null;
-  while (node = walker.nextNode()) {
+  while ((node = walker.nextNode())) {
     if (node.nodeType === Node.TEXT_NODE) {
       textNodes.push(node);
     }

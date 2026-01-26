@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Form, Input, Button, Modal, message, Alert } from 'antd'
 import { UserOutlined, LockOutlined, KeyOutlined, LoginOutlined, MailOutlined, InfoCircleOutlined } from '@ant-design/icons'
-import { useUserStore } from '@/store/userStore'
-import api from '@/services/api'
+import { useUserStore } from '@/utils/data.ts'
+import api from '@/utils/apis.ts'
 
 /**
  * 登录表单数据接口
@@ -30,7 +30,7 @@ interface ForgotPasswordForm {
 /**
  * 登录页面组件
  */
-function Login() {
+function UserLogins() {
   const navigate = useNavigate()
   const { setUser, setToken } = useUserStore()
   const [loading, setLoading] = useState(false)
@@ -533,4 +533,4 @@ function Login() {
   )
 }
 
-export default Login
+export default UserLogins

@@ -2526,7 +2526,7 @@ msgstr "Не удается подключиться к Proxmox для полу�
 msgid "获取Proxmox主机状态失败"
 msgstr "Ошибка получения состояния хоста Proxmox"
 
-msgid "Failed to save scanned VMs to database"
+msgid "Failed to save scanned DockManage to database"
 msgstr "Ошибка сохранения отсканированных виртуальных машин в базу данных"
 
 msgid "个虚拟机，新增"

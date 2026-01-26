@@ -2880,7 +2880,7 @@ msgstr "Échec de l'obtention de l'état de l'hôte Proxmox"
 msgid "发现并添加虚拟机"
 msgstr "Machines virtuelles détectées et ajoutées"
 
-msgid "Failed to save scanned VMs to database"
+msgid "Failed to save scanned DockManage to database"
 msgstr "Échec de la sauvegarde des machines virtuelles analysées dans la base de données"
 
 msgid "扫描完成。共扫描到"

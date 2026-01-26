@@ -361,6 +361,99 @@ class HostServer(BasicServer):
     def GPUShows(self) -> dict[str, str]:
         return {}
 
+    # 虚拟机截图 #################################################################
+    def VMScreen(self, vm_name: str = "") -> str:
+        """获取虚拟机截图
+        
+        :param vm_name: 虚拟机名称
+        :return: base64编码的截图字符串，失败则返回空字符串
+        """
+        try:
+            logger.info(f"[{self.hs_config.server_name}] 开始获取虚拟机 {vm_name} 截图")
+            
+            # 1. 检查虚拟机是否存在
+            if vm_name not in self.vm_saving:
+                logger.error(f"[{self.hs_config.server_name}] 虚拟机 {vm_name} 不存在")
+                return ""
+            
+            # 2. 获取虚拟机的状态
+            vm_status_result = self.vmrest_api.powers_get(vm_name)
+            if not vm_status_result.success:
+                logger.error(f"[{self.hs_config.server_name}] 获取虚拟机 {vm_name} 状态失败: {vm_status_result.message}")
+                return ""
+            
+            # 3. 检查虚拟机是否正在运行
+            vm_status = vm_status_result.results.get("status", "")
+            if vm_status.lower() != "running":
+                logger.warning(f"[{self.hs_config.server_name}] 虚拟机 {vm_name} 未运行，无法获取截图")
+                return ""
+            
+            # 4. 使用vmrest API获取截图
+            # VMware Workstation的vmrest API支持获取虚拟机截图
+            # 首先需要获取虚拟机的VMX路径
+            vm_info_result = self.vmrest_api.return_vmx()
+            if not vm_info_result.success:
+                logger.error(f"[{self.hs_config.server_name}] 获取虚拟机列表失败: {vm_info_result.message}")
+                return ""
+            
+            vm_path = ""
+            for vm_info in vm_info_result.results:
+                if vm_info.get("id") == vm_name:
+                    vm_path = vm_info.get("path", "")
+                    break
+            
+            if not vm_path:
+                logger.error(f"[{self.hs_config.server_name}] 未找到虚拟机 {vm_name} 的VMX路径")
+                return ""
+            
+            # 5. 生成临时文件路径
+            import tempfile
+            import os
+            temp_dir = tempfile.gettempdir()
+            screenshot_path = os.path.join(temp_dir, f"{vm_name}_screenshot.png")
+            
+            # 6. 使用vmrun命令获取截图
+            # vmrun -T ws snapshot "vmx_path" screenshot_path
+            vmrun_path = os.path.join(self.hs_config.launch_path, "vmrun.exe")
+            if not os.path.exists(vmrun_path):
+                logger.error(f"[{self.hs_config.server_name}] 未找到vmrun.exe文件")
+                return ""
+            
+            import subprocess
+            cmd = [
+                vmrun_path,
+                "-T", "ws",
+                "snapshot",
+                vm_path,
+                screenshot_path
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                logger.error(f"[{self.hs_config.server_name}] 执行vmrun命令失败: {result.stderr}")
+                return ""
+            
+            # 7. 读取截图文件并转换为base64
+            if os.path.exists(screenshot_path):
+                with open(screenshot_path, "rb") as f:
+                    import base64
+                    screenshot_base64 = base64.b64encode(f.read()).decode('utf-8')
+                
+                # 8. 删除临时文件
+                os.remove(screenshot_path)
+                
+                logger.info(f"[{self.hs_config.server_name}] 成功获取虚拟机 {vm_name} 截图")
+                return screenshot_base64
+            else:
+                logger.error(f"[{self.hs_config.server_name}] 截图文件不存在: {screenshot_path}")
+                return ""
+                
+        except Exception as e:
+            logger.error(f"[{self.hs_config.server_name}] 获取虚拟机截图时出错: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return ""
+
     # 虚拟机控制台 #############################################################
     def VMRemote(self, vm_uuid: str, ip_addr: str = "127.0.0.1") -> ZMessage:
         try:

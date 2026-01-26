@@ -15,8 +15,8 @@ import {
     SwapOutlined,
     TranslationOutlined,
 } from '@ant-design/icons'
-import {useUserStore} from '@/store/userStore'
-import { changeLanguage, getAvailableLanguages, getCurrentLanguage } from '@/utils/i18n'
+import {useUserStore} from '@/utils/data.ts'
+import { changeLanguage, getAvailableLanguages, getCurrentLanguage } from '@/utils/i18n.ts'
 import type {MenuProps} from 'antd'
 
 const {Header, Sider, Content} = Layout

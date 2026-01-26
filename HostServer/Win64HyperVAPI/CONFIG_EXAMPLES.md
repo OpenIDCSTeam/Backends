@@ -12,7 +12,7 @@ local_config = HSConfig(
     server_user="",
     server_pass="",
     server_port=5985,
-    system_path="C:\\Hyper-V\\VMs",
+    system_path="C:\\Hyper-V\\DockManage",
     images_path="C:\\Hyper-V\\Images",
     backup_path="C:\\Hyper-V\\Backups",
     remote_port=6080,
@@ -66,7 +66,7 @@ remote_https_config = HSConfig(
     server_user="Administrator",
     server_pass="YourPassword123!",
     server_port=5986,  # HTTPS端口
-    system_path="E:\\HyperV\\VMs",
+    system_path="E:\\HyperV\\DockManage",
     images_path="E:\\HyperV\\ISO",
     backup_path="E:\\HyperV\\Backups",
     remote_port=6080,
@@ -242,7 +242,7 @@ host_config = HSConfig(
     server_user="Administrator",
     server_pass="SecurePassword123!",
     server_port=5985,
-    system_path="D:\\VMs",
+    system_path="D:\\DockManage",
     images_path="D:\\ISO",
     backup_path="D:\\Backups",
     i_kuai_addr="192.168.1.1",
@@ -313,7 +313,7 @@ set HYPERV_HOST=192.168.1.100
 set HYPERV_USER=Administrator
 set HYPERV_PASS=YourPassword
 set HYPERV_PORT=5985
-set HYPERV_VM_PATH=D:\VMs
+set HYPERV_VM_PATH=D:\DockManage
 set HYPERV_ISO_PATH=D:\ISO
 set HYPERV_BACKUP_PATH=D:\Backups
 ```
@@ -327,7 +327,7 @@ set HYPERV_BACKUP_PATH=D:\Backups
   "server_user": "Administrator",
   "server_pass": "SecurePassword123!",
   "server_port": 5985,
-  "system_path": "D:\\VMs",
+  "system_path": "D:\\DockManage",
   "images_path": "D:\\ISO",
   "backup_path": "D:\\Backups",
   "remote_port": 6080,

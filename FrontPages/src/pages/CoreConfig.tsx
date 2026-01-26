@@ -1,18 +1,19 @@
 import { useState, useEffect } from 'react'
 import { Card, Form, Input, Button, Switch, message, InputNumber, Checkbox, Alert } from 'antd'
 import { EyeOutlined, EyeInvisibleOutlined, CopyOutlined, ReloadOutlined, SaveOutlined, FolderOpenOutlined, MailOutlined } from '@ant-design/icons'
-import api from '@/services/api'
+import api from '@/utils/apis.ts'
+import { SystemStats } from '@/types'
 
 const { TextArea } = Input
 
 /**
  * 系统设置页面
  */
-function Settings() {
+function CoreConfig() {
   const [loading, setLoading] = useState(false)
   const [tokenVisible, setTokenVisible] = useState(false)
   const [currentToken, setCurrentToken] = useState('')
-  const [systemInfo, setSystemInfo] = useState({ host_count: 0, vm_count: 0 })
+  const [systemInfo, setSystemInfo] = useState<SystemStats>({ hosts_count: 0, vms_count: 0, running_vms: 0, stopped_vms: 0 })
   const [registrationForm] = Form.useForm()
   const [emailForm] = Form.useForm()
   const [testEmailForm] = Form.useForm()
@@ -24,6 +25,7 @@ function Settings() {
     loadCurrentToken()
     loadSystemInfo()
     loadSystemSettings()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   /**
@@ -32,7 +34,7 @@ function Settings() {
   const loadCurrentToken = async () => {
     try {
       const res = await api.getCurrentToken()
-      if (res.code === 200) {
+      if (res.code === 200 && res.data) {
         setCurrentToken(res.data.token)
       }
     } catch (error) {
@@ -46,7 +48,7 @@ function Settings() {
   const loadSystemInfo = async () => {
     try {
       const res = await api.getSystemStats()
-      if (res.code === 200) {
+      if (res.code === 200 && res.data) {
         setSystemInfo(res.data)
       }
     } catch (error) {
@@ -113,7 +115,7 @@ function Settings() {
     try {
       setLoading(true)
       const res = await api.setToken(values.newToken)
-      if (res.code === 200) {
+      if (res.code === 200 && res.data) {
         setCurrentToken(res.data.token)
         message.success('Token设置成功')
       } else {
@@ -133,7 +135,7 @@ function Settings() {
     try {
       setLoading(true)
       const res = await api.resetToken()
-      if (res.code === 200) {
+      if (res.code === 200 && res.data) {
         setCurrentToken(res.data.token)
         message.success(`Token已重置: ${res.data.token}`)
       } else {
@@ -245,13 +247,10 @@ function Settings() {
   const sendTestEmail = async (values: any) => {
     try {
       setLoading(true)
-      const emailValues = emailForm.getFieldsValue()
       const data = {
-        test_email: values.test_email,
+        recipient: values.test_email,
         subject: values.subject,
         body: values.body,
-        resend_email: emailValues.resend_email,
-        resend_apikey: emailValues.resend_apikey,
       }
       const res = await api.sendTestEmail(data)
       if (res.code === 200) {
@@ -408,11 +407,11 @@ function Settings() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-gray-600">主机数量</span>
-              <span className="font-medium text-gray-800">{systemInfo.host_count}</span>
+              <span className="font-medium text-gray-800">{systemInfo.hosts_count}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-gray-600">虚拟机数量</span>
-              <span className="font-medium text-gray-800">{systemInfo.vm_count}</span>
+              <span className="font-medium text-gray-800">{systemInfo.vms_count}</span>
             </div>
           </div>
         </Card>
@@ -556,4 +555,4 @@ function Settings() {
   )
 }
 
-export default Settings
+export default CoreConfig

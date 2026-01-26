@@ -16,23 +16,36 @@ export interface User {
   email_verified: boolean;
   created_at: string;
   last_login?: string;
-  assigned_hosts?: string[];
-  // 配额信息
-  quota_cpu?: number;
-  quota_ram?: number;
-  quota_ssd?: number;
-  quota_gpu?: number;
-  quota_nat_ports?: number;
-  quota_web_proxy?: number;
-  // 已使用资源
-  used_cpu?: number;
-  used_ram?: number;
-  used_ssd?: number;
-  used_gpu?: number;
+  assigned_hosts: string[];
+  gpu_ids?: string;
   // 权限
-  can_create_vm?: boolean;
-  can_modify_vm?: boolean;
-  can_delete_vm?: boolean;
+  can_create_vm: boolean;
+  can_modify_vm: boolean;
+  can_delete_vm: boolean;
+  // 配额信息
+  quota_cpu: number;
+  quota_ram: number;
+  quota_ssd: number;
+  quota_gpu: number;
+  quota_nat_ports: number;
+  quota_nat_ips: number;
+  quota_web_proxy: number;
+  quota_pub_ips: number;
+  quota_bandwidth_up: number;
+  quota_bandwidth_down: number;
+  quota_traffic: number;
+  // 已使用资源
+  used_cpu: number;
+  used_ram: number;
+  used_ssd: number;
+  used_gpu: number;
+  used_nat_ports: number;
+  used_nat_ips: number;
+  used_web_proxy: number;
+  used_pub_ips: number;
+  used_bandwidth_up: number;
+  used_bandwidth_down: number;
+  used_traffic: number;
 }
 
 // 登录请求

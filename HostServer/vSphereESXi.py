@@ -226,7 +226,7 @@ class HostServer(BasicServer):
                 if not success:
                     return ZMessage(
                         success=False, action="VScanner",
-                        message="Failed to save scanned VMs to database")
+                        message="Failed to save scanned DockManage to database")
 
             # 返回成功消息
             return ZMessage(
@@ -882,6 +882,79 @@ class HostServer(BasicServer):
         # TODO: 实现ESXi GPU查询
         # 通用操作 =============================================================
         return {}
+
+    # 虚拟机截图 #################################################################
+    def VMScreen(self, vm_name: str = "") -> str:
+        """获取虚拟机截图
+        
+        :param vm_name: 虚拟机名称
+        :return: base64编码的截图字符串，失败则返回空字符串
+        """
+        try:
+            logger.info(f"[{self.hs_config.server_name}] 开始获取虚拟机 {vm_name} 截图")
+            
+            # 1. 检查虚拟机是否存在
+            if vm_name not in self.vm_saving:
+                logger.error(f"[{self.hs_config.server_name}] 虚拟机 {vm_name} 不存在")
+                return ""
+            
+            # 2. 连接到ESXi
+            connect_result = self.esxi_api.connect()
+            if not connect_result.success:
+                logger.error(f"[{self.hs_config.server_name}] 无法连接到ESXi获取截图: {connect_result.message}")
+                return ""
+            
+            # 3. 获取虚拟机对象
+            vm = self.esxi_api.get_vm(vm_name)
+            if not vm:
+                self.esxi_api.disconnect()
+                logger.error(f"[{self.hs_config.server_name}] 未找到虚拟机 {vm_name}")
+                return ""
+            
+            # 4. 检查虚拟机是否正在运行
+            if vm.runtime.powerState != "poweredOn":
+                self.esxi_api.disconnect()
+                logger.warning(f"[{self.hs_config.server_name}] 虚拟机 {vm_name} 未运行，无法获取截图")
+                return ""
+            
+            # 5. 使用vSphere API获取截图
+            import tempfile
+            import os
+            import base64
+            
+            temp_dir = tempfile.gettempdir()
+            screenshot_path = os.path.join(temp_dir, f"{vm_name}_screenshot.png")
+            
+            # 使用vSphere API的CreateScreenshot_Task方法获取截图
+            screenshot_result = self.esxi_api.get_vm_screenshot(vm_name, screenshot_path)
+            
+            self.esxi_api.disconnect()
+            
+            if not screenshot_result.success:
+                logger.error(f"[{self.hs_config.server_name}] 获取虚拟机截图失败: {screenshot_result.message}")
+                return ""
+            
+            # 6. 读取截图文件并转换为base64
+            if os.path.exists(screenshot_path):
+                with open(screenshot_path, "rb") as f:
+                    screenshot_base64 = base64.b64encode(f.read()).decode('utf-8')
+                
+                # 7. 删除临时文件
+                os.remove(screenshot_path)
+                
+                logger.info(f"[{self.hs_config.server_name}] 成功获取虚拟机 {vm_name} 截图")
+                return screenshot_base64
+            else:
+                logger.error(f"[{self.hs_config.server_name}] 截图文件不存在: {screenshot_path}")
+                return ""
+                
+        except Exception as e:
+            logger.error(f"[{self.hs_config.server_name}] 获取虚拟机截图时出错: {str(e)}")
+            try:
+                self.esxi_api.disconnect()
+            except:
+                pass
+            return ""
 
     # WebMKS远程访问 ###########################################################
     def VMRemote(self, vm_uuid: str, ip_addr: str = "127.0.0.1") -> ZMessage:
