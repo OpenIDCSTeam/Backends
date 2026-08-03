@@ -1089,8 +1089,12 @@ class HostManage:
                     server.data_set()
                     logger.info(f'[Sync-Pull] 主机 {hs_name} 同步了 {updated_count} 台虚拟机')
                     
+            except requests.exceptions.Timeout:
+                logger.warning(f'[Sync-Pull] 同步主机 {hs_name} 请求超时，跳过本次同步')
+            except requests.exceptions.ConnectionError as e:
+                logger.warning(f'[Sync-Pull] 同步主机 {hs_name} 连接失败，跳过本次同步: {e}')
             except Exception as e:
-                logger.error(f'[Sync-Pull] 同步主机 {hs_name} 失败: {e}')
+                logger.error(f'[Sync-Pull] 同步主机 {hs_name} 同步失败: {e}')
                 traceback.print_exc()
 
     def _sync_push(self, sync_url: str, sync_token: str):
