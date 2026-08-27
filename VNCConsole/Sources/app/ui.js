@@ -1248,7 +1248,7 @@ const UI = {
             fingerprint = Array.from(new Uint8Array(fingerprint).slice(0, 8)).map(
                 x => x.toString(16).padStart(2, '0')).join('-');
             document.getElementById('noVNC_verify_server_dlg').classList.add('noVNC_open');
-            document.getElementById('noVNC_fingerprint').innerHTML = fingerprint;
+            document.getElementById('noVNC_fingerprint').textContent = fingerprint;
         }
     },
 

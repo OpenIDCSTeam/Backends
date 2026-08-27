@@ -4,7 +4,6 @@
 ################################################################################
 import sys
 import os
-
 # 打包后修正 sys.path，确保 HostModule 等包可被正确导入
 # Nuitka onefile 模式下，解压目录在临时路径，需将其加入 sys.path
 if getattr(sys, 'frozen', False):
@@ -19,6 +18,8 @@ warnings.filterwarnings("ignore", message=".*TripleDES.*", category=UserWarning)
 import time
 import secrets
 import threading
+import platform
+import subprocess
 import traceback
 import json
 import ipaddress
@@ -62,15 +63,21 @@ template_folder = os.path.join(project_root, 'WebDesigns')
 static_folder = os.path.join(project_root, 'static')
 
 app = Flask(__name__, template_folder=template_folder, static_folder=None, static_url_path='')
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 请求体大小限制100MB，防止大请求DoS攻击
+app.config.update(
+    MAX_CONTENT_LENGTH=100 * 1024 * 1024,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=os.environ.get('OPENIDCS_HTTPS', '').lower() in ('1', 'true', 'yes'),
+    PERMANENT_SESSION_LIFETIME=3600,
+)
 
 # CSRF防护配置 ################################################################
 # 对所有状态变更请求（POST/PUT/DELETE）验证自定义头部 X-Requested-With
 # 浏览器跨域请求无法携带自定义头部（除非CORS允许），从而防止CSRF攻击
 # 前端React应用在请求拦截器中统一添加此头部
 _CSRF_EXEMPT_PATHS = ('/api/login', '/api/register', '/api/verify-email',
-                      '/api/reset-password', '/api/forgot-password',
-                      '/api/temp-login')  # 公开接口免CSRF检查
+                      '/api/system/forgot-password', '/api/forgot-password',
+                      '/api/system/reset-password', '/api/client/templogin')  # 匿名接口由独立凭据校验保护
 
 @app.before_request
 def csrf_protection():
@@ -84,14 +91,36 @@ def csrf_protection():
     # 免检路径
     if request.path in _CSRF_EXEMPT_PATHS:
         return None
-    # 检查自定义头部（前端React统一添加）
-    if not request.headers.get('X-Requested-With'):
-        # 允许Content-Type为application/json的请求（fetch/axios默认行为，表单无法伪造）
-        content_type = request.content_type or ''
-        if 'application/json' in content_type:
-            return None
-        return jsonify({'code': 403, 'msg': 'CSRF验证失败，缺少X-Requested-With头部', 'data': None}), 403
+    # Cookie 认证的状态变更请求必须携带自定义头部。
+    # 不能仅凭 application/json 放行：文本表单和错误 CORS 配置都可能绕过该假设。
+    if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+        return jsonify({
+            'code': 403,
+            'msg': 'CSRF验证失败，缺少有效的X-Requested-With头部',
+            'data': None,
+            'timestamp': int(time.time())
+        }), 403
     return None
+
+
+@app.after_request
+def add_security_headers(response):
+    """为所有响应增加浏览器安全基线，降低点击劫持、MIME嗅探和信息泄露风险。"""
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+    response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    response.headers.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+    response.headers.setdefault(
+        'Content-Security-Policy',
+        "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; "
+        "script-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; frame-ancestors 'self'; "
+        "base-uri 'self'; form-action 'self'"
+    )
+    if request.path.startswith('/api/'):
+        response.headers.setdefault('Cache-Control', 'no-store')
+    if app.config.get('SESSION_COOKIE_SECURE'):
+        response.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+    return response
 
 # 登录速率限制 ################################################################
 # 使用内存+数据库双层存储：内存用于快速查询，数据库用于持久化（重启不丢失）
@@ -314,7 +343,6 @@ def get_current_user():
     """
     if hasattr(g, 'current_user') and g.current_user:
         return g.current_user
-    return UserManager.get_current_user_from_session()
     return UserManager.get_current_user_from_session()
 
 
@@ -2594,7 +2622,7 @@ if __name__ == '__main__':
                 _masked_token = _token[:6] + '*' * (len(_token) - 10) + _token[-4:]
             else:
                 _masked_token = _token
-            logger.info(f"访问Token: {_token}")
+            logger.info(f"访问Token（已脱敏）: {_masked_token}")
             logger.info(f"{'=' * 60}\n")
         else:
             logger.info("检测到调试重载父进程，跳过初始化，等待子进程启动")
@@ -2604,10 +2632,16 @@ if __name__ == '__main__':
             logger.info("使用生产模式启动 Flask 服务器...")
             app.run(host='0.0.0.0', port=1880, debug=False, use_reloader=False)
         else:
-            # 开发环境可以使用调试模式和自动重载
-            # 使用 watchdog reloader 避免 Windows 上 stat reloader 的 WinError 10038 问题
-            logger.info("使用调试模式启动 Flask 服务器（已启用自动重载）...")
-            app.run(host='0.0.0.0', port=1880, debug=True, use_reloader=True, reloader_type='watchdog')
+            # 调试器只能由开发者显式开启，避免源码部署时暴露 Werkzeug 调试控制台
+            debug_enabled = os.environ.get('OPENIDCS_DEBUG', '').lower() in ('1', 'true', 'yes')
+            logger.info(f"使用源码模式启动 Flask 服务器（调试模式: {debug_enabled}）...")
+            app.run(
+                host='0.0.0.0',
+                port=1880,
+                debug=debug_enabled,
+                use_reloader=debug_enabled,
+                reloader_type='watchdog' if debug_enabled else 'stat'
+            )
     except KeyboardInterrupt:
         logger.info("\n程序被用户中断")
     except OSError as e:

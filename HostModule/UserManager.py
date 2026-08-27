@@ -25,6 +25,81 @@ def _auth_error_response(code: int, msg: str, redirect_target: str = 'login'):
     return redirect(url_for(redirect_target))
 
 
+# ============================================================
+# IP登录限流模块
+# ============================================================
+import threading
+import time
+from collections import defaultdict
+
+
+class _LoginRateLimiter:
+    """基于IP的登录限流器（线程安全）
+    
+    规则：同一IP连续失败5次后锁定5分钟，成功后重置计数
+    """
+    
+    def __init__(self, max_attempts: int = 5, lock_duration: int = 300):
+        self._max_attempts = max_attempts
+        self._lock_duration = lock_duration
+        self._attempts: dict = {}
+        self._lock = threading.Lock()
+    
+    def is_locked(self, ip: str) -> bool:
+        """检查IP是否被锁定"""
+        with self._lock:
+            entry = self._attempts.get(ip)
+            if not entry:
+                return False
+            if entry['count'] >= self._max_attempts:
+                if time.time() - entry['locked_at'] < self._lock_duration:
+                    return True
+                # 锁定过期，清理
+                del self._attempts[ip]
+            return False
+    
+    def record_failure(self, ip: str):
+        """记录一次登录失败"""
+        with self._lock:
+            entry = self._attempts.get(ip)
+            if not entry:
+                entry = {'count': 0, 'locked_at': 0.0}
+                self._attempts[ip] = entry
+            entry['count'] += 1
+            if entry['count'] >= self._max_attempts:
+                entry['locked_at'] = time.time()
+    
+    def reset(self, ip: str):
+        """登录成功后重置计数"""
+        with self._lock:
+            self._attempts.pop(ip, None)
+
+
+# 全局限流器实例
+_login_limiter = _LoginRateLimiter(max_attempts=5, lock_duration=300)
+
+
+def _get_client_ip() -> str:
+    """获取客户端真实IP（支持反向代理）"""
+    if request.headers.get('X-Forwarded-For'):
+        return request.headers['X-Forwarded-For'].split(',')[0].strip()
+    if request.headers.get('X-Real-IP'):
+        return request.headers['X-Real-IP']
+    return request.remote_addr or '127.0.0.1'
+
+
+def login_rate_limit(f):
+    """登录限流装饰器：IP连续失败5次后锁定5分钟"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        client_ip = _get_client_ip()
+        if _login_limiter.is_locked(client_ip):
+            logger.warning(f"[UserManager] IP {client_ip} 登录过于频繁，已锁定")
+            return _auth_error_response(429, '登录过于频繁，请5分钟后再试')
+        return f(*args, **kwargs)
+    return decorated
+
+
 def init_bearer_validator(getter: Callable[[], str]):
     """初始化Bearer Token验证器，由HostServer.py启动时调用注入"""
     global _bearer_token_getter

@@ -5,6 +5,7 @@ RestManage - REST API管理模块
 import enum
 import json
 import random
+import re
 import string
 import threading
 import traceback
@@ -740,7 +741,7 @@ class RestManager:
             'id': 0,
             'username': virtual_user,
             'is_admin': False,
-            'is_token_login': True,  # 虚拟用户临时登录，视为Token登录（跳过is_active检查）
+            'is_token_login': False,
             'temp_login': True,
             'temp_hs_name': hs_name,
             'temp_vm_uuid': vm_uuid,
@@ -796,14 +797,14 @@ class RestManager:
         if not user_data:
             return False, self.api_response(401, '未授权访问')
 
-        # 管理员或Token登录有所有权限
-        if user_data.get('is_admin') or user_data.get('is_token_login'):
-            return True, user_data
-
-        # 临时登录（财务系统插件跳转）：只允许访问指定主机
+        # 临时凭据必须先执行资源范围校验，不能继承主 Bearer Token 的管理员权限
         if user_data.get('temp_login'):
             if hs_name != user_data.get('temp_hs_name', ''):
                 return False, self.api_response(403, '没有访问该主机的权限')
+            return True, user_data
+
+        # 管理员或主 Bearer Token 登录有所有主机权限
+        if user_data.get('is_admin') or user_data.get('is_token_login'):
             return True, user_data
 
         # 检查主机访问权限
@@ -829,8 +830,12 @@ class RestManager:
 
     def _check_vm_ownership(self, hs_name, vm_uuid, user_data):
         """检查虚拟机所有权"""
-        # 管理员或Token登录有所有权限
-        if user_data.get('is_admin') or user_data.get('is_token_login'):
+        # 临时凭据只能访问签发时绑定的单台虚拟机
+        if user_data.get('temp_login'):
+            if (hs_name != user_data.get('temp_hs_name', '') or
+                    vm_uuid != user_data.get('temp_vm_uuid', '')):
+                return False, self.api_response(403, '临时凭据无权访问该虚拟机')
+        elif user_data.get('is_admin') or user_data.get('is_token_login'):
             return True, None
 
         server = self.hs_manage.get_host(hs_name)
@@ -856,8 +861,12 @@ class RestManager:
         :param action: 权限名称，如 'pwr_edits', 'vm_delete' 等
         :return: (是否有权限, 错误响应或None)
         """
-        # 管理员或Token登录有所有权限
-        if user_data.get('is_admin') or user_data.get('is_token_login'):
+        # 临时凭据只能访问签发时绑定的单台虚拟机
+        if user_data.get('temp_login'):
+            if (hs_name != user_data.get('temp_hs_name', '') or
+                    vm_uuid != user_data.get('temp_vm_uuid', '')):
+                return False, self.api_response(403, '临时凭据无权访问该虚拟机')
+        elif user_data.get('is_admin') or user_data.get('is_token_login'):
             return True, None
 
         server = self.hs_manage.get_host(hs_name)
@@ -907,6 +916,9 @@ class RestManager:
         if not user_data:
             return False, self.api_response(401, '未登录')
 
+        if user_data.get('temp_login'):
+            return False, self.api_response(403, '临时凭据不能管理虚拟机用户权限')
+
         if user_data.get('is_admin') or user_data.get('is_token_login'):
             return True, None
 
@@ -932,8 +944,12 @@ class RestManager:
 
     def _check_vm_delete_permission(self, hs_name, vm_uuid, user_data):
         """检查虚拟机删除权限（普通用户只能删除自己是主用户的虚拟机）"""
-        # 管理员或Token登录有所有权限
-        if user_data.get('is_admin') or user_data.get('is_token_login'):
+        # 临时凭据只能访问签发时绑定的单台虚拟机
+        if user_data.get('temp_login'):
+            if (hs_name != user_data.get('temp_hs_name', '') or
+                    vm_uuid != user_data.get('temp_vm_uuid', '')):
+                return False, self.api_response(403, '临时凭据无权访问该虚拟机')
+        elif user_data.get('is_admin') or user_data.get('is_token_login'):
             return True, None
 
         server = self.hs_manage.get_host(hs_name)
@@ -3824,9 +3840,9 @@ class RestManager:
             r.headers['Content-Type'] = 'text/html; charset=utf-8'
             return r
 
-        # 查找临时token（有效期内可重复使用）
+        # 临时 token 为一次性登录凭据，成功读取后立即消费，降低 URL/浏览器历史泄露后的重放风险
         with self._temp_tokens_lock:
-            token_data = self._temp_tokens.get(temp_token, None)
+            token_data = self._temp_tokens.pop(temp_token, None)
 
         if not token_data:
             return self.api_response(401, '临时凭据无效或已过期')
@@ -3861,7 +3877,7 @@ class RestManager:
             'id': 0,
             'username': virtual_user,
             'is_admin': False,
-            'is_token_login': True,  # 虚拟用户临时登录，视为Token登录
+            'is_token_login': False,  # 临时用户仅使用受限 Session
             'temp_login': True,
             'temp_hs_name': hs_name,
             'temp_vm_uuid': vm_uuid,
@@ -4039,14 +4055,27 @@ window.location.replace({repr(target_url)});
     def vm_upload(self):
         """虚拟机上报状态数据（无需认证）"""
         # 获取MAC地址参数
-        mac_addr = request.args.get('nic', '')
-        if not mac_addr:
-            return self.api_response(400, 'MAC地址参数缺失')
+        if request.content_length and request.content_length > 64 * 1024:
+            return self.api_response(413, '状态数据过大')
+        mac_addr = request.args.get('nic', '').strip().lower()
+        if not re.fullmatch(r'(?:[0-9a-f]{2}:){5}[0-9a-f]{2}', mac_addr):
+            return self.api_response(400, 'MAC地址格式非法')
 
-        # 获取上报的状态数据
-        status_data = request.get_json() or {}
-        if not status_data:
-            return self.api_response(400, '状态数据为空')
+        # 获取上报的状态数据，并限制字段、类型和嵌套规模，避免未认证上报接口被滥用
+        status_data = request.get_json(silent=True)
+        if not isinstance(status_data, dict) or not status_data:
+            return self.api_response(400, '状态数据格式非法')
+        allowed_fields = {
+            'ac_status', 'cpu_model', 'cpu_total', 'cpu_usage', 'mem_total',
+            'mem_usage', 'hdd_total', 'hdd_usage', 'ext_usage', 'flu_total',
+            'flu_usage', 'gpu_usage', 'gpu_total', 'network_u', 'network_d',
+            'network_a', 'cpu_heats', 'cpu_power', 'rdp_info'
+        }
+        unknown_fields = set(status_data) - allowed_fields
+        if unknown_fields:
+            return self.api_response(400, '状态数据包含未支持字段')
+        if len(json.dumps(status_data, ensure_ascii=False)) > 64 * 1024:
+            return self.api_response(413, '状态数据过大')
 
         logger.info(f"[虚拟机上报] 收到MAC地址: {mac_addr}")
 
@@ -4085,7 +4114,7 @@ window.location.replace({repr(target_url)});
                         try:
                             # 处理rdp_info远程桌面信息（ToDesk等）
                             rdp_info = status_data.pop('rdp_info', None)
-                            if rdp_info and isinstance(rdp_info, dict):
+                            if rdp_info and isinstance(rdp_info, dict) and len(json.dumps(rdp_info, ensure_ascii=False)) <= 16 * 1024:
                                 # 合并到vm_config.rdp_info中（保留已有的ms_rdp等信息）
                                 if not hasattr(vm_config, 'rdp_info') or not vm_config.rdp_info:
                                     vm_config.rdp_info = {}

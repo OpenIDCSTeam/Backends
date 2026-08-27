@@ -118,9 +118,10 @@ OpenIDCS-Client 是一个开源IDC虚拟化统一管理平台，采用 **前后�
                          └──→ 401未授权
 ```
 
-- **Token认证**: `Authorization: Bearer <token>`，等同管理员权限
-- **Session认证**: 用户名密码登录，基于Flask Session
-- **权限层级**: Token > Admin > 普通用户(RBAC)
+- **Bearer认证**: `Authorization: Bearer <token>`，仅适用于受信任的服务端客户端；Token 当前兼容为管理员权限，必须通过安全配置保护
+- **Session认证**: 用户名密码登录，基于 Flask Session；写操作要求 `X-Requested-With: XMLHttpRequest`
+- **Cookie安全**: HttpOnly、SameSite=Lax；HTTPS 部署时启用 Secure
+- **权限层级**: Admin > 普通用户(RBAC)；临时凭据仅限签发的主机和虚拟机
 
 ### 2.5 数据库设计
 
@@ -306,6 +307,6 @@ FrontPages/src/
 | 密码存储 | bcrypt哈希 + 兼容旧SHA256 |
 | 登录限流 | IP级别，5次失败锁定300秒 |
 | Token管理 | 256位随机Token，可重置 |
-| Session | Flask secret_key随机生成 |
+| Session | Flask secret_key支持外部持久化配置；生产环境通过OPENIDCS_HTTPS=1启用Secure Cookie |
 | 权限控制 | RBAC + 细粒度虚拟机权限掩码(16位) |
 | 邮箱验证 | Resend API发送验证链接 |

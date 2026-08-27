@@ -10,7 +10,7 @@
 ```
 Authorization: Bearer <token>
 ```
-Token认证等同管理员权限，适用于所有API。
+Bearer Token 当前兼容为管理员权限，仅限受信任服务端使用；不得暴露到浏览器、URL、日志或客户端存储。浏览器优先使用 Session Cookie。
 
 ### Session 认证
 通过 `/api/login` 登录后自动设置Cookie Session。

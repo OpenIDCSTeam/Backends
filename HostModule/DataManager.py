@@ -10,6 +10,7 @@ from loguru import logger
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Config.VMConfig import VMConfig
 from MainObject.Public.ZMessage import ZMessage
+from HostModule.CredentialCrypto import CredentialCrypto
 
 
 class PooledConnection:
@@ -99,6 +100,8 @@ class DataManager:
         self.dir_db_loader()
         # 初始化连接池
         self._conn_pool = SQLiteConnectionPool(self.db_path, max_size=10)
+        # 初始化凭据加密器
+        self._crypto = CredentialCrypto(os.path.dirname(os.path.abspath(path)))
         self.set_db_sqlite()
 
     # ==================== 数据库初始化 =====================
@@ -484,7 +487,7 @@ quota_bandwidth_up = 9999, quota_bandwidth_down = 9999, quota_traffic = 9999
                 hs_config.server_type,
                 hs_config.server_addr,
                 hs_config.server_user,
-                hs_config.server_pass,
+                self._crypto.encrypt(hs_config.server_pass),
                 hs_config.server_port,  # 服务访问端口
                 hs_config.filter_name,
                 hs_config.images_path,
@@ -497,7 +500,7 @@ quota_bandwidth_up = 9999, quota_bandwidth_down = 9999, quota_traffic = 9999
                 hs_config.network_pub,
                 hs_config.i_kuai_addr,
                 hs_config.i_kuai_user,
-                hs_config.i_kuai_pass,
+                self._crypto.encrypt(hs_config.i_kuai_pass),
                 hs_config.ports_start,
                 hs_config.ports_close,
                 hs_config.remote_port,
@@ -528,23 +531,37 @@ quota_bandwidth_up = 9999, quota_bandwidth_down = 9999, quota_traffic = 9999
             conn.close()
 
     def get_hs_config(self, hs_name: str) -> Optional[Dict[str, Any]]:
-        """获取主机配置"""
+        """获取主机配置（自动解密敏感凭据）"""
         conn = self.get_db_sqlite()
         try:
             cursor = conn.execute("SELECT * FROM hs_config WHERE hs_name = ?", (hs_name,))
             row = cursor.fetchone()
             if row:
-                return dict(row)
+                data = dict(row)
+                # 解密敏感凭据
+                if data.get('server_pass'):
+                    data['server_pass'] = self._crypto.decrypt(data['server_pass'])
+                if data.get('i_kuai_pass'):
+                    data['i_kuai_pass'] = self._crypto.decrypt(data['i_kuai_pass'])
+                return data
             return None
         finally:
             conn.close()
 
     def all_hs_config(self) -> List[Dict[str, Any]]:
-        """获取所有主机配置"""
+        """获取所有主机配置（自动解密敏感凭据）"""
         conn = self.get_db_sqlite()
         try:
             cursor = conn.execute("SELECT * FROM hs_config")
-            return [dict(row) for row in cursor.fetchall()]
+            results = []
+            for row in cursor.fetchall():
+                data = dict(row)
+                if data.get('server_pass'):
+                    data['server_pass'] = self._crypto.decrypt(data['server_pass'])
+                if data.get('i_kuai_pass'):
+                    data['i_kuai_pass'] = self._crypto.decrypt(data['i_kuai_pass'])
+                results.append(data)
+            return results
         finally:
             conn.close()
 

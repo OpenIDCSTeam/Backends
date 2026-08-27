@@ -83,7 +83,7 @@ python MainServer.py
 ### 用户登录
 
 ```http
-POST /login
+POST /api/login
 Content-Type: application/json
 ```
 

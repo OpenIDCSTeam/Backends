@@ -9,6 +9,7 @@ from copy import deepcopy
 from proxmoxer import ProxmoxAPI
 from typing import Optional, Tuple, Dict
 from HostServer.BasicServer import BasicServer
+from HostModule.CommandSafe import safe_shell_exec, safe_list_exec
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Config.IMConfig import IMConfig
 from MainObject.Config.SDConfig import SDConfig
@@ -652,8 +653,8 @@ class HostServer(BasicServer):
                             return ZMessage(
                                 success=False, action="VInstall",
                                 message=f"镜像文件不存在: {src_file_abs} 或 {src_file_alt}")
-                    exit_status = os.system(import_cmd)
-                    if exit_status != 0:
+                    ok, out, err = safe_shell_exec(import_cmd, timeout=120, allow_pipe=True)
+                    if not ok:
                         # 本地执行失败，回退到SSH方式执行 ========================
                         logger.warning(f"本地importdisk失败(exit={exit_status})，尝试SSH回退执行...")
                         try:
@@ -1622,7 +1623,8 @@ class HostServer(BasicServer):
                     stdout.channel.recv_exit_status()
                     ssh.close()
                 else:
-                    os.system(f"pvesm scan dir {storage_name} 2>/dev/null; pvesm status {storage_name}")
+                    safe_shell_exec(f"pvesm scan dir {storage_name} 2>/dev/null; pvesm status {storage_name}",
+                                   allow_pipe=False)
                 logger.info(f"通过命令刷新存储 {storage_name}")
             except Exception as ssh_err:
                 logger.warning(f"SSH刷新存储也失败: {ssh_err}")
@@ -1699,7 +1701,8 @@ class HostServer(BasicServer):
                     logger.error(f"SSH扩容失败: {err}")
                     return False
             else:
-                if os.system(cmd) != 0:
+                ok, _, _ = safe_shell_exec(cmd, timeout=60, allow_pipe=False)
+                if not ok:
                     logger.error(f"本地扩容命令失败: {cmd}")
                     return False
             logger.info(f"通过命令扩容磁盘 {disk_id} 到 {size_str}")
@@ -1740,11 +1743,8 @@ class HostServer(BasicServer):
                 result = stdout.read().decode().strip()
                 ssh.close()
             else:
-                import subprocess
-                proc = subprocess.run(
-                    probe_cmd, shell=True,
-                    capture_output=True, text=True)
-                result = proc.stdout.strip()
+                ok, out, _ = safe_shell_exec(probe_cmd, timeout=30, allow_pipe=False)
+                result = out.strip() if ok else ""
             # 结果形如: /mnt/nvme1/images/202/probe.qcow2
             if result and '/' in result:
                 # 取目录部分（去掉文件名）
@@ -1805,9 +1805,8 @@ class HostServer(BasicServer):
                 # 本地模式：直接创建qcow2文件
                 os.makedirs(disk_dir, exist_ok=True)
                 create_cmd = f"qemu-img create -f qcow2 {disk_dir}/{disk_name} {disk_size}"
-                exit_status = os.system(create_cmd)
-
-                if exit_status != 0:
+                ok, _, err = safe_shell_exec(create_cmd, timeout=60, allow_pipe=False)
+                if not ok:
                     # 本地执行失败，回退到SSH方式执行 ========================
                     logger.warning(f"本地创建qcow2失败(exit={exit_status})，尝试SSH回退执行...")
                     try:

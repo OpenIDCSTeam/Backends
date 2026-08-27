@@ -7,7 +7,8 @@
 #   安装（二进制，默认）:  curl -fsSL <URL> | sudo bash
 #   安装（源码模式）:      curl -fsSL <URL> | sudo bash -s -- --source
 # ============================================================================
-set -e
+set -euo pipefail
+umask 027
 
 # ======================== 解析参数 ========================
 INSTALL_MODE="binary"   # 默认二进制安装
@@ -316,13 +317,23 @@ SyslogIdentifier=openidcs
 # 安全限制
 LimitNOFILE=65536
 LimitNPROC=4096
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
     systemctl daemon-reload
-    info "systemd 服务已安装"
+    systemctl enable "${SERVICE_NAME}.service"
+    systemctl restart "${SERVICE_NAME}.service" || systemctl start "${SERVICE_NAME}.service"
+    info "systemd 服务已安装并启动"
 }
 
 # ======================== 主流程 ========================

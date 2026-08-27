@@ -78,7 +78,7 @@
 | S4 | 密码明文传输（无强制HTTPS） | 🟡中 | 全局 | 登录/注册时密码通过HTTP明文传输 |
 | S5 | 缺少CSRF防护 | 🟡中 | MainServer.py | Flask未配置CSRF Token验证 |
 | S6 | 缺少请求体大小限制 | 🟢低 | MainServer.py | 未设置 `MAX_CONTENT_LENGTH`，可能被大请求攻击 |
-| S7 | 日志中可能泄露敏感信息 | 🟢低 | 多处 | Token值在启动日志中打印 |
+| S7 | 日志中可能泄露敏感信息 | ✅部分修复 | MainServer.py | 启动日志已脱敏；仍需持续审计其他异常和调试日志 |
 
 ### 3.3 修复建议
 

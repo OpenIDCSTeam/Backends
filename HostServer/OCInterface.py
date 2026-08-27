@@ -6,9 +6,9 @@ import time
 import shutil
 import datetime
 import traceback
-import subprocess
 from loguru import logger
 from HostServer.BasicServer import BasicServer
+from HostModule.CommandSafe import safe_shell_exec, safe_list_exec
 from MainObject.Config.HSConfig import HSConfig
 from MainObject.Config.IMConfig import IMConfig
 from MainObject.Config.SDConfig import SDConfig
@@ -1189,10 +1189,8 @@ class HostServer(BasicServer):
                 os.makedirs(self.hs_config.backup_path, exist_ok=True)
                 # 使用docker export命令导出并通过gzip压缩 ================
                 logger.info(f"开始备份容器 {vm_name} 到 {bak_path}")
-                result = subprocess.run(
-                    cmd_exec, shell=True, capture_output=True, text=True)
-                # 检查备份结果 -------------------------------------------
-                if result.returncode == 0:
+                ok, _, err = safe_shell_exec(cmd_exec, timeout=300, allow_pipe=True)
+                if ok:
                     bak_flag = True
                 logger.info(
                     f"容器 {vm_name} 备份完成，"
